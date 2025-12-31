@@ -74,7 +74,6 @@ def train_epoch(
     # Test GPU computation
     if torch.cuda.is_available():
         x = torch.randn(batch_size, 128, 3, device=device)
-        y = torch.randn(batch_size, 32, device=device)
         z = torch.mm(x.view(batch_size, -1), x.view(batch_size, -1).T)
         result["test_computation"] = float(z.sum())
 
