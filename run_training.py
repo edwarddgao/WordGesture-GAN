@@ -11,8 +11,6 @@ import argparse
 
 # Fix token format for Modal authentication
 token_id = os.environ.get('MODAL_TOKEN_ID', '').strip('"')
-if not token_id.startswith('ak-'):
-    token_id = 'ak-' + token_id
 os.environ['MODAL_TOKEN_ID'] = token_id
 os.environ['MODAL_TOKEN_SECRET'] = os.environ.get('MODAL_TOKEN_SECRET', '').strip('"')
 
