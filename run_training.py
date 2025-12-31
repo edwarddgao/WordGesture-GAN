@@ -1,85 +1,53 @@
 #!/usr/bin/env python3
-"""Run WordGesture-GAN training on Modal cloud GPUs.
-
-This script handles the proxy patch for Claude Code environment
-and then runs the training functions on Modal.
-"""
+"""Run WordGesture-GAN training on Modal cloud GPUs."""
 import asyncio
 import argparse
 
-# Apply proxy patch BEFORE importing modal
-import modal_proxy_patch
-
-# Now import training functions
-from modal_train import app, train_epoch, full_training_run, check_volume_contents
+import modal_proxy_patch  # Must be before modal
+from modal_train import app, test_gpu, train, list_checkpoints
 
 
 async def run_test():
-    """Run a test epoch to verify GPU training works."""
-    print("Running test epoch on Modal GPU...")
+    """Test GPU access."""
+    print("Testing GPU access...")
     async with app.run():
-        result = await train_epoch.remote.aio(
-            epoch=0,
-            batch_size=512,
-            learning_rate=0.0002,
-        )
-        print(f"\n✓ Test epoch completed!")
+        result = await test_gpu.remote.aio()
         print(f"  Device: {result['device']}")
-        print(f"  GPU: {result.get('gpu_name', 'N/A')}")
+        print(f"  GPU: {result['gpu']}")
         print(f"  Status: {result['status']}")
-    return result
 
 
-async def run_full_training(epochs: int, batch_size: int, learning_rate: float):
-    """Run full training on Modal GPU."""
-    print(f"Starting full training run...")
-    print(f"  Epochs: {epochs}")
-    print(f"  Batch size: {batch_size}")
-    print(f"  Learning rate: {learning_rate}")
-
+async def run_train(epochs: int, batch_size: int, lr: float):
+    """Run training."""
+    print(f"Starting training: {epochs} epochs, batch_size={batch_size}, lr={lr}")
     async with app.run():
-        result = await full_training_run.remote.aio(
-            epochs=epochs,
-            batch_size=batch_size,
-            learning_rate=learning_rate,
-        )
-        print(f"\n✓ Training completed!")
-        for key, value in result.items():
-            print(f"  {key}: {value}")
-    return result
+        result = await train.remote.aio(epochs=epochs, batch_size=batch_size, learning_rate=lr)
+        print(f"Result: {result}")
 
 
-async def check_volume():
-    """Check contents of the Modal volume."""
-    print("Checking Modal volume contents...")
+async def run_list():
+    """List checkpoints."""
+    print("Checkpoints:")
     async with app.run():
-        result = await check_volume_contents.remote.aio()
-        print(f"\nVolume: {result['volume_path']}")
-        print(f"Files: {result['file_count']}")
-        for f in result.get('files', []):
+        result = await list_checkpoints.remote.aio()
+        for f in result["files"]:
             print(f"  {f['path']} ({f['size']} bytes)")
-    return result
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run WordGesture-GAN training on Modal")
-    parser.add_argument("command", choices=["test", "train", "check-volume"],
-                        help="Command to run")
-    parser.add_argument("--epochs", type=int, default=200,
-                        help="Number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=512,
-                        help="Training batch size")
-    parser.add_argument("--lr", type=float, default=0.0002,
-                        help="Learning rate")
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=["test", "train", "list"])
+    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--batch-size", type=int, default=512)
+    parser.add_argument("--lr", type=float, default=0.0002)
     args = parser.parse_args()
 
     if args.command == "test":
         asyncio.run(run_test())
     elif args.command == "train":
-        asyncio.run(run_full_training(args.epochs, args.batch_size, args.lr))
-    elif args.command == "check-volume":
-        asyncio.run(check_volume())
+        asyncio.run(run_train(args.epochs, args.batch_size, args.lr))
+    elif args.command == "list":
+        asyncio.run(run_list())
 
 
 if __name__ == "__main__":

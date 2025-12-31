@@ -103,14 +103,9 @@ For environments without local GPU access (e.g., Claude Code web containers), tr
 
 2. Run training:
    ```bash
-   # Test GPU access
-   python run_training.py test
-
-   # Full training run
-   python run_training.py train --epochs 200 --batch-size 512 --lr 0.0002
-
-   # Check volume contents
-   python run_training.py check-volume
+   python run_training.py test                # Test GPU access
+   python run_training.py train --epochs 200  # Run training
+   python run_training.py list                # List checkpoints
    ```
 
 ### How It Works
