@@ -4,8 +4,6 @@
 This script handles the proxy patch for Claude Code environment
 and then runs the training functions on Modal.
 """
-import os
-import sys
 import asyncio
 import argparse
 
@@ -29,8 +27,6 @@ async def run_test():
         print(f"  Device: {result['device']}")
         print(f"  GPU: {result.get('gpu_name', 'N/A')}")
         print(f"  Status: {result['status']}")
-        if 'test_computation' in result:
-            print(f"  Test computation: {result['test_computation']:.2f}")
     return result
 
 
