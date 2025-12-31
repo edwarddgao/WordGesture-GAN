@@ -1,11 +1,13 @@
-"""Patch grpclib to work through HTTP proxy for Modal."""
+"""Patch grpclib and aiohttp to work through HTTP proxy for Modal."""
 import os
 import ssl
 import asyncio
 import urllib.parse
 import grpclib.client
+import aiohttp
 from python_socks.sync import Proxy as SyncProxy
 from python_socks import ProxyType
+from aiohttp_socks import ProxyConnector
 
 
 def _create_proxy_ssl_context():
@@ -19,13 +21,9 @@ def _create_proxy_ssl_context():
     ctx.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20')
     return ctx
 
-def apply_proxy_patch():
-    """Apply monkey-patch to grpclib to route through HTTP proxy."""
-    proxy_url = os.environ.get('HTTPS_PROXY', '')
-    if not proxy_url:
-        print("No HTTPS_PROXY set, skipping patch")
-        return False
 
+def apply_grpclib_patch(proxy_url: str):
+    """Apply monkey-patch to grpclib to route through HTTP proxy."""
     parsed = urllib.parse.urlparse(proxy_url)
 
     # Store original method
@@ -81,7 +79,40 @@ def apply_proxy_patch():
     # Apply the patch
     grpclib.client.Channel._create_connection = patched_create_connection
     print("[modal_proxy_patch] grpclib patched to use HTTP proxy")
+
+
+def apply_aiohttp_patch(proxy_url: str):
+    """Patch Modal's http_utils to use HTTP proxy."""
+    # Patch Modal's _http_client_with_tls function
+    import modal._utils.http_utils as http_utils
+
+    def patched_http_client_with_tls(timeout):
+        """Create HTTP client that routes through proxy."""
+        import ssl
+        from aiohttp import ClientSession, ClientTimeout
+
+        # Use system CA certificates which include proxy certificates
+        ssl_context = ssl.create_default_context()
+        ssl_context.load_verify_locations(cafile='/etc/ssl/certs/ca-certificates.crt')
+
+        connector = ProxyConnector.from_url(proxy_url, ssl=ssl_context)
+        return ClientSession(connector=connector, timeout=ClientTimeout(total=timeout))
+
+    http_utils._http_client_with_tls = patched_http_client_with_tls
+    print("[modal_proxy_patch] Modal http_utils patched to use HTTP proxy")
+
+
+def apply_proxy_patch():
+    """Apply all necessary proxy patches for Modal."""
+    proxy_url = os.environ.get('HTTPS_PROXY', '')
+    if not proxy_url:
+        print("No HTTPS_PROXY set, skipping patch")
+        return False
+
+    apply_grpclib_patch(proxy_url)
+    apply_aiohttp_patch(proxy_url)
     return True
+
 
 # Auto-apply patch on import
 _patched = apply_proxy_patch()
