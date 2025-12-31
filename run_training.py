@@ -9,11 +9,6 @@ import sys
 import asyncio
 import argparse
 
-# Fix token format for Modal authentication
-token_id = os.environ.get('MODAL_TOKEN_ID', '').strip('"')
-os.environ['MODAL_TOKEN_ID'] = token_id
-os.environ['MODAL_TOKEN_SECRET'] = os.environ.get('MODAL_TOKEN_SECRET', '').strip('"')
-
 # Apply proxy patch BEFORE importing modal
 import modal_proxy_patch
 
