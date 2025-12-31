@@ -1,0 +1,58 @@
+name: Train on Modal GPU
+
+on:
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: 'Number of training epochs'
+        required: true
+        default: '200'
+      batch_size:
+        description: 'Batch size'
+        required: true
+        default: '512'
+      lr:
+        description: 'Learning rate'
+        required: true
+        default: '0.0002'
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Modal
+        run: pip install modal
+
+      - name: Authenticate Modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          modal token set --token-id "$MODAL_TOKEN_ID" --token-secret "$MODAL_TOKEN_SECRET"
+
+      - name: Run training on Modal
+        run: |
+          modal run modal_train.py \
+            --epochs ${{ github.event.inputs.epochs }} \
+            --batch-size ${{ github.event.inputs.batch_size }} \
+            --lr ${{ github.event.inputs.lr }}
+
+      - name: Download checkpoints from Modal volume
+        run: |
+          mkdir -p checkpoints
+          modal volume get wordgesture-gan-checkpoints / checkpoints/ || echo "No checkpoints to download"
+
+      - name: Upload checkpoints artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-checkpoints
+          path: checkpoints/
+          if-no-files-found: warn
