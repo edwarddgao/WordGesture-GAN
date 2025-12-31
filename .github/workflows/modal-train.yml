@@ -1,0 +1,41 @@
+name: Train on Modal
+
+on:
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: 'Number of training epochs'
+        required: false
+        default: '200'
+      batch_size:
+        description: 'Batch size'
+        required: false
+        default: '512'
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Modal
+        run: pip install modal
+
+      - name: Upload dataset to Modal volume
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          modal volume put wordgesture-dataset dataset/swipelogs.zip /swipelogs.zip || echo "Dataset already exists"
+
+      - name: Run training on Modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: |
+          modal run modal_app.py --epochs ${{ github.event.inputs.epochs }} --batch-size ${{ github.event.inputs.batch_size }}
