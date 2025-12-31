@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Train WordGesture-GAN with wandb logging and evaluation."""
 
-import modal_proxy_patch  # Must be first
+import os
+if not os.environ.get('MODAL_IS_REMOTE'):
+    import modal_proxy_patch  # Only patch locally, not in Modal container
 import modal
 import asyncio
 from datetime import datetime

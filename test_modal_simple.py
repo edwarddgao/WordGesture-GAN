@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Simple Modal test to verify GPU execution works."""
 
-import modal_proxy_patch  # Must be first
+import os
+if not os.environ.get('MODAL_IS_REMOTE'):
+    import modal_proxy_patch  # Only patch locally, not in Modal container
 import modal
 import asyncio
 

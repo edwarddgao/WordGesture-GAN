@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Train WordGesture-GAN and run evaluation metrics (no wandb for faster startup)."""
 
-import modal_proxy_patch  # Must be first
+import os
+if not os.environ.get('MODAL_IS_REMOTE'):
+    import modal_proxy_patch  # Only patch locally, not in Modal container
 import modal
 import asyncio
 from datetime import datetime
@@ -271,15 +273,15 @@ def train_and_evaluate(num_epochs: int = 200):
     print('=' * 65)
 
     return {
-        'l2_xy': l2_xy,
-        'l2_xyt': l2_xyt,
-        'dtw_xy': dtw_xy,
-        'jerk_real': jerk_real,
-        'jerk_fake': jerk_fake,
-        'vcorr': vcorr,
-        'precision': prec,
-        'recall': rec,
-        'train_time_min': train_time,
+        'l2_xy': float(l2_xy),
+        'l2_xyt': float(l2_xyt),
+        'dtw_xy': float(dtw_xy),
+        'jerk_real': float(jerk_real),
+        'jerk_fake': float(jerk_fake),
+        'vcorr': float(vcorr),
+        'precision': float(prec),
+        'recall': float(rec),
+        'train_time_min': float(train_time),
     }
 
 

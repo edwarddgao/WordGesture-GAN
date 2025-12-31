@@ -17,10 +17,11 @@ Usage:
     python run_modal_training.py
 """
 
-import modal_proxy_patch  # MUST be first - patches grpclib for HTTP proxy
+import os
+if not os.environ.get('MODAL_IS_REMOTE'):
+    import modal_proxy_patch  # Only patch locally, not in Modal container
 import modal
 import asyncio
-import os
 
 # Create Modal app
 app = modal.App("wordgesture-gan-training")
