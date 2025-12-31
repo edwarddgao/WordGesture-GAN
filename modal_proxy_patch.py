@@ -7,6 +7,18 @@ import grpclib.client
 from python_socks.sync import Proxy as SyncProxy
 from python_socks import ProxyType
 
+
+def _create_proxy_ssl_context():
+    """Create SSL context that works with proxy CA certificates."""
+    ctx = ssl.create_default_context()
+    # Load system CA bundle which includes proxy certificates
+    ctx.load_verify_locations(cafile='/etc/ssl/certs/ca-certificates.crt')
+    # Set HTTP/2 ALPN protocols
+    ctx.set_alpn_protocols(['h2'])
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20')
+    return ctx
+
 def apply_proxy_patch():
     """Apply monkey-patch to grpclib to route through HTTP proxy."""
     proxy_url = os.environ.get('HTTPS_PROXY', '')
@@ -44,10 +56,11 @@ def apply_proxy_patch():
         # Make non-blocking for asyncio
         raw_sock.setblocking(False)
 
-        # Create SSL context if needed
-        if self._ssl:
-            ssl_context = ssl.create_default_context()
-            server_hostname = self._config.ssl_target_name_override if self._ssl else None
+        # Determine SSL context and server hostname
+        # Create a custom SSL context with proxy CA and H2 ALPN
+        if self._ssl is not None:
+            ssl_context = _create_proxy_ssl_context()
+            server_hostname = self._config.ssl_target_name_override
             if server_hostname is None:
                 server_hostname = self._host
         else:
@@ -55,9 +68,8 @@ def apply_proxy_patch():
             server_hostname = None
 
         # Create asyncio transport/protocol using the connected socket
-        # Let asyncio handle SSL wrapping
-        loop = asyncio.get_event_loop()
-        _, protocol = await loop.create_connection(
+        # Use self._loop to match the original implementation
+        _, protocol = await self._loop.create_connection(
             self._protocol_factory,
             sock=raw_sock,
             ssl=ssl_context,
