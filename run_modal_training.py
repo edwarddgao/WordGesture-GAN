@@ -25,7 +25,10 @@ import os
 # Create Modal app
 app = modal.App("wordgesture-gan-training")
 
-# Create image with PyTorch and dependencies, including local source code
+# Use persistent volume for dataset (faster than uploading each time)
+data_volume = modal.Volume.from_name("wordgesture-data", create_if_missing=True)
+
+# Create image with PyTorch and dependencies (src/data are in volume)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -34,14 +37,13 @@ image = (
         "matplotlib>=3.7.0",
         "scipy>=1.10.0",
     )
-    .add_local_dir("/home/user/WordGesture-GAN/src", remote_path="/app/src")
-    .add_local_dir("/home/user/WordGesture-GAN/dataset", remote_path="/data")
 )
 
 
 @app.function(
     gpu="T4",
     image=image,
+    volumes={"/data": data_volume},
     timeout=3600,  # 1 hour timeout
 )
 def train_wordgesture_gan(
@@ -68,8 +70,8 @@ def train_wordgesture_gan(
     import numpy as np
     from datetime import datetime
 
-    # Add src to path
-    sys.path.insert(0, '/app')
+    # Add src to path (stored in volume)
+    sys.path.insert(0, '/data')
 
     from src.config import ModelConfig, TrainingConfig
     from src.keyboard import QWERTYKeyboard
