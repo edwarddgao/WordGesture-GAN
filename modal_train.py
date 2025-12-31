@@ -4,6 +4,7 @@ This module defines Modal functions for training the WordGesture-GAN model.
 Uses modal.Mount to include the existing src/ code, avoiding duplication.
 """
 import modal
+import os
 from pathlib import Path
 
 # Create the training app
@@ -26,6 +27,7 @@ training_image = (
         "matplotlib>=3.7.0",
         "tqdm>=4.65.0",
     )
+    .env({"PYTHONPATH": "/root"})
 )
 
 # Volume for storing checkpoints and results
@@ -46,13 +48,7 @@ def train_epoch(
     learning_rate: float = 0.0002,
     checkpoint_path: str = None,
 ):
-    """Train one epoch of the WordGesture-GAN model.
-
-    Uses the mounted src/ modules for actual training logic.
-    """
-    import sys
-    sys.path.insert(0, "/root")  # Add mounted src to path
-
+    """Train one epoch of the WordGesture-GAN model."""
     import torch
     from src.config import TrainingConfig, ModelConfig
     from src.trainer import Trainer
@@ -92,11 +88,7 @@ def full_training_run(
     resume_from: str = None,
 ):
     """Run full WordGesture-GAN training using existing src/ modules."""
-    import sys
-    sys.path.insert(0, "/root")
-
     import torch
-    import os
     from src.config import TrainingConfig, ModelConfig
     from src.trainer import Trainer
     from src.data import SwipeDataset
@@ -139,8 +131,6 @@ def full_training_run(
 )
 def check_volume_contents():
     """Check what's in the training volume."""
-    import os
-
     contents = []
     for root, dirs, files in os.walk(VOLUME_PATH):
         for f in files:
@@ -169,8 +159,6 @@ def upload_source_code(source_code: dict):
     Returns:
         dict with upload status
     """
-    import os
-
     src_dir = os.path.join(VOLUME_PATH, "src")
     os.makedirs(src_dir, exist_ok=True)
 
