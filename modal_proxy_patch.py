@@ -25,7 +25,7 @@ def apply_proxy_patch():
             # Unix socket - use original
             return await original_create_connection(self)
 
-        # Create sync proxy (to get raw socket)
+        # Create sync proxy connection to get raw socket
         sync_proxy = SyncProxy(
             proxy_type=ProxyType.HTTP,
             host=parsed.hostname,
@@ -34,14 +34,15 @@ def apply_proxy_patch():
             password=parsed.password
         )
 
-        sock = sync_proxy.connect(
+        # Connect through proxy (sync to get raw socket)
+        raw_sock = sync_proxy.connect(
             dest_host=self._host,
             dest_port=self._port,
             timeout=30
         )
 
-        # Make socket non-blocking for asyncio
-        sock.setblocking(False)
+        # Make non-blocking for asyncio
+        raw_sock.setblocking(False)
 
         # Create SSL context if needed
         if self._ssl:
@@ -54,10 +55,11 @@ def apply_proxy_patch():
             server_hostname = None
 
         # Create asyncio transport/protocol using the connected socket
+        # Let asyncio handle SSL wrapping
         loop = asyncio.get_event_loop()
         _, protocol = await loop.create_connection(
             self._protocol_factory,
-            sock=sock,
+            sock=raw_sock,
             ssl=ssl_context,
             server_hostname=server_hostname
         )
