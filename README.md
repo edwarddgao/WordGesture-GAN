@@ -89,6 +89,34 @@ Resume training from checkpoint:
 python train.py --resume checkpoints/checkpoint_epoch_100.pt
 ```
 
+## Cloud GPU Training (Modal)
+
+For environments without local GPU access (e.g., Claude Code web containers), training can be run on Modal cloud GPUs.
+
+### Setup
+
+1. Set Modal credentials as environment variables:
+   ```bash
+   export MODAL_TOKEN_ID="ak-..."
+   export MODAL_TOKEN_SECRET="as-..."
+   ```
+
+2. Run training:
+   ```bash
+   # Test GPU access
+   python run_training.py test
+
+   # Full training run
+   python run_training.py train --epochs 200 --batch-size 512 --lr 0.0002
+
+   # Check volume contents
+   python run_training.py check-volume
+   ```
+
+### How It Works
+
+The `modal_proxy_patch.py` module patches grpclib to route gRPC connections through HTTP proxies, enabling Modal access from restricted network environments. Training functions are defined in `modal_train.py` and executed on Tesla T4 GPUs via Modal's infrastructure.
+
 ### Training Parameters (from paper)
 
 | Parameter | Value | Description |
