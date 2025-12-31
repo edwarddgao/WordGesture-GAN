@@ -1,0 +1,910 @@
+age	dominant_hand	english_level	familiarity	gender	language	max_touch_points	nationality	screen_height	screen_width	swipe_finger	swipe_hand	timestamp	uid	vendor
+19	right	beginner	sometimes	female	en	5	ae	640	360	thumb	right	1583309231	0q1sat7ola2osk0ohdtciaboba	google inc.
+19	left	native	rarely	female	en	5	us	869	412	index	right	1583136907	124p7a10vadpv7d0rk37oiv3g5	google inc.
+44	left	beginner	rarely	female	en	5	mx	640	360	index	both	1582648583	19hubm5jt63707ejbcnkimlr08	google inc.
+18	right	intermediate	never	female	mt	5	mt	892	412	thumb	right	1582555916	20sa5uaiit0t55or9miatm70tv	google inc.
+38	right	advanced	rarely	male	es	5	mx	846	412	thumb	both	1582073116	2r7mdfhcjesci8trr5afg2akq5	google inc.
+18	right	advanced	sometimes	male	en	5	ca	667	375	thumb	right	1581726141	2sd22gsn7kdnhs3mrmh93j7hvk	apple computer, inc.
+25	right	native	rarely	female	en	5	us	896	414	other	right	1582827386	3a064eetjpjpr55674f3qc5t55	apple computer, inc.
+19	left	native	rarely	male	en	5	us	869	412	thumb	right	1582557536	3fmgdlooume5t7fu6dula4rn8m	google inc.
+22	right	native	often	female	en	5	us	896	414	thumb	right	1583387995	4ikrjsdgdlgfhvsbekfpo8605g	apple computer, inc.
+28	right	intermediate	often	female	en	5	ph	892	412	index	right	1579834108	5d7p99g83mp9uuokn00opv8frt	google inc.
+31	right	advanced	everyday	male	en	5	my	732	412	index	right	1576849568	5m2nru074arvgl515ga8mu05rl	google inc.
+22	left	beginner	sometimes	female	en	5	ph	760	360	thumb	left	1580274801	5v92ebr64nahqa93mh9t65ofda	google inc.
+18	right	advanced	rarely	female	en	5	us	823	412	thumb	both	1581656218	6sb7htkpjvrlsumorq05erf1n0	google inc.
+22	right	native	rarely	female	en	5	us	869	412	thumb	right	1580919919	74qasquu2u5u5agskrvppvk0eq	google inc.
+27	right	intermediate	never	female	en	5	us	896	414	thumb	right	1582048186	86d8ocsf4f9lo4igj1god6iesb	apple computer, inc.
+24	right	native	everyday	female	en	5	us	640	360	thumb	right	1581843300	8dcghs01sg6hcpp8i0mrv7d1rs	google inc.
+18	right	native	often	female	en	5	us	896	414	thumb	right	1583213505	8k86nv1j6q7rj77qhjbms4n7ju	apple computer, inc.
+48	right	native	rarely	female	en	5	us	720	360	index	right	1581047831	8p7n0r2f78cskbmn80tvejfrav	google inc.
+18	right	advanced	never	female	en	5	be	740	360	thumb	right	1580469960	9fop7gk38m4cgogpidhgs8n4vl	google inc.
+25	right	advanced	everyday	male	en	5	us	736	414	thumb	right	1582603677	9ioga6dl8rfevttp2s35ukpv7d	apple computer, inc.
+37	right	native	rarely	female	en	5	us	720	360	index	right	1580564514	a8ubo91lo8u5omoteii578816n	google inc.
+23	right	native	rarely	other	en	5	us	812	375	other	right	1580887866	a93hub6aps3ssjd7higq2buf7v	apple computer, inc.
+29	right	beginner	never	female	en	5	gb	780	360	thumb	right	1582377529	b75bbqhl2prg5d8fevbs0ffinc	google inc.
+30	right	advanced	often	male	tr	5	de	760	360	thumb	right	1576778935	bfe8gsevjmmf0dge23dqrbp9sj	google inc.
+20	left	native	rarely	male	en	5	us	896	414	index	left	1582142413	bvblc1hlhbbnhnpfiki4j7ei5e	apple computer, inc.
+26	right	native	everyday	male	en	5	us	786	393	thumb	right	1579889128	c40f6124k80b15766rucr8vp4o	google inc.
+20	right	intermediate	everyday	female	en	5	al	846	412	thumb	both	1583226604	co6o7mr8qqkgsvdvuduutatc5e	google inc.
+27	right	intermediate	rarely	male	es	5	mx	780	360	thumb	both	1581645467	cojvqsqv0old8rv7tfpq7b1k5h	google inc.
+19	right	advanced	sometimes	female	en	5	us	896	414	thumb	both	1582910313	d45ttsaepg93mlb770ldedkd7v	apple computer, inc.
+19	right	advanced	sometimes	female	en	5	us	896	414	index	both	1582523333	d6fj8gs287jfbnlirbb9mcfvm1	apple computer, inc.
+25	right	advanced	sometimes	male	en	5	jm	892	412	thumb	right	1583371066	drv7aoj7pdvdeevvkvasri8ssi	google inc.
+18	right	native	often	female	en	5	us	736	414	thumb	right	1583344090	f01q6mintpac81i2kt7fvd50au	apple computer, inc.
+28	right	advanced	often	male	en	5	us	736	414	index	right	1580480904	f3lratp81u1m8omcqtmhm3ppv5	apple computer, inc.
+21	right	native	everyday	male	en	5	nz	780	360	index	right	1581938607	f6lfusie76tgftok8q6ine7bor	google inc.
+28	right	advanced	rarely	female	en	5	ng	892	412	other	both	1582551698	fu3jnt1g8qghfo6eelkjnt9ojr	google inc.
+22	right	intermediate	everyday	male	en	5	mx	640	360	thumb	right	1580512446	g6mi1o6bprs44mo5u5f8ef3qdg	google inc.
+18	left	beginner	never	female	en	5	gb	667	375	thumb	left	1580049242	g7n7vn7s7ia4d4ce4nc87r37n9	apple computer, inc.
+20	right	beginner	sometimes	female	es	5	mx	760	360	thumb	both	1580841535	gjqrnn8ll95rvm42iu0ata5fj5	google inc.
+39	right	native	never	female	en	5	us	846	412	index	both	1582134688	gmduf586a93bv9173llhg2844l	google inc.
+29	right	advanced	never	female	en	5	za	892	412	other	right	1581961033	gv2r13qfifkdth6umu9lb4j9bh	google inc.
+20	right	native	rarely	female	en	5	us	667	375	index	right	1580065295	h0n00dok158qf2d7k1cl6ulos4	apple computer, inc.
+50	right	intermediate	everyday	male	en	5	in	640	360	index	right	1583499479	herb2t890e1jpji6ja6abudfil	google inc.
+19	right	beginner	rarely	male	en	5	pk	740	360	thumb	right	1581107508	hh4bv0fg35l2e0i595rl29juip	google inc.
+23	left	intermediate	never	male	en	5	ph	780	360	index	right	1582073233	htfrh6cu4j66lqe67uqo86ogg7	google inc.
+24	right	native	sometimes	male	en	5	gb	780	360	thumb	right	1583595028	iip8h46rs7rhb4o2bn8as180st	google inc.
+21	right	advanced	never	female	en	5	za	640	320	thumb	both	1579851355	is5bfseu20up18lpl6k6a5nafe	google inc.
+32	right	advanced	rarely	male	fi	5	fi	640	360	thumb	right	1582532827	j705850kl9opcn7838vrtd9rm5	google inc.
+20	right	beginner	sometimes	female	en	5	gb	851	393	index	right	1582834596	jq4nvupqihmp5kmd13rlh9i4du	google inc.
+39	right	intermediate	everyday	female	en	5	mx	869	412	thumb	right	1580151532	kkcmntsoqsb65bn13djrvlhtm3	google inc.
+22	right	intermediate	rarely	male	en	5	mx	748	360	thumb	right	1581917111	le1m98im51pntmmmi6oo7lc0g8	google inc.
+21	right	advanced	sometimes	female	en	5	us	896	414	thumb	right	1582750362	mjuldsp4eao328had5hqsppsmu	apple computer, inc.
+20	right	advanced	rarely	female	en	5	us	896	414	thumb	right	1582856755	nlk620sb071v3rbolt0ibje7ra	apple computer, inc.
+18	right	advanced	sometimes	male	es	5	mx	667	375	thumb	right	1582067272	nmkr5vkio8fvbnrbk8gna22map	apple computer, inc.
+40	right	advanced	sometimes	female	en	5	us	570	320	index	right	1579827849	o4f0nj3bltkia49p8gbela3f8h	google inc.
+32	right	advanced	everyday	female	en	5	ma	640	360	index	right	1580287098	oqenr0uo2uhlcikklu30mq6igo	google inc.
+41	left	beginner	everyday	female	en	5	us	732	412	index	right	1579977887	ouv85pqfdd63m3ksedjuin7seh	google inc.
+18	right	advanced	rarely	female	en	5	gb	869	412	index	right	1580502381	q12dm7ien4qlaa4nunha208nah	google inc.
+18	right	intermediate	sometimes	male	en	5	in	732	412	index	right	1579794689	q7ki78eo6b4166ec2ta5eosr95	google inc.
+24	right	native	never	female	en	5	us	667	375	thumb	right	1582058979	qpg6t56086t5s263ho2o8lopju	apple computer, inc.
+27	left	intermediate	rarely	female	en	5	my	760	360	thumb	both	1579937129	r386k89adl3e372j4u62f73equ	google inc.
+34	right	native	rarely	female	en	5	us	667	375	thumb	right	1583598506	t7sf3fmcol8tndg0s83gnfrvdo	apple computer, inc.
+19	right	advanced	everyday	male	it	5	it	760	360	index	right	1583434565	t87h1u7rktm7h0ar1lvrpu02qt	google inc.
+30	left	intermediate	sometimes	male	en	5	mx	846	412	index	both	1583246350	tvo6clenk24njcqgei63plmrkh	google inc.
+27	right	beginner	rarely	male	en	5	pk	780	360	thumb	right	1580806310	u0g4uivv8cluuck6kno83kkrdh	google inc.
+40	right	advanced	everyday	male	en	5	es	720	360	index	right	1576776988	u4r7e8a4v272dljc3s5imn3ilr	google inc.
+28	right	advanced	rarely	female	en	5	ng	892	412	thumb	right	1582737988	ui7cc423a2muf7qq6h8f84v9bc	google inc.
+18	right	beginner	rarely	female	en	5	gb	760	360	thumb	right	1581775364	un6l5bp63noioqf7u8t5jocohm	google inc.
+22	right	advanced	rarely	male	en	5	mx	732	412	thumb	both	1583685271	uqj0mbspu20f3b2asvgfvvetji	google inc.
+18	right	native	rarely	female	en	5	gb	720	360	thumb	right	1582973346	vhh8la63ns6da877r6i2c7ca43	google inc.
+23	right	native	sometimes	male	en	5	us	896	414	index	right	1581704894	03ft0n5ol992m393fb9lpc0uqt	apple computer, inc.
+18	right	advanced	sometimes	male	en	5	mx	720	360	thumb	right	1580861774	0l6u4kv1aag7b0ok7qaq241sqn	google inc.
+21	right	native	sometimes	female	en	5	us	892	412	thumb	right	1580688123	1p98mlj50tua8uah6buchskssj	google inc.
+18	right	native	sometimes	female	en	5	sg	896	414	index	right	1582547212	27dqv64ncdpca90ch5d14uv8ru	apple computer, inc.
+20	right	intermediate	everyday	male	en	5	us	896	414	thumb	right	1583614311	2c30a5a6amjsgs1ganoo6kg2lb	apple computer, inc.
+18	right	intermediate	sometimes	female	en	5	ph	667	375	thumb	right	1583223902	2f7p9ceo2b9gi78euj4tmcko5j	apple computer, inc.
+19	right	native	rarely	female	en	5	in	892	412	index	right	1580987822	3skbfobe25jrha6aj7eha1ud5m	google inc.
+20	right	intermediate	rarely	female	en	5	ph	760	360	thumb	right	1581463691	3t65lkgnrtv209kmehdm6pdtnv	google inc.
+29	right	native	sometimes	female	en	5	ph	846	412	index	right	1582225019	54onsngp4anr4f0jjemaebvtd6	google inc.
+35	right	intermediate	rarely	male	en	5	mx	720	360	index	right	1582329801	59ml7c5h48lm07c2plql2teopj	google inc.
+18	right	advanced	everyday	female	en	5	mx	760	360	thumb	right	1581446972	6bfal4rai6akka6pthskjgraeb	google inc.
+24	right	native	sometimes	female	en	5	us	892	412	index	right	1581382429	75o70ttqamvtga7k6tlmj5grba	google inc.
+21	right	beginner	never	female	en	5	bw	780	360	index	right	1580594579	8cjh126th7t8fbo0muegl3t2bo	google inc.
+36	right	native	everyday	female	en	5	us	892	412	thumb	right	1583559026	8f5an6pn92bcjff68d2jjicfvb	google inc.
+18	right	intermediate	rarely	female	en	5	in	780	360	thumb	right	1582392825	8npfo3sc68tgsalt12n1terk97	google inc.
+21	right	native	everyday	female	en	5	us	720	360	thumb	right	1580840604	8u1m0cv0i6oelvil5nknbgae4h	google inc.
+29	right	beginner	everyday	female	en	5	us	667	375	thumb	right	1583031669	9lka6a1bk16mj5idhrla6sjl3q	apple computer, inc.
+20	left	advanced	often	female	en	5	us	640	360	thumb	both	1581034116	9pmlfh3t2iu6i058t9f9ntatme	google inc.
+24	right	advanced	everyday	male	fi	5	in	839	412	thumb	right	1579957420	9qbprvgb5u70g6k019h6mjuoa9	google inc.
+18	right	native	rarely	male	en	5	ca	740	360	thumb	right	1580832138	aats6k10q52vtrrm2c2f98onho	google inc.
+25	right	advanced	sometimes	male	en	5	in	830	393	thumb	right	1582107645	bi09171bvb0sqb0hgkt09spmpk	google inc.
+18	right	native	rarely	female	en	5	gb	667	375	thumb	right	1581240874	cscg0259d07s353vf5e1fqainn	apple computer, inc.
+24	right	advanced	sometimes	female	en	5	us	896	414	thumb	right	1581680713	d7bc6kbb13fdl1hqhfeileomet	apple computer, inc.
+25	right	advanced	often	male	en	5	my	846	412	other	both	1580315934	dos75clc7q6gp19vfdatjkgjac	google inc.
+18	right	advanced	rarely	male	mr	5	in	720	360	index	right	1583063492	dpv0e4urv38qgd65hevlttu3jn	google inc.
+18	right	native	rarely	female	ko	5	us	732	412	thumb	right	1581232095	drb8t4sdqqlcfbbl7n5oaquj8i	google inc.
+18	right	native	everyday	male	en	5	us	667	375	thumb	right	1579823042	ff3arl8el636cjph4f3il168g4	apple computer, inc.
+20	right	beginner	sometimes	female	en	5	ph	640	360	thumb	right	1582013545	fm3oceoht7untd5n94ojnvb4m6	google inc.
+40	right	intermediate	rarely	male	en	5	al	786	393	thumb	right	1581256331	g4fu670a6o4gt011dpojgj4ll5	google inc.
+18	right	beginner	everyday	male	en	5	fi	720	360	index	right	1579184990	gcjta26df11np5fcv6a7u268ce	google inc.
+18	right	advanced	everyday	male	es	5	mx	667	375	thumb	right	1580228474	hi28obrqs13hh1hr4cm8rhhk07	apple computer, inc.
+18	right	native	sometimes	female	en	5	us	667	375	thumb	right	1581836296	io3f81o3hmkrctv3eknpuikad6	apple computer, inc.
+30	right	beginner	sometimes	female	en	5	de	720	360	thumb	right	1583334818	j597nohd581alcegkin766uubv	google inc.
+18	right	intermediate	everyday	male	es	5	do	720	360	other	both	1583334157	j5ckae4oho9ptccidv1h4p0np5	google inc.
+19	right	beginner	often	female	en	5	ph	640	360	thumb	both	1580443309	jaajl1cuss3q0ei335261vnnv9	google inc.
+33	right	beginner	often	female	en	5	us	760	360	index	right	1583222467	k3ga8qla7bact246kpm6nq2aqo	google inc.
+25	right	advanced	everyday	female	en	5	ph	760	360	index	right	1582165609	kfmi3nejcdvpp09s1r8mn886qg	google inc.
+18	right	native	often	female	en	5	us	736	414	thumb	right	1580451235	kjeffsigklmi93dnv5stavpkij	apple computer, inc.
+19	right	intermediate	often	female	en	5	ph	812	375	thumb	right	1582143690	lf5k3hgnu6fjc740btgpiekvt5	apple computer, inc.
+27	right	advanced	rarely	female	en	5	us	896	414	thumb	right	1582133959	lied1d3ra6mfbcc5em8vc32pf9	apple computer, inc.
+23	right	advanced	rarely	female	en	5	jm	732	412	thumb	right	1580320601	ln7ccrpj4oqvg6j2tkajmn07bg	google inc.
+21	right	native	often	male	en	5	gb	780	360	thumb	right	1581448046	mf6i7kacj98e1pc9uq9u2cqu5j	google inc.
+32	right	advanced	rarely	female	en	5	mx	846	412	index	right	1579735730	mfm67dapsdrkdqopth7mi6uvn9	google inc.
+21	left	beginner	sometimes	female	en	5	ph	869	412	thumb	both	1581654031	nmvmn2re2gut5ocsh8orgocg5v	google inc.
+18	right	beginner	everyday	female	en	5	ph	640	360	thumb	both	1582553642	plk0ke2bra8up082e78p4fqnb0	google inc.
+18	right	intermediate	sometimes	male	en	5	mx	780	360	index	right	1581128725	pon0nl4q4uqn3lhjrhte7fekiv	google inc.
+18	right	beginner	rarely	female	es	5	mx	640	360	index	both	1579805092	rl4qp0sqshln58m13bs3uoddi6	google inc.
+35	right	intermediate	rarely	female	en	5	us	736	414	other	both	1582242779	see4df1u1d35ft6b7d46cq87em	apple computer, inc.
+26	right	intermediate	often	female	en	5	ph	846	412	thumb	right	1580128629	sm6b691pljseb8ec95otg73l5j	google inc.
+26	right	intermediate	sometimes	male	en	5	ph	720	360	thumb	right	1581937321	srd48una6g1k4tkqj14cbildlq	google inc.
+18	right	native	rarely	female	en	5	gb	667	375	thumb	right	1581594756	ta401tjoignfshv44gab3tosjl	apple computer, inc.
+24	right	beginner	everyday	female	en	5	ph	640	360	thumb	right	1583462898	tcq1l6a77u5f30dimi9kaqcflg	google inc.
+30	right	native	rarely	female	en	5	us	869	412	thumb	both	1581003498	tqu1fk4i2hk46r2vio1p0ehbp8	google inc.
+21	right	advanced	often	female	en	5	us	720	360	thumb	right	1580496345	umd65cin6oj2eq14v80gddecut	google inc.
+18	right	native	rarely	male	en	5	us	869	412	thumb	right	1580421052	vj0lcbqnbljj65toi2tcqs69bq	google inc.
+18	right	advanced	everyday	male	en	5	mx	667	375	index	right	1582090216	vok8nn6asmnfjdsnok55c8g48p	apple computer, inc.
+19	right	native	sometimes	female	en	5	us	896	414	index	right	1581553648	03rfss9shetb8h3n7aq70j1sjj	apple computer, inc.
+22	right	native	everyday	female	en	5	us	896	414	thumb	right	1583722130	21dadeslkumk72cll4tqlce9t0	apple computer, inc.
+18	right	intermediate	sometimes	male	en	5	au	720	360	thumb	both	1580805810	4bmh9ise7qmk3sgdvk597ia17r	google inc.
+27	right	advanced	rarely	female	en	5	us	640	360	thumb	right	1581059544	4gjigg7buujmu0se9oqt716323	google inc.
+21	right	beginner	sometimes	male	en	5	in	851	393	thumb	right	1579795151	5j0oi6uu3oc682l9g7an8f5fs2	google inc.
+27	right	advanced	sometimes	female	en	5	us	823	412	thumb	right	1579739482	bjn01fp1b7hqglrvgc0ldfn3a6	google inc.
+24	right	native	often	female	en	5	us	736	414	thumb	left	1583353065	blthbs6v066vdtgjit01460f8t	apple computer, inc.
+19	right	native	often	male	en	5	us	812	375	thumb	right	1582919039	d000cqka10b64sv7rhkbhn8ai7	apple computer, inc.
+19	right	advanced	sometimes	female	en	5	us	896	414	thumb	right	1581717517	efv60jljub8o6qahg8h9culn3e	apple computer, inc.
+18	right	native	rarely	male	en	5	us	869	412	thumb	right	1583698034	g94lb6jl2bivbh9t5m1johmf1k	google inc.
+20	right	beginner	everyday	female	en	5	ph	760	360	thumb	both	1580222489	h8nssui4mtaco3ts1i5cu4vc7j	google inc.
+18	right	native	rarely	female	en	5	us	736	414	thumb	right	1581139655	hnn5b4k0ampd0ama4hadc3cg0i	apple computer, inc.
+18	right	beginner	rarely	female	en	5	us	846	412	thumb	right	1580680269	jqhvdp5iu8o8f98hvco46ouat7	google inc.
+31	right	native	rarely	male	es	5	mx	740	360	index	both	1581923537	k5bqdo2qb6tv2lk0fngse9ladc	google inc.
+24	left	advanced	everyday	female	en	5	in	720	360	thumb	right	1582711972	l6cf3uum3ucrlsonja81rtdu2i	google inc.
+19	right	intermediate	rarely	male	en	5	sg	736	414	index	right	1581662568	n8ek7e2n0lqid777j39gscha51	apple computer, inc.
+28	right	advanced	often	female	en	5	jm	869	412	thumb	right	1583282753	p4q2l5eipl5hdhbvfq41esb333	google inc.
+26	right	advanced	never	female	en	5	us	892	412	thumb	right	1582132460	p55o8r3n63h5lk9b4r9e19to0d	google inc.
+22	right	native	rarely	male	en	5	us	896	414	thumb	right	1582732084	qaci1s4srsev391p7naj1nimhc	apple computer, inc.
+24	right	native	never	female	en	5	us	846	412	thumb	right	1581340602	qf8mk0od5tru1kgnfbrau007mc	google inc.
+89	right	beginner	rarely	female	en	5	us	869	412	index	right	1582259982	qj1b6c9lqtjqslp2phgd7i7n2v	google inc.
+27	right	beginner	often	female	en	5	ph	760	360	thumb	right	1582215271	qntdng7p3ela7n98anfd7srt6s	google inc.
+18	right	advanced	everyday	male	en	5	in	892	412	thumb	right	1583726006	r21jt4hd575enrjohj7r5iu8ao	google inc.
+22	left	intermediate	sometimes	female	en	5	ph	760	360	thumb	left	1580458172	r47f7ai29dtfstad37ele3dpec	google inc.
+31	right	intermediate	sometimes	female	ko	5	ph	869	412	index	both	1580088801	rjbrk9qslcuqhbqk7gkjouk647	google inc.
+18	left	advanced	rarely	male	es	5	us	640	360	thumb	left	1580436660	squohg4if0ep5ovccbn4gv1bv6	google inc.
+18	right	intermediate	everyday	female	es	5	mx	667	375	thumb	both	1580698873	v709lbhevjhpig8ed1h9adi8f4	apple computer, inc.
+18	right	beginner	sometimes	male	en	5	in	892	412	index	right	1582442338	1evbgh3q4m9rr0i7dn1mfc2ser	google inc.
+25	right	advanced	often	female	en	5	za	780	360	index	right	1580290149	2sf2irij5ke1ll44qecbn4cuje	google inc.
+35	right	native	often	male	en	5	us	812	375	index	right	1579748462	6bhtgrt1pmbd88qnaul53k67d6	apple computer, inc.
+26	left	advanced	sometimes	male	en	5	ht	736	414	thumb	left	1582221575	8rbmm0bgm75vfss9hqnd770g3m	apple computer, inc.
+36	left	intermediate	never	female	en	5	us	869	412	index	left	1583477451	96753bakakn0ltf43elilcam9q	google inc.
+18	right	native	rarely	female	en	5	ca	740	360	index	both	1580509781	9v4oqtjk0e69u1sm7vctj6htn9	google inc.
+19	right	advanced	rarely	male	es	5	mx	846	412	thumb	right	1583425510	buol90urn8cub07rvvppa8p1b3	google inc.
+18	right	beginner	sometimes	other	en	5	us	760	360	thumb	right	1581439242	d3sk7vto2l620a3jlab955pq9u	google inc.
+18	left	intermediate	rarely	male	en	5	mx	720	360	thumb	left	1583420237	e2qv1i96tuh6cnneabtdsitabn	google inc.
+18	right	beginner	never	female	en	5	gb	812	375	index	right	1583674875	fhf159fbp3cv5336r1ov7f4frm	apple computer, inc.
+25	right	beginner	often	female	en	5	ph	892	412	thumb	both	1580100110	ghn3hdd6qc51q2edc9qvq5pcus	google inc.
+24	right	advanced	sometimes	female	en	5	za	780	360	thumb	both	1582267358	gqqucouij2rhailcu5dvtgndjn	google inc.
+19	right	beginner	never	female	en	5	in	732	412	thumb	both	1583340988	h2871fit6n824aik6o9g4pqqaj	google inc.
+18	right	intermediate	sometimes	male	en	5	br	720	360	index	right	1583451564	ir3oefnlf2k1794rkoor4r81ah	google inc.
+32	right	beginner	often	female	en	5	us	823	412	other	right	1580677237	mal1eofij5erqv26velro385nc	google inc.
+19	right	native	never	male	en	5	us	667	375	other	both	1580800748	ocsq1tmvumrmgqb4cd940sf6nk	apple computer, inc.
+23	right	beginner	rarely	female	en	5	us	896	414	thumb	right	1583365678	p6tn8dqvhpenmckfcetokim0fv	apple computer, inc.
+20	right	native	everyday	male	en	5	us	896	414	thumb	right	1579823305	sngdnm4a29tbqmks4692lbhbop	apple computer, inc.
+30	right	native	sometimes	female	en	5	us	640	360	thumb	right	1582113868	06moimg3q3vik8l6a3iqhsei4j	google inc.
+23	left	native	rarely	male	en	5	us	812	375	thumb	both	1583037614	0ufegpai6ov6o50mec2hlnh3nt	apple computer, inc.
+29	right	native	rarely	male	en	5	mx	640	360	thumb	right	1582691696	2ujnsj85dffqlv2833k956rq6j	google inc.
+30	right	beginner	rarely	female	en	5	ph	640	360	thumb	right	1582024337	2vsvol3psv9s1rjdqfclgnruq1	google inc.
+19	right	intermediate	rarely	female	en	5	gb	740	360	thumb	right	1581977877	3rs48o8srup53k44nltr8ufrda	google inc.
+37	right	advanced	rarely	female	en	5	us	640	360	thumb	right	1583716759	5ioulvivt9pekt7hirpaubc47c	google inc.
+19	right	intermediate	sometimes	female	es	5	mx	667	375	thumb	right	1580155068	65n13559ujnngi9isd60jge573	apple computer, inc.
+19	left	native	rarely	female	en	5	us	667	375	index	both	1582164956	749eh0m00i0rmku9fqeb4bfd07	apple computer, inc.
+20	right	advanced	everyday	male	en	5	in	720	360	thumb	right	1583641154	92iabujv3trgp9itvdc8n3713l	google inc.
+18	right	native	never	male	en	5	ca	846	412	thumb	right	1583373027	9jp1ocn4a4lhv5o5pdgu4mitrs	google inc.
+19	right	intermediate	sometimes	male	en	5	in	720	360	thumb	right	1583431609	fphancl5mue2lqtko5h5qv5eln	google inc.
+22	right	advanced	never	female	zh	5	hk	846	412	index	both	1580228888	g23a61eplqqlp26ov4r38u2ru8	google inc.
+20	right	intermediate	never	male	mk	5	ro	892	412	thumb	right	1584554311	gctbq3b25v4u13ii481dbeco14	google inc.
+25	right	advanced	sometimes	female	en	5	ng	750	360	index	both	1581105725	gntugseiph6hchdmfn90ou187e	google inc.
+36	right	native	often	female	en	5	tt	740	360	index	right	1581375618	icve199m9m9fol9bavkenh4pqm	google inc.
+31	right	native	never	female	en	5	us	823	412	index	right	1580156721	ik64m3449ghs4rjtg1pb4mme9j	google inc.
+23	right	native	everyday	female	en	5	us	740	360	thumb	right	1581452569	jo0cu6uaseeqlnfm069ebeabc7	google inc.
+26	right	beginner	often	female	en	5	ng	736	414	index	right	1581311956	ka5i96jnn2ec1js0b8tg5s9ucs	apple computer, inc.
+25	right	advanced	sometimes	female	es	5	mx	896	414	thumb	right	1580408641	lttj7f6v5n15he2h6jvr96cd8f	apple computer, inc.
+19	right	beginner	rarely	female	en	5	mx	640	360	thumb	left	1581384226	m0g1imjq75opdkika5al45fms1	google inc.
+18	right	native	sometimes	female	en	5	us	780	360	thumb	right	1579890516	n5gteiaa2icno91iltu2q4gsrv	google inc.
+33	right	intermediate	often	female	en	5	ec	640	320	thumb	right	1583443726	pod99i75nrh3jmvvkst3kdkmtu	google inc.
+18	right	beginner	rarely	female	en	5	us	640	360	thumb	right	1581122172	raubosb7k45hdbj97mm6gb2lqp	google inc.
+26	right	intermediate	often	female	en	5	id	732	412	index	right	1582777119	s2v3jskuqpqftr9o1gpgg9ig5r	google inc.
+26	left	native	rarely	female	en	5	us	667	375	thumb	left	1580529543	s2vhfld7s31hgtv9c5ip4q5s9k	apple computer, inc.
+19	right	native	never	male	en	5	us	896	414	index	right	1580739700	sb0ncmov9u2pgski42h22978cr	apple computer, inc.
+21	right	native	sometimes	female	en	5	nl	732	412	thumb	right	1580310033	t8j3vebtkojs98f82gf20l1su3	google inc.
+20	right	native	sometimes	male	en	5	us	720	360	thumb	both	1583350755	0kn0q7nuaf1kmc4udc7ems56dh	google inc.
+24	right	native	sometimes	female	en	5	jm	640	360	thumb	right	1583271587	185dt72aiqbvp1ifefepqmb3ih	google inc.
+26	left	native	everyday	female	en	5	us	846	412	thumb	both	1581391242	2d3l6hi6hgc5d7tmirb5t5vbqs	google inc.
+25	left	native	never	female	en	5	us	667	375	index	both	1583241622	2eu6hf02h118abbmh0nkpnkdit	apple computer, inc.
+22	right	advanced	sometimes	male	en	5	br	780	360	thumb	right	1582070534	2qe84rjbo078q08m93d6bjtggt	google inc.
+24	right	native	sometimes	female	en	5	jm	640	360	thumb	both	1584111497	7bhqtphn07hjj6aqfjdjp2j873	google inc.
+18	left	advanced	sometimes	female	en	5	gb	667	375	thumb	both	1580082300	9gatld0huf12d9mp3uubgc2vb7	apple computer, inc.
+23	right	advanced	often	female	en	5	ng	800	360	thumb	both	1583683374	9t2au48iu189sgq15u92d2ltpr	google inc.
+30	right	advanced	rarely	female	en	5	us	667	375	index	right	1582173418	bgde5i0tom5p4jbeiflg8npvt8	apple computer, inc.
+31	right	intermediate	rarely	female	es	5	mx	736	414	index	right	1583111369	e45luoq2bs7cdtrviu60cmuflr	apple computer, inc.
+19	right	intermediate	rarely	female	es	5	mx	667	375	thumb	right	1581729049	f29s43j9e6ahsbvi5tn94i9kq9	apple computer, inc.
+24	right	beginner	everyday	female	en	5	ph	720	360	thumb	both	1581073586	g0n44jhemirddk1no0h01lt4vu	google inc.
+34	right	advanced	often	male	en	5	gb	640	360	thumb	right	1583423279	g34kimpcr0h3c2rv1ud4ecljto	google inc.
+21	right	intermediate	never	female	en	5	ph	760	360	thumb	right	1581300526	g864cph2idn4jv74v17jlm3iho	google inc.
+24	right	beginner	sometimes	female	en	5	ph	760	360	thumb	right	1579844658	hn4t4r4cvp8tnl1p6hu89r7j6h	google inc.
+18	right	advanced	often	male	en	5	ro	841	421	thumb	right	1580411700	igmtoofij0rscc7v9o8ojf0kpu	google inc.
+18	right	advanced	often	male	en	5	ca	892	412	thumb	right	1581051316	jtrn7s22hhe2cde0a3vntdtn2j	google inc.
+18	right	intermediate	everyday	female	en	5	ph	772	360	index	right	1583117921	ke6720krbeqof0b0n3aot7vped	google inc.
+30	right	native	often	female	en	5	us	740	360	thumb	both	1581447556	llv4eccrmduf4bui18965e0229	google inc.
+18	right	beginner	rarely	female	en	5	in	640	360	index	right	1580784025	m3r7o5na0r0ck80biv0itbmk07	google inc.
+50	right	native	everyday	female	en	5	us	740	360	thumb	right	1580596085	mift212ua1u68fvlu6qs2hadcj	google inc.
+32	right	advanced	rarely	female	en	5	ng	892	412	index	right	1581611714	mn0j6e75gftr7sj677l20cvof0	google inc.
+28	right	beginner	sometimes	female	en	5	ph	760	360	index	right	1583394369	rjb4l6m13vmb7uphl1r9r476ps	google inc.
+19	right	native	rarely	male	en	5	ng	640	360	thumb	right	1579949705	s8ttsiqjr5ogm8e445ea4kpc6c	google inc.
+23	right	beginner	everyday	female	en	5	ph	640	360	thumb	right	1581259112	038qovd34aj82cqc9ip8fqu6sc	google inc.
+19	left	advanced	rarely	male	ar	5	us	569	320	thumb	both	1583563375	0dvm82ctd55l4pqkr26gj8ef13	google inc.
+35	right	advanced	often	female	en	5	gb	640	360	index	right	1581735393	3abuafe0ogm3aa4c86vi04p1qs	google inc.
+21	right	native	everyday	female	en	5	us	780	360	thumb	right	1579727417	5s52j3st2s396soetbh4crljl9	google inc.
+18	right	intermediate	often	female	en	5	us	896	414	thumb	right	1580239839	6h2mml9l5uj0q573fgmripp84h	apple computer, inc.
+33	right	advanced	everyday	female	en	5	in	846	412	index	right	1580454013	7r5lcqvp6t2ltukuui4hisie4h	google inc.
+22	left	native	never	male	en	5	us	720	360	index	both	1579793163	8pj7t5t6pardq8lvsiqdc7pm31	google inc.
+24	right	intermediate	rarely	female	zh	5	ng	720	360	thumb	right	1580814278	9bnv6rd5us31h0qv7sj4hal32t	google inc.
+20	right	advanced	everyday	female	en	5	in	869	412	index	right	1581646392	a3pnhnd4908s9b8d2uo97cgu2v	google inc.
+27	right	intermediate	rarely	female	en	5	ng	846	412	thumb	right	1582738771	bv4ejucc1en9vkqe19h4dbvv04	google inc.
+22	right	advanced	sometimes	male	en	5	bg	812	375	thumb	right	1583178827	deo390bfdlb1idbh76pbkie0tj	apple computer, inc.
+40	right	intermediate	rarely	female	es	5	mx	869	412	index	right	1581466445	ibnurdatch4vt7e7drbtm3grek	google inc.
+18	right	native	sometimes	female	en	5	ca	896	414	thumb	right	1582407288	kjj1cjnm9j92sajutbkll9dduf	apple computer, inc.
+32	left	advanced	never	female	en	5	ph	736	414	thumb	left	1581340919	lr5ahi9u7cu6qs0lbbc3556deb	apple computer, inc.
+36	right	advanced	sometimes	female	en	5	ca	816	377	thumb	right	1582897608	n21kjlf8hqt9tevs6ou344t2b5	google inc.
+18	right	native	rarely	male	en	5	us	740	360	index	right	1580644031	s9a8d8kvrr0qq2pe0n0p67u618	google inc.
+18	right	beginner	often	female	en	5	us	570	320	thumb	both	1579834442	saur1jh716qet2incj05uhaqqa	google inc.
+31	left	native	often	female	en	5	us	780	360	thumb	both	1580922591	su957ol2l1jpmhvh1ff02antom	google inc.
+18	right	native	rarely	female	en	5	gb	667	375	thumb	right	1581383070	t2lkrvm75vua6vnnsb7680i7cf	apple computer, inc.
+27	right	native	everyday	female	en	5	us	846	412	thumb	right	1581892582	tgao1rq52v714595mtr89veicf	google inc.
+50	right	advanced	rarely	female	en	5	us	740	360	index	right	1581371441	19qrnicvir9817joijlmg52afq	google inc.
+99	right	native	rarely	female	en	5	in	851	393	thumb	right	1582040294	1al76494lgiqcqv48i7r2abrsd	google inc.
+35	right	native	never	female	en	5	lc	892	412	thumb	right	1580315185	3m94gkcdq45h607h4if58l6vhc	google inc.
+45	right	advanced	often	male	en	5	ca	892	412	thumb	right	1581113386	7clm9en7889huf597bpb5qjdr5	google inc.
+37	right	intermediate	sometimes	male	es	5	mx	640	360	index	right	1582573616	82ln7u4ha2slbqub1ghk6gmgav	google inc.
+18	right	intermediate	sometimes	female	en	5	ca	896	414	thumb	right	1579908807	8smujhski9mk1k142h43dvk6li	apple computer, inc.
+22	right	intermediate	sometimes	male	en	5	mx	640	360	thumb	both	1581380165	ai3a1v5em3ctvqlfs5mndofe7t	google inc.
+21	right	native	sometimes	female	en	5	in	640	360	thumb	both	1580109242	b63nn8ckbnpqhthshqtrtod3os	google inc.
+23	right	advanced	sometimes	female	en	5	ng	800	360	thumb	right	1582776238	bilstako3g9nhes5dlb8421vu5	google inc.
+23	right	intermediate	rarely	female	en	5	ph	667	375	index	right	1580406123	epoq15q1kb63vbj5atf5eas3ek	apple computer, inc.
+35	right	advanced	everyday	female	en	5	za	892	412	thumb	right	1579857913	f3nkalsd4ckodk9qujdv1eiua7	google inc.
+23	right	advanced	never	female	en	5	mx	780	360	thumb	right	1581663412	f443681k8r51kme7891ph0jn1o	google inc.
+22	right	intermediate	everyday	female	en	5	ph	760	360	thumb	right	1579766038	g0r9lq7a2lr6v2f9qsg1u60jmp	google inc.
+20	right	advanced	sometimes	female	en	5	hu	747	360	thumb	right	1582380625	gd6efsp595gupjmhas2ba3kbp7	google inc.
+18	right	native	sometimes	female	en	5	ie	667	375	thumb	right	1581711786	ip6krc8k02vdui4pnvqj7roaml	apple computer, inc.
+19	right	advanced	rarely	male	en	5	in	640	360	thumb	right	1582700680	m197i6n3qoe0rvkvgjcttmgrc9	google inc.
+25	right	intermediate	everyday	female	en	5	ph	851	393	index	right	1580111116	qunag8n8n9iqdncqvknv3874b2	google inc.
+19	right	beginner	rarely	male	en	5	ro	786	393	thumb	right	1583092031	ri0ioma43go9kqbu5foj9m9bdb	google inc.
+22	right	advanced	everyday	female	en	5	za	640	360	index	right	1581110598	toq355qiftp889ts7caj8c1dru	google inc.
+23	left	intermediate	sometimes	male	en	5	in	800	360	index	left	1582876253	v6svjh96edmpijtpir4u086v5d	google inc.
+19	right	native	often	female	en	5	us	896	414	thumb	right	1579823304	1223tr5f9fe26quv25gtncmv8s	apple computer, inc.
+47	right	beginner	sometimes	female	en	5	ph	780	360	index	right	1581832213	2rla6t2fnvr5el1fru60q6vf9n	google inc.
+37	right	intermediate	never	female	en	5	mx	720	360	thumb	right	1580147795	56qvbr1ioduvgacku6ukagph7a	google inc.
+20	right	advanced	sometimes	female	en	5	us	676	320	thumb	right	1580786379	5vlc6enth5ad3eird1mgrsie34	google inc.
+26	right	advanced	sometimes	male	en	5	za	747	360	thumb	right	1581667193	6dqftqc820fjpre18sptm5hd8s	google inc.
+33	right	native	rarely	female	en	5	us	896	414	index	right	1581684595	86rkg0r28cb59in3bum6um4vlh	apple computer, inc.
+27	right	native	never	male	en	5	gb	780	360	thumb	both	1582146633	8f1gq5umsn4egu9hu3flpe1pup	google inc.
+32	right	native	rarely	female	en	5	us	720	360	thumb	right	1581954662	8fvf4ckr6qfgjpni4ecfd6kduo	google inc.
+18	right	intermediate	often	female	en	5	us	667	375	index	right	1583152549	8rikagp488p9kav0r5dlbhorbt	apple computer, inc.
+27	right	native	everyday	female	en	5	us	812	375	thumb	right	1583037585	ftf2k2qq6jgl7m0as04o673nhf	apple computer, inc.
+26	right	intermediate	sometimes	male	en	5	in	667	375	thumb	right	1582976459	g409vvke02mrjr68tqupiu5ge3	apple computer, inc.
+28	right	advanced	everyday	female	en	5	jm	869	412	thumb	right	1584098187	g6n40ib79agb13c99343a80a0d	google inc.
+47	left	native	rarely	female	en	5	us	780	360	index	left	1581248214	j1bfvbgbi2nrehmj9t3nl32e8d	google inc.
+21	right	native	sometimes	female	en	5	us	896	414	thumb	right	1579815152	jdq47e988l8912cj7m4n2aebfi	apple computer, inc.
+25	left	intermediate	never	female	en	5	jm	667	375	thumb	left	1580148350	m678crq115h33eg8jqsln77oa9	apple computer, inc.
+28	right	intermediate	often	female	en	5	ph	869	412	thumb	right	1582006392	ph5quer80kmi16qs3j1pcda8sf	google inc.
+18	right	advanced	everyday	female	en	5	de	760	360	thumb	right	1581084891	qsrcd4t2v5lilrn1s2pvdcolaf	google inc.
+52	right	native	rarely	female	en	5	gb	780	360	other	right	1580936437	r5idk8jujjcd6fg9acbonms58p	google inc.
+32	right	beginner	sometimes	female	es	5	mx	640	360	thumb	right	1581590570	vtc9pr98mr2gs793s50jg9g15m	google inc.
+25	right	advanced	everyday	male	ar	5	eg	780	360	index	right	1582651720	00h10g2j0m7vujuscdvispdkub	google inc.
+33	right	advanced	everyday	female	en	5	jm	732	412	thumb	right	1583624886	1jis48734j5ssblrsfj5243pb6	google inc.
+18	right	beginner	rarely	male	en	5	ph	720	360	thumb	right	1581642867	1u29tun8td5sv4spmk2aigelsi	google inc.
+30	right	advanced	everyday	female	en	5	za	720	360	thumb	both	1582021836	5pe9n5rh9ile065li50nv0e9je	google inc.
+18	right	native	never	female	en	5	us	896	414	thumb	right	1581197578	9qkcqsbdd5flkc2nebui1v0ue4	apple computer, inc.
+18	right	intermediate	sometimes	male	en	5	co	830	393	thumb	right	1582064000	amfadmg4u6qt7h70o2oh88modd	google inc.
+22	left	beginner	everyday	female	es	5	gt	720	360	other	both	1583725860	bmkr01maq7gjbbe5p6ma36gvk9	google inc.
+24	right	native	everyday	male	en	5	us	896	414	thumb	right	1580352920	bmo0cq8etelpjatvnrlfriigge	apple computer, inc.
+35	right	advanced	sometimes	female	en	5	us	823	412	thumb	right	1582109908	bt7cbkcjk416nuqn1g5880rjq7	google inc.
+28	right	beginner	sometimes	female	en	5	ph	892	412	thumb	right	1582948931	c7mg55oq2t13thsolt2m7gv5tj	google inc.
+21	right	native	everyday	female	en	5	us	869	412	index	right	1583030641	clg4s4ohoektif5e4ckp5t51cm	google inc.
+18	right	intermediate	rarely	female	en	5	us	740	360	index	right	1582668608	d54sp7enm4fr4dqe689nd6ktm0	google inc.
+36	right	intermediate	everyday	female	en	5	ph	846	412	thumb	right	1580197036	i6a9hj09u6m2r213nhiuaccgif	google inc.
+46	right	advanced	sometimes	female	en	5	ca	747	360	index	right	1581558996	m8e7j2ca0t3ni42jud4rgnll7r	google inc.
+21	right	advanced	often	female	en	5	us	740	360	thumb	right	1582071614	m9slc8avbtm3jeqp49mi7tln0q	google inc.
+74	right	intermediate	sometimes	male	en	5	ax	771	360	thumb	right	1583006109	snt866f64985u8bdo0e4bajpn4	google inc.
+18	right	advanced	sometimes	male	en	5	ng	640	360	thumb	right	1579948488	3md3asprf6ss61m3is4ppbr1eh	google inc.
+18	right	advanced	often	male	en	5	mx	740	360	thumb	right	1580353505	7dond9ifvv0gpbrmipfvrsll8a	google inc.
+23	right	intermediate	rarely	female	en	5	ph	892	412	index	right	1580154106	8llatfbfj2qkn01135iffu9g51	google inc.
+18	right	intermediate	sometimes	female	es	5	mx	892	412	thumb	right	1580107105	f6d25pvt6cnogu7r9dcad4m09l	google inc.
+20	right	beginner	sometimes	female	en	5	ph	895	424	other	right	1580196886	id9e17kp7pqt3sd9eke0ekhtdm	google inc.
+23	right	native	never	male	en	5	ie	740	360	thumb	both	1581958667	ouvi5ec56ps44vn8rl75abdnlt	google inc.
+27	right	native	rarely	female	en	5	us	720	360	thumb	right	1582818982	rkppohiv2dltud3igeoedbu2ip	google inc.
+26	right	intermediate	never	female	sv	5	se	780	360	thumb	right	1579888115	f79goo7nvfg3a7au50v6fbofr2	google inc.
+27	right	advanced	often	female	en	5	us	892	412	index	right	1582692938	hh806ihmb23f3nvrtv9k6bvrse	google inc.
+19	right	intermediate	rarely	male	en	5	mx	740	360	thumb	right	1582239708	nffnu5fln2cg7krleb6ee0sejn	google inc.
+20	right	intermediate	sometimes	male	de	5	it	896	414	thumb	right	1582490637	skhneongpgp0ptkl3em3saq73m	apple computer, inc.
+29	right	beginner	often	female	en	5	ph	760	360	index	both	1580268384	tbc45kcuiptlq08ghuioiu87sg	google inc.
+24	right	beginner	everyday	female	en	5	id	640	360	other	both	1583392440	vb0huv5nm1hnqktivmmq7h5sei	google inc.
+23	right	native	everyday	male	en	5	au	846	412	thumb	right	1581593303	l8cm7uj17ofjnqhterc7np2f3o	google inc.
+18	left	native	rarely	male	en	5	gb	667	375	thumb	left	1580586703	pbulk361rkrh7b8cb6l7f8vhi7	apple computer, inc.
+34	right	intermediate	everyday	female	en	5	fj	869	412	thumb	right	1580637213	s7ngj4nh1ga84mlm3pjfhnagqq	google inc.
+38	right	native	rarely	male	en	5	us	846	412	thumb	right	1582396267	sbpcc39588kcn9cgkoa3drgce5	google inc.
+47	right	beginner	sometimes	female	en	5	ph	760	360	index	both	1580824321	ug19dir9agjpeeb2rv8tkanlq2	google inc.
+32	right	advanced	sometimes	female	en	5	us	869	412	thumb	right	1583392078	upf3hbrjcmj95hjpisuik5smt2	google inc.
+28	right	native	sometimes	female	en	5	us	736	414	index	right	1581411661	vqo4kgpabrog60e8g7rgofgbs8	apple computer, inc.
+26	right	native	everyday	male	en	5	us	667	375	thumb	both	1582695629	9k235t76ja3pj3u09l1n90hm17	apple computer, inc.
+52	right	beginner	often	female	en	5	us	780	360	index	right	1582926268	brb4o8hfnf288s6oafc77q1tr4	google inc.
+18	left	beginner	everyday	female	en	5	us	640	360	thumb	left	1580778971	dcfncfj8jpvfebgpr7jbpa7g67	google inc.
+21	left	intermediate	everyday	female	en	5	ph	640	360	thumb	both	1581989110	e9p86un1r7ftnn00ihoeodqp2f	google inc.
+21	right	advanced	sometimes	female	en	5	jm	640	360	index	both	1581354647	n0jf2utg75pvnc4fo7frs26oov	google inc.
+32	right	native	rarely	female	en	5	ca	740	360	index	both	1581170133	ir8jqislt00b04b3lmb7v1g6rj	google inc.
+56	right	beginner	everyday	female	en	5	us	732	412	index	right	1582680939	dsjoruhh8f879fuua90jinnl27	google inc.
+23	right	intermediate	sometimes	female	en	5	mx	780	360	thumb	right	1582403425	1r9895hro6j0m9hb0ak0861r87	google inc.
+30	right	intermediate	often	female	en	5	ph	760	360	thumb	right	1583112108	7c2904b85a3i2rkogorur2stma	google inc.
+27	right	beginner	sometimes	female	en	5	ph	780	360	thumb	both	1581486377	ct1ba4p5qv8orm6ak0kji9hvq5	google inc.
+89	right	intermediate	everyday	female	en	5	jm	740	360	thumb	right	1583568119	u9d7vflesb909427pa23c44sfc	google inc.
+59	right	intermediate	rarely	female	en	5	us	640	360	index	right	1580750378	mhvr0t666526p7k9ka93oujpl0	google inc.
+20	right	advanced	everyday	male	en	5	kg	640	360	thumb	right	1582789510	upefvqs24ij0hldmicbt95l0gj	google inc.
+20	right	native	everyday	male	en	5	ca	740	360	thumb	right	1580228558	5v3sacgcfl6empp83sgcecfhah	google inc.
+18	right	native	often	female	en	5	ca	667	375	thumb	right	1580018858	ec55mombhrcp9ri3ljuku03j2p	apple computer, inc.
+33	left	native	everyday	female	en	5	us	732	412	thumb	both	1580403301	kf0gcbkpbge3m88ibgaoki2839	google inc.
+28	left	beginner	everyday	female	en	5	tt	732	412	thumb	both	1580258016	mmv95ln59eb47o26drldkjc82d	google inc.
+34	right	beginner	often	male	en	5	us	869	412	index	right	1581750746	sma2i123evkk1kkldsepjd21ro	google inc.
+26	right	advanced	sometimes	female	en	5	mx	780	360	thumb	both	1583274304	fmtqi2rmrboli8n89gcog15ue5	google inc.
+41	right	native	everyday	male	en	5	gb	780	360	index	right	1582973280	r1ukcb6fl2tsf4pg9b0vdccds8	google inc.
+37	right	intermediate	everyday	female	fr	5	az	830	393	thumb	both	1582913788	shopiov5r4ro8ms5her6aai7g2	google inc.
+26	right	advanced	rarely	male	en	5	mx	846	412	thumb	right	1582830790	38dq12s964h9aucmbkcee5ltms	google inc.
+25	right	native	often	female	en	5	us	846	412	thumb	right	1582246356	4j6nf7qe9edrluklngf84jk3eb	google inc.
+36	right	native	sometimes	female	en	5	us	780	360	thumb	both	1581478812	hch9qedhgoovchf258launou02	google inc.
+40	right	native	everyday	female	en	5	us	823	412	thumb	right	1580017821	0069j4rbe1si9pjqgfhks8sprm	google inc.
+32	right	beginner	everyday	female	en	5	cm	640	360	index	both	1580931987	5t3m5gcvil4g1u0h4mjfetncab	google inc.
+33	right	advanced	everyday	female	ar	5	us	869	412	index	both	1583034327	jah7suprgvkmve9kpel188mpm5	google inc.
+25	right	native	everyday	female	en	5	jm	640	360	thumb	both	1582143289	8dda6lpji6qsjj7fum2qft8roj	google inc.
+29	right	native	often	male	en	5	us	896	414	thumb	right	1579733143	73jq2k5b2t7f5j1ma29saodc3b	apple computer, inc.
+48	left	intermediate	never	female	en	5	us	569	320	index	left	1580113464	maknstf13kukkcr5sl4d6sr6he	google inc.
+26	right	advanced	never	male	es	5	mx	640	360	thumb	right	1580241259	8h8gc4dqj6nkmu6o3qgc4h0p7p	google inc.
+24	right	advanced	everyday	male	en	5	in	812	375	thumb	right	1581323866	3irdjhpqq8fch9lb97lbevr4l7	apple computer, inc.
+20	right	native	sometimes	female	en	5	us	896	414	thumb	right	1582787150	ej7nb1ght5pm5gmvrh7qo6du7o	apple computer, inc.
+34	right	intermediate	sometimes	female	en	5	us	869	412	thumb	right	1581748424	u5777na1io0jacfdtj9e4oe652	google inc.
+19	right	beginner	sometimes	female	en	5	in	640	360	other	right	1581860741	a6kvq5qjhmgscj9nk3jvf1tb9g	google inc.
+33	right	intermediate	often	female	en	5	ng	846	412	index	right	1582046889	ctimcfb2lmrrn5s24994682vma	google inc.
+22	right	intermediate	often	female	en	5	ng	800	360	thumb	right	1583709729	jjhl7tv92g0tnb95n9viv4d9ov	google inc.
+26	right	native	often	female	en	5	us	640	360	thumb	right	1580888732	ba95vtl68lt41h9nqg4l4rcmnb	google inc.
+18	right	native	never	female	en	5	us	736	414	thumb	right	1581134365	95614ucoivohurbqivjc7fu5c5	apple computer, inc.
+25	left	native	never	female	en	5	us	846	412	other	left	1580598152	9uedokuiln1m3hl2ivi539b9d4	google inc.
+43	right	native	rarely	female	en	5	us	676	320	other	right	1582129097	rk9741c89c16kkjr3et9fgo2uk	google inc.
+47	right	native	everyday	female	en	5	us	640	360	thumb	right	1580173181	gq6tnkgad2ld78pegcrabd5nm8	google inc.
+18	right	intermediate	sometimes	male	en	5	id	846	412	thumb	right	1581339411	0utue8rico7grfpgd0odffj6il	google inc.
+21	right	beginner	sometimes	male	en	5	bd	780	360	thumb	both	1580285002	1trqchkvequslh5bbrqn10pnss	google inc.
+18	right	beginner	sometimes	male	en	5	in	640	360	thumb	right	1580893131	4j0p1onkc18it1j59rgiismjkd	google inc.
+19	right	intermediate	often	female	en	5	gb	640	360	index	right	1583350632	6npuivvdb91qnp47hiah754dm5	google inc.
+22	right	intermediate	everyday	female	en	5	ph	892	412	thumb	both	1579739924	7mphoc87vusc6vrsbt88nh20ci	google inc.
+18	right	beginner	never	male	en	5	in	640	360	thumb	right	1581689180	7udhss2800rg0e9k9tqucribhq	google inc.
+18	right	native	sometimes	male	en	5	in	786	393	thumb	right	1582121095	8q665ktgjsfcpbdqbe0g395ej6	google inc.
+20	right	intermediate	sometimes	male	ar	5	in	732	412	thumb	right	1580563760	a8neag5smaeudl086v8en7q7he	google inc.
+23	right	native	everyday	male	ta	5	in	780	360	thumb	right	1580405480	b1ci52dl6lo7r1ijk1h6364ae4	google inc.
+20	right	advanced	sometimes	female	en	5	gb	869	412	index	left	1583259207	bvggnfe0chhpufkdevgv5ckgen	google inc.
+19	right	intermediate	never	male	en	5	in	640	360	index	right	1583157029	ciub5ebgi4odqa9o4m7993367a	google inc.
+58	right	intermediate	rarely	female	en	5	us	640	360	index	right	1582348443	cl1igtl9n4n3d105p70071vpb2	google inc.
+20	right	advanced	everyday	female	en	5	au	869	412	thumb	right	1583580905	cq6raonqh2c9c0b68n3d9e13eu	google inc.
+18	right	advanced	rarely	female	en	5	gb	740	360	thumb	both	1582756150	dvm2t9s1kq9q7j57krtrgul5mq	google inc.
+30	right	beginner	everyday	female	en	5	ph	720	360	index	right	1582162395	gfa62fbhahhnqpr0a516icg0jc	google inc.
+18	right	advanced	rarely	female	en	5	ph	892	412	index	right	1579944780	k2p6pavnh4k34ll6majkeffqkg	google inc.
+35	right	advanced	everyday	female	en	5	us	732	412	thumb	right	1581286961	r06sai4ql3h2jf3nmujd9a4c3m	google inc.
+22	right	intermediate	never	female	en	5	us	740	360	thumb	right	1583585724	r3m0oibdgrtsb93tbe8gfl921m	google inc.
+29	right	intermediate	sometimes	male	en	5	ng	750	360	thumb	right	1581950538	romf91d67839gon7ru5amho7vo	google inc.
+20	right	native	everyday	female	en	5	us	896	414	thumb	both	1581815692	s93oq9svob4nh38ob2it29qvum	apple computer, inc.
+22	right	native	often	male	en	5	gb	740	360	index	both	1580064833	ta7h6o2p6ghkm4d388qkp1acml	google inc.
+18	right	intermediate	sometimes	female	en	5	nz	760	360	thumb	right	1581153946	tc0l3id89qccat13e6u8atra8r	google inc.
+19	right	beginner	sometimes	female	en	5	in	534	320	thumb	right	1583414795	tpij8ol8orel9lrktvpemi4a30	google inc.
+30	right	beginner	never	female	en	5	ph	760	360	thumb	right	1582867524	0jqd4um0gif3nk92trgu23qs48	google inc.
+25	right	advanced	sometimes	female	en	5	us	896	414	index	right	1580702355	0kvs7d6qn3qesp7sjkgjsd4gtv	apple computer, inc.
+23	right	beginner	rarely	female	en	5	us	667	375	thumb	right	1582164015	0leq9i4m5bff1e8tu92o2qr4u0	apple computer, inc.
+23	right	native	rarely	female	en	5	us	896	414	other	right	1579815656	0lr93uckpa3086de6homa94vn0	apple computer, inc.
+20	right	native	sometimes	male	en	5	us	896	414	thumb	left	1579823849	0msee0md66vcodqrp9spoedc9r	apple computer, inc.
+28	right	advanced	everyday	female	en	5	ph	780	360	thumb	both	1583260013	1hfgbj8ri6ms1ojpkfudk893sc	google inc.
+20	right	beginner	rarely	male	haw	5	us	640	360	index	right	1580536482	1jisq6jaciv834asgohpl5qsfk	google inc.
+44	right	intermediate	rarely	male	en	5	mx	840	360	thumb	both	1579821743	1jo1b9tddfuucc7k4i4mdeefvm	google inc.
+22	right	native	never	female	en	5	us	896	414	thumb	right	1580515407	1tv36l1viejgc96p35ifkeoaes	apple computer, inc.
+19	right	native	everyday	male	en	5	in	760	360	index	left	1583175779	25q4p5jk4ami3jo5la8spruev1	google inc.
+23	right	native	everyday	female	en	5	us	667	375	thumb	right	1583353552	269h4cdlq17gdnnjqdvrfrt8tr	apple computer, inc.
+25	right	intermediate	sometimes	male	en	5	cr	740	360	index	left	1581372019	27mmuj0o8b20pieicbck0qvo2i	google inc.
+25	right	native	everyday	female	en	5	ca	846	412	index	right	1582048878	2e9d94k0l5je3uibe6shktcuoq	google inc.
+20	right	beginner	sometimes	female	en	5	ph	851	393	index	right	1582082262	2irfea8ptu6lc8rg14b4dj33k9	google inc.
+28	right	intermediate	often	male	en	5	mx	740	360	index	both	1581570824	2lssnjt9tnkadurns46bvtf268	google inc.
+20	right	native	everyday	male	en	5	us	658	320	thumb	right	1580535667	2m645k1klclo1frrbche51p7kf	google inc.
+24	right	native	often	female	en	5	us	896	414	index	right	1582587038	2mlh9rsmu30ihssgmo4rhakufi	apple computer, inc.
+27	left	advanced	rarely	male	fr	5	fr	780	360	thumb	left	1582966125	2purrlkinqmagfji6v38a752vn	google inc.
+18	right	native	never	female	en	5	my	846	412	thumb	right	1583279699	36hjeo6hd54lqpdsquvbm227ga	google inc.
+22	right	native	sometimes	female	en	5	us	896	414	thumb	right	1580967625	36iqsvhqv4b1culjljnm5oh7dr	apple computer, inc.
+20	right	native	sometimes	female	en	5	au	568	320	index	right	1582194308	3fht625j7qu83fcjeqnb6b75f9	apple computer, inc.
+18	right	intermediate	sometimes	male	es	5	mx	736	414	thumb	right	1581449412	3usio5uf3c32l9mu3b4ek0vqqf	apple computer, inc.
+32	right	native	often	male	en	5	us	896	414	thumb	right	1582328648	40ccrn77i22dgg7q3bkd9kf3ri	apple computer, inc.
+20	right	advanced	rarely	female	ar	5	lb	846	412	thumb	both	1581339296	4ceb6u1ocdieiqnbrrcti43qle	google inc.
+39	right	advanced	everyday	male	it	5	it	740	360	index	both	1583517857	4k15hu68ei8ej4g4idvuksqnqf	google inc.
+21	right	intermediate	everyday	male	en	5	in	640	360	index	both	1583728837	4lse3eua8chs36li81jb7c4adb	google inc.
+27	right	advanced	rarely	male	en	5	gm	896	414	thumb	both	1580782451	4ml89n63etnce2je1r73m5t6hc	apple computer, inc.
+18	right	intermediate	rarely	male	en	5	gb	896	414	thumb	right	1580923727	4pq9gag0po5khmfr601iprftdt	apple computer, inc.
+36	right	native	sometimes	female	en	5	us	823	412	thumb	right	1583454718	57rbd898rj95nuvnrl0270dabi	google inc.
+26	right	intermediate	rarely	male	en	5	us	896	414	thumb	right	1580101555	5a1v8qic97tci8gntht0ioastl	apple computer, inc.
+18	right	advanced	never	male	en	5	kw	812	375	thumb	right	1583208885	5eg1k5sf7qihhvq1iih50gub87	apple computer, inc.
+30	right	intermediate	often	male	en	5	pk	740	360	thumb	right	1580715188	5ig1q8e67r9chvvpm38pdt5qa6	google inc.
+53	right	intermediate	sometimes	female	en	5	sg	760	360	thumb	right	1583154024	5ojskb12pe9adcf7nu5r4ucb1o	google inc.
+37	right	intermediate	everyday	female	en	5	ph	864	432	index	right	1580963787	6amoisksbj30n4sr89pcp7oq16	google inc.
+35	right	native	everyday	female	en	5	us	823	412	index	both	1581639632	7d0bs9ge6ph9pe80ssnki0kktd	google inc.
+26	right	intermediate	sometimes	female	en	5	us	640	360	thumb	right	1579718253	7e73snqvapqll9sq9so3fnjgds	google inc.
+22	right	advanced	often	female	en	5	in	869	412	index	both	1580151584	7edfgrcl53jm01g3b84p2lss7p	google inc.
+27	right	beginner	never	female	en	5	ph	846	412	thumb	right	1579936773	7j8ku4n0tdrhqrs0o3cbjm5onv	google inc.
+30	right	beginner	sometimes	female	en	5	us	640	360	thumb	both	1582992288	7olspkbmvgn85876dfpod24vpr	google inc.
+26	right	native	rarely	male	en	5	us	736	414	thumb	right	1582400330	7s2subps693a12v4tqom3objuf	apple computer, inc.
+25	left	beginner	everyday	female	en	5	ph	640	360	index	both	1582113313	868ramo48245sq759716eh8vt3	google inc.
+21	right	intermediate	everyday	male	en	5	my	667	375	thumb	both	1580264293	8aio7ch2lmvd7loglio66gl1mb	apple computer, inc.
+28	right	advanced	often	female	en	5	us	896	414	thumb	left	1583381817	8cevtf1obabdaj4kmvfgknj5c9	apple computer, inc.
+23	left	intermediate	everyday	female	en	5	ph	869	412	other	both	1579878401	8dgs1pul0h2g3h5i78t3ac4olk	google inc.
+30	right	intermediate	often	female	en	5	ph	760	360	thumb	right	1583192669	8kfotkl553gaqmm210q6d1nleu	google inc.
+18	right	advanced	often	female	en	5	us	736	414	thumb	right	1582833607	8vsldlpo82crj3d0lrjc9b86hr	apple computer, inc.
+56	right	native	everyday	female	en	5	us	846	412	thumb	both	1582659246	95ntft6f2j5egbn5m5eq8citi4	google inc.
+18	right	beginner	sometimes	female	en	5	us	896	414	thumb	right	1580405380	9s5nulj4prr33qpln5b1lbaooo	apple computer, inc.
+40	right	native	everyday	female	en	5	us	823	412	index	right	1582979711	a1rmjggnhq0ahqaojtdgil7lcb	google inc.
+25	right	native	rarely	female	en	5	us	736	414	index	right	1580794372	a2pi56js4nmcl4djl1vqmq04rg	apple computer, inc.
+19	right	advanced	rarely	male	en	5	mx	896	414	thumb	right	1583126202	afbmchaa1cmamo9jkvpkid5lde	apple computer, inc.
+31	right	native	often	female	en	5	us	732	412	index	right	1580336357	b41i3fo10nabiriqp5gg3cdjn0	google inc.
+26	right	native	everyday	female	en	5	us	823	412	thumb	right	1582377445	bmor5qcapfkobckk8dp94e6nje	google inc.
+40	right	advanced	everyday	male	en	5	es	720	360	index	right	1576506071	bqe68p8quo3ef1djmqif709vp2	google inc.
+29	right	native	everyday	female	en	5	us	780	360	thumb	right	1582758317	bqi6mifj7f7hsncmnmlib69uh9	google inc.
+18	right	beginner	rarely	male	es	5	mx	812	375	index	both	1582189716	cji0a757pfhlnt4uf6n4a6updl	apple computer, inc.
+28	right	advanced	rarely	female	en	5	ng	892	412	thumb	both	1582567187	cv34r3g9io2aeu04mfe9bhim6g	google inc.
+43	right	intermediate	often	female	en	5	us	823	412	thumb	right	1581019287	d52epcrk03d1odthl3c6pt6g41	google inc.
+41	right	advanced	everyday	male	en	5	pk	760	360	thumb	right	1580753055	d60pb3bdc0pv2r7lk0svb4abie	google inc.
+29	right	native	rarely	female	en	5	us	667	375	index	right	1583287367	d7ks8orscbcvfubgjmu0e4uidm	apple computer, inc.
+23	right	intermediate	sometimes	female	en	5	np	823	412	index	right	1582447048	df9acd3v7h4i8hsvjcab1oklg4	google inc.
+22	right	advanced	rarely	female	en	5	ng	736	414	thumb	right	1582624565	dj6hod2de1lpfsm5qjlcd48f7h	apple computer, inc.
+20	right	beginner	rarely	male	en	5	in	760	360	thumb	right	1582219854	dtmvgfp7huk9d34kp6q3rvptot	google inc.
+20	right	intermediate	everyday	female	en	5	in	780	360	thumb	right	1582718032	du6gm9l4istdsgv4f77qhk5re6	google inc.
+18	right	advanced	often	male	en	5	in	851	393	thumb	both	1581895611	e7i7753lg7m8jsnnl1k29pvvfd	google inc.
+30	right	native	never	male	en	5	in	786	393	index	both	1580230341	efuoib7dgjda3c66qoqcnj9t78	google inc.
+24	right	intermediate	everyday	male	en	5	pk	864	432	thumb	right	1581614387	emt5fj4vtavg1hodj67312ul2v	google inc.
+27	right	native	everyday	female	en	5	ca	892	412	thumb	left	1580451377	erpu2uequa1cq2br66uv10n478	google inc.
+22	right	native	often	female	en	5	us	667	375	thumb	right	1580265823	fe1g5itt0c0l1rs83iot29hc8o	apple computer, inc.
+18	right	native	rarely	female	en	5	us	740	360	thumb	right	1582266683	fmuoph4td7b4l4ub63fm81g5i4	google inc.
+26	right	intermediate	never	female	en	5	za	640	360	index	right	1580784709	frmo6u8vsac1113tb3h9ucat1s	google inc.
+32	right	native	everyday	female	en	5	us	823	412	other	right	1579705976	fs9c8rsidm91bg53p8g59jv220	google inc.
+30	right	advanced	often	female	ar	5	us	740	360	index	both	1583389356	ftduu72l9ajkltvmnoa6s05m50	google inc.
+43	right	intermediate	sometimes	female	en	5	ca	732	412	thumb	right	1583341846	g93oboccgpf33evp6gpmfhb6p4	google inc.
+32	right	native	rarely	female	en	5	ph	720	360	index	right	1583330642	gbcnoqvgkmn5867iiqqbf4ckpl	google inc.
+36	right	beginner	sometimes	male	tr	5	tr	740	360	thumb	right	1581007077	gbgk59ivq473sv6l9e6a3tjf3q	google inc.
+34	right	advanced	sometimes	female	en	5	us	823	412	index	right	1583212477	gg1ngc8aiacbf0b9f02vnnn66d	google inc.
+18	left	native	rarely	male	en	5	gb	846	412	thumb	both	1580607381	gq1c7k8ou12276fgcrubhq8o8f	google inc.
+22	right	intermediate	rarely	male	en	5	in	851	393	thumb	right	1581506322	gr9j9tgpjrgpfktg5gl086v01k	google inc.
+18	right	intermediate	often	male	en	5	jm	570	320	thumb	right	1582162547	hau57vntf1l4pt85ms1tuoubs0	google inc.
+27	right	native	rarely	male	en	5	us	740	360	index	both	1583349241	hbi82r4nfjnsbch82tl2r46oft	google inc.
+45	left	advanced	everyday	female	en	5	ph	780	360	index	both	1583480826	hcum35dlcr3kkdu49eml7pofbv	google inc.
+63	right	intermediate	rarely	male	en	5	us	720	360	thumb	right	1581938126	hggeotn7kb7bmojucj6ec0cr1n	google inc.
+18	left	intermediate	rarely	male	en	5	ph	780	360	thumb	right	1583673425	hmcrdt14a2le00t6m1ee1e6n63	google inc.
+23	right	advanced	rarely	female	en	5	us	736	414	thumb	right	1582667483	ia3shoqkilp0ndi4hk7o9s97op	apple computer, inc.
+21	right	intermediate	never	female	es	5	mx	892	412	index	right	1580068016	igo6ks7cridpphkt7q51r8prf7	google inc.
+22	right	native	everyday	male	en	5	us	757	360	thumb	right	1580452766	ihvd53g8t45a6mnfrnu1mjmpc7	google inc.
+22	right	beginner	often	female	en	5	id	760	360	thumb	right	1580285618	ilq2v57ppi1dscv34r2tpbh6l4	google inc.
+18	right	native	sometimes	female	en	5	us	896	414	index	right	1582160205	inh2na7ee74qp5r50v3pdf88vb	apple computer, inc.
+23	right	native	sometimes	female	en	5	us	896	414	thumb	right	1582834366	ivvalu51g9mhe1v0goknnp3hbg	apple computer, inc.
+25	right	advanced	often	female	en	5	us	720	360	index	right	1583713435	j1ejqn70d9iqf0qulsme3d3uu1	google inc.
+20	right	advanced	often	female	en	5	in	640	360	thumb	right	1580831138	j2qbfkngnge6j5m3bdqjsuhtm1	google inc.
+18	right	beginner	rarely	female	en	5	us	846	412	thumb	right	1580526434	j78g5srt7sa994nbm1fhlasv3q	google inc.
+18	right	advanced	rarely	female	en	5	us	740	360	index	right	1581632629	jhapml1gcqn210910vk76ol6ea	google inc.
+19	right	intermediate	never	male	en	5	gb	667	375	thumb	right	1579908249	jktev4s0k73g5hivqu2rn3f6rq	apple computer, inc.
+20	right	advanced	sometimes	female	en	5	ph	896	414	thumb	right	1581220843	jrsccajsd17f8f8c7husnm1gfs	apple computer, inc.
+23	right	intermediate	often	female	en	5	ph	736	414	thumb	right	1580308179	k4ku4dldn7tt8k7vke7lh8otjp	apple computer, inc.
+23	right	intermediate	rarely	male	en	5	bd	720	360	thumb	right	1580133023	kbj0heinq21q0b39hotculorvt	google inc.
+18	right	native	everyday	female	en	5	us	812	375	thumb	right	1583714425	kf30lkt6klt9da5tblfjcsr820	apple computer, inc.
+18	right	native	sometimes	female	en	5	us	896	414	index	right	1583259926	kkii07dglk60ei56ipv80hkpi8	apple computer, inc.
+42	right	advanced	everyday	female	en	5	ng	640	360	index	right	1582755119	knfks5c94ok9oql7ptt6gv2imn	google inc.
+19	left	native	rarely	female	en	5	us	736	414	thumb	right	1583173183	ksibdpmp7dg2hceoh8gab5o2sa	apple computer, inc.
+31	right	advanced	rarely	female	en	5	us	720	360	index	right	1581384892	l31ueilehgmabbd7ijibgvbo4o	google inc.
+18	right	native	rarely	female	en	5	us	892	412	thumb	right	1579802266	l9rbdi17htbqp560hh043hjlg7	google inc.
+20	right	native	everyday	male	en	5	us	869	412	other	right	1579756734	lf74nk8ihu43661j0ndd01mqja	google inc.
+26	left	intermediate	everyday	male	en	5	np	851	393	thumb	right	1581511820	lg17e00pmk1eo0fpk3e0qo7hfc	google inc.
+22	right	native	rarely	female	en	5	ca	846	412	index	right	1580523061	lj1i3ipnl98h82i3718063ovjh	google inc.
+29	right	intermediate	sometimes	female	en	5	in	780	360	thumb	both	1580753152	me7h4pk7pbtqnevuukegod0q70	google inc.
+19	right	intermediate	sometimes	male	sv	5	se	771	360	thumb	right	1580931875	mopkjhhfcjuivjs8m3t99aavge	google inc.
+18	right	advanced	everyday	male	en	5	us	568	320	thumb	right	1580525774	mrbtqc0eshofpjfru1bhjokjc3	apple computer, inc.
+24	right	advanced	never	female	haw	5	us	673	320	index	both	1580106406	mtlgq0js69e9e0d4kltrqnlufi	google inc.
+26	right	native	sometimes	female	en	5	ng	736	414	thumb	right	1583274846	n6ml9p7egar03rp99p8neh89if	apple computer, inc.
+37	right	advanced	sometimes	female	en	5	bd	851	393	thumb	right	1580756408	nbgb79ha0edcp4h415unsl6c1c	google inc.
+21	right	intermediate	sometimes	male	en	5	np	892	412	thumb	right	1582919121	ne2qhrm9um5g0mhpuhq850acid	google inc.
+19	right	intermediate	rarely	male	ml	5	in	720	360	index	right	1581524593	ngrbav5di4t1n2s7299o6qoi2f	google inc.
+45	right	native	rarely	female	en	5	us	740	360	index	right	1579864574	njlbotfnmd9738djudolm0hg2s	google inc.
+27	right	native	rarely	female	en	5	us	823	412	thumb	right	1580147381	nuiadcb5aiq746bqvned3v45si	google inc.
+20	right	native	sometimes	female	fr	5	us	846	412	thumb	right	1580519653	o3s6228q51853hplk7r5hvqb78	google inc.
+32	right	advanced	everyday	female	en	5	us	823	412	thumb	both	1580448313	ojdn9slnkkh2pslv8pgqa0tcjl	google inc.
+18	left	intermediate	rarely	male	en	5	ph	760	360	thumb	left	1583666430	p931af8rk84g1mir4huob3rhof	google inc.
+28	right	native	everyday	male	en	5	us	812	375	thumb	right	1581385752	piauguq53eratuq087pjlhht0h	apple computer, inc.
+18	right	advanced	never	male	en	5	gb	667	375	thumb	right	1580506064	qc47tcc7vm2lnei9ofpa3f5qd1	apple computer, inc.
+25	right	native	everyday	female	en	5	us	720	360	thumb	right	1583262713	qj2dt0en5angphdf8ndno06eeu	google inc.
+21	right	beginner	rarely	female	en	5	us	667	375	index	right	1583477669	qn7v99d459p3ekpeo8l3m473sc	apple computer, inc.
+23	right	native	rarely	female	en	5	us	736	414	thumb	right	1581965065	qv7225rs7qh2gs22mceo0a8d7b	apple computer, inc.
+31	right	advanced	sometimes	female	en	5	us	756	360	thumb	right	1581469281	rhlh0bp5fdmobnbmlo5gogdfec	google inc.
+23	right	beginner	everyday	female	en	5	ph	720	360	thumb	both	1582184985	rk14ivq6bqs05p0choom5s3lbt	google inc.
+35	right	beginner	never	male	en	5	in	760	360	other	right	1580148441	s3boj3dpfe11asvhgbifvtqc9r	google inc.
+34	right	native	rarely	female	en	5	us	846	412	thumb	right	1582047457	s98po1u3330sc7tl5av0c0rhnh	google inc.
+45	right	native	rarely	female	en	5	us	740	360	index	both	1582549188	sejoephp7tpti82huuhv9b384h	google inc.
+18	right	intermediate	everyday	female	en	5	ph	780	360	thumb	both	1583403264	sl5ubi9o9ihmal2bgsufpcefbj	google inc.
+22	right	intermediate	everyday	male	en	5	pk	869	412	thumb	right	1580534841	sovi0i0ek3v5mv28nbamtt40rv	google inc.
+19	right	advanced	everyday	female	en	5	us	736	414	thumb	right	1582918956	sskpq4g50eplklfahmfu288lki	apple computer, inc.
+36	right	native	rarely	female	en	5	us	891	424	index	right	1581552176	t03foodju0jl0grdjrmad7cnos	google inc.
+36	right	intermediate	sometimes	female	en	5	ph	640	360	thumb	both	1580727648	t1n7ckaa6eelk85mgu4g2ge6m6	google inc.
+19	right	native	sometimes	male	en	5	ie	892	412	thumb	both	1582374493	t4ck1oobclb7cg6lfc7885ghg9	google inc.
+20	right	intermediate	rarely	male	en	5	in	640	360	thumb	right	1582089201	tbu9to06tuvnqrhsht1jnns3qh	google inc.
+19	right	native	rarely	female	en	5	us	896	414	thumb	right	1582099237	tgrifp8atnaivholtilstrknp2	apple computer, inc.
+25	right	native	everyday	female	en	5	us	732	412	thumb	both	1580410819	u2vc8rcl5peufd6qgft3ro7cc8	google inc.
+18	right	intermediate	never	female	en	5	do	892	412	thumb	right	1580002645	v2bufv9pt5vfj87qokgku6s7fi	google inc.
+18	left	native	rarely	female	en	5	gb	812	375	index	left	1583698333	v3u3u1b8frqsk0encofdk1t4s4	apple computer, inc.
+18	left	intermediate	often	female	en	5	us	640	360	index	right	1580681729	vs9o5ggaa18pakfr7j5p7p9rj9	google inc.
+38	left	beginner	sometimes	female	en	5	ph	569	320	index	left	1581589237	vvr5s7lo8lhibvfm37q7vag4mb	google inc.
+20	right	intermediate	rarely	female	en	5	us	760	360	thumb	right	1579791209	0d9jm31uflsgr9e7o9uss8b1gv	google inc.
+43	right	advanced	rarely	male	en	5	pk	640	360	thumb	right	1581165443	0i2sopphm63aj2knmt0mmgt0eg	google inc.
+24	right	intermediate	sometimes	female	en	5	ng	760	360	thumb	both	1580125259	0nr1ib5m909k65fffkonftokvv	google inc.
+24	left	native	often	female	en	5	us	812	375	thumb	left	1580834501	0una7ed4ohd4oklbfmijr92uq0	apple computer, inc.
+21	right	intermediate	often	female	en	5	ph	760	360	thumb	both	1583160526	15418ieqgmgvfcdb16dq3qorce	google inc.
+27	right	native	rarely	female	en	5	us	846	412	index	right	1583324715	17st0afor2vhnaa27ig1qlm8gc	google inc.
+43	right	native	rarely	male	en	5	mx	640	320	index	right	1582828595	1ib8tc83fkt64o7em0i10u8ms0	google inc.
+20	right	native	everyday	male	en	5	in	732	412	thumb	right	1580057979	1j4jpoa46ajqm39ac14hhvt2hl	google inc.
+34	right	advanced	rarely	male	en	5	mx	640	360	index	right	1581463447	1kf79g0l0ub6li7fisvf2rench	google inc.
+22	right	advanced	sometimes	female	en	5	us	640	360	thumb	right	1580422537	1o37q2sln5sofhep2fjqg8bi39	google inc.
+19	right	intermediate	rarely	male	es	5	mx	732	412	thumb	right	1582130865	1oq7j88lfma27kckoiibr32fqn	google inc.
+69	right	beginner	never	male	en	5	bg	760	360	thumb	right	1583617435	1tcud5vifnvp1cliu6othgooba	google inc.
+18	right	advanced	everyday	male	en	5	sa	780	360	thumb	right	1580265153	29pqajt4go7tc60ibq0dmq8em9	google inc.
+37	left	intermediate	rarely	male	en	5	us	640	320	thumb	both	1580572232	2fv391b0tscbnhibfopoc7d8tp	google inc.
+22	left	native	often	female	en	5	us	812	375	thumb	left	1583693303	2opllmodi2j232u004m2jstmj3	apple computer, inc.
+18	right	intermediate	never	male	en	5	bh	812	375	thumb	right	1580491262	2u644p4gdklc7l7jc87rmcdp4d	apple computer, inc.
+26	right	native	sometimes	female	en	5	us	812	375	index	right	1580351278	3ef67b8t0k3t23fdk6c0bkdk74	apple computer, inc.
+23	right	intermediate	often	male	en	5	in	892	412	thumb	both	1581491326	3f4d5nd3i6i46j67v1h6m87sab	google inc.
+26	left	native	everyday	male	en	5	us	812	375	thumb	left	1576937901	3fjf9lm7btd87p6vfukhpgv0ev	apple computer, inc.
+21	right	native	rarely	female	en	5	us	846	412	index	right	1583727772	3g9n95q9e72o77tsabcl0g24kj	google inc.
+24	right	beginner	everyday	female	en	5	us	823	412	thumb	right	1581976453	40e8ac5f8a9rb5nmeut9ng9hpi	google inc.
+24	right	native	often	female	en	5	us	892	412	thumb	right	1581052691	4flhv8tu4uohtr7q1ie3hllfs4	google inc.
+36	right	advanced	rarely	male	de	5	de	568	320	thumb	right	1580743927	4g2ak3r56i91vbfl30feoc6jev	apple computer, inc.
+26	right	advanced	sometimes	female	en	5	us	640	360	thumb	right	1579712863	4ohof4dq0luk27t0vrkcb0qbr1	google inc.
+21	right	beginner	rarely	female	en	5	ph	720	360	index	right	1582847716	501mld13mmovv064tf71qb91v7	google inc.
+18	right	beginner	rarely	female	en	5	ph	640	360	thumb	right	1579698277	506jd4dnu763v27pc407pp23sb	google inc.
+19	right	native	everyday	male	en	5	au	869	412	thumb	right	1580271473	55fqiqk6a94c76d4qe93263419	google inc.
+39	right	intermediate	sometimes	female	en	5	us	896	414	index	right	1581822482	589260ue83t2p5s9l94l2m1n57	apple computer, inc.
+18	right	beginner	rarely	male	en	5	us	740	360	thumb	right	1581839709	5b7tsgp6d6sl19skhcr20em6fo	google inc.
+23	right	advanced	often	male	en	5	ec	812	375	thumb	right	1580873633	5h5ut2j7m82h5b7l10pboc7bum	apple computer, inc.
+24	right	intermediate	everyday	male	en	5	pk	640	360	thumb	both	1579891218	5p36qvohrubi0glbfa2sps6kev	google inc.
+25	left	intermediate	rarely	male	en	5	bd	846	412	index	right	1582684542	6595k2meaov04vurnkdiu41o2p	google inc.
+26	left	advanced	everyday	female	en	5	ca	736	414	index	left	1580157884	66tg4u99e48qvc4snu5265rqnv	apple computer, inc.
+20	right	native	rarely	male	en	5	us	812	375	thumb	right	1583422388	6f6t6thq8d9kd1anjuj89q6aaa	apple computer, inc.
+18	right	native	sometimes	female	en	5	us	667	375	other	right	1581448244	6kk47fbfu8u6bfe4r5usuf55u6	apple computer, inc.
+26	right	native	rarely	female	en	5	us	780	360	thumb	right	1581025589	6ueej20kd7mp8go9tniv7ijmqo	google inc.
+18	right	advanced	never	female	en	5	hk	736	414	index	right	1582091473	6v46neri6gko6hc616c37c4rjb	apple computer, inc.
+21	right	beginner	never	male	en	5	mx	760	360	thumb	right	1581991342	7alp8ef3eog6ho4s6k6vg1mkko	google inc.
+22	right	advanced	rarely	female	en	5	ph	760	360	other	right	1583294088	7m5v2dmokjhgdk6ojj6bhjt7tq	google inc.
+24	right	native	rarely	female	en	5	us	760	360	thumb	right	1582343504	7u2e3cekhdr5g6v7ufbotgmsfr	google inc.
+48	right	advanced	rarely	male	en	5	gb	720	360	thumb	right	1581251411	88a27ei5sds5cotsn5jskevk7c	google inc.
+18	right	intermediate	sometimes	male	en	5	kw	812	375	index	right	1582128704	8m8ethr7geboo11218v6g7sskl	apple computer, inc.
+29	right	advanced	sometimes	female	en	5	us	640	360	thumb	right	1580782688	9k6hjh7d432008n0rknj21v29e	google inc.
+21	right	beginner	everyday	female	en	5	ph	780	360	thumb	right	1583025292	aef0o6fi56gfh6pi0leb3tjmjl	google inc.
+19	right	native	never	male	en	5	us	896	414	thumb	right	1581173835	b1sp2oq29cpe5k6s4bfcehu396	apple computer, inc.
+18	right	advanced	often	male	en	5	in	780	360	index	right	1581749081	b30ipgqir8ntk66dfi2u11cft7	google inc.
+36	right	intermediate	rarely	male	en	5	au	740	360	index	right	1582433463	b4h1d1ol28nop5hs55aufetsvf	google inc.
+18	right	beginner	rarely	male	en	5	in	760	360	index	right	1580723572	bui5u3mn8fq8lmbpau9mluch8f	google inc.
+26	right	advanced	often	female	en	5	us	720	360	thumb	both	1580521635	c85gj8e2dekuqu5ag0tab7b0ni	google inc.
+18	right	intermediate	rarely	female	en	5	us	640	360	thumb	right	1581782547	ciolo6fivv759dcis2aab6fbdg	google inc.
+19	right	native	rarely	male	ar	5	lb	760	360	thumb	right	1581339855	cri55jv9259ih3epm30fg7ri24	google inc.
+21	left	native	rarely	female	en	5	us	823	412	thumb	right	1580290040	cs7a6m3td20kdgtevcmqcvlu0m	google inc.
+18	right	beginner	often	male	en	5	in	892	412	index	right	1580999391	d0fuo4m6j92fbvm7db6vdrg3do	google inc.
+18	right	intermediate	everyday	female	en	5	my	780	360	thumb	right	1582945243	d8rq39pit2u4omafk9jc7gc2dk	google inc.
+25	left	intermediate	everyday	male	en	5	ph	846	412	index	left	1583400395	dfhghjclpv78u9crppm7r19pmr	google inc.
+21	right	beginner	everyday	male	en	5	in	851	393	thumb	right	1581107611	dgisokghf65ujkckeknhkk9131	google inc.
+34	right	native	rarely	female	en	5	us	736	414	index	right	1582046541	dloapm95uclsesuq1o1sm0ip50	apple computer, inc.
+18	right	advanced	rarely	male	en	5	ro	740	360	thumb	both	1583664128	dq1o0a1ardlluenmird7rqrmga	google inc.
+19	right	intermediate	sometimes	female	en	5	gb	740	360	thumb	right	1582419118	dtesqp5egov2k747ravp6fi2ht	google inc.
+30	left	advanced	sometimes	female	es	5	mx	812	375	thumb	both	1583075658	emheuubm6v6m9f5nd47mgf6aug	apple computer, inc.
+21	right	beginner	sometimes	female	en	5	in	640	360	thumb	both	1580565355	epa10kdlej3dm1ngsc33177afk	google inc.
+20	right	native	sometimes	male	en	5	us	740	360	thumb	right	1583272577	f59tlaih1mb0les1fgomq6amv4	google inc.
+19	right	native	sometimes	female	en	5	gb	896	414	thumb	both	1580305143	f6mcfmvf16e7lno4k3aua8t4re	apple computer, inc.
+18	right	native	never	female	en	5	us	667	375	thumb	right	1579826819	fb7lvol7qij4nfkve4ppqsa0dv	apple computer, inc.
+19	right	native	rarely	female	en	5	us	896	414	thumb	right	1580770846	fdp4lfkort5gi7659jpaom7tkp	apple computer, inc.
+20	left	beginner	sometimes	male	en	5	my	640	360	other	both	1580224068	fe5djv5bsisr64kuj0733ab42v	google inc.
+24	right	beginner	everyday	female	en	5	ph	640	360	thumb	right	1583415684	fict7olji3h32njqg8up28jelf	google inc.
+28	right	beginner	never	male	en	5	in	892	412	thumb	both	1583504309	fp45ucrnhgt0s8smuscciasas6	google inc.
+35	right	intermediate	everyday	male	en	5	us	869	412	thumb	right	1583187552	fpjn677sl7fq0981nkb8ukuqqb	google inc.
+40	right	advanced	everyday	male	en	5	es	720	360	index	right	1576480549	g1dgig1st0he01bmgdjo6crgds	google inc.
+18	right	beginner	everyday	female	en	5	ph	780	360	thumb	right	1581587115	gbfob2mgumpcpivcd3405vlca3	google inc.
+18	left	advanced	often	male	en	5	us	640	360	thumb	both	1583708394	gjvuli5d0cbb65jpfujd2n97pd	google inc.
+18	right	native	sometimes	female	en	5	us	667	375	thumb	both	1583267928	glak4t90cofpt4m87h2duu99s4	apple computer, inc.
+27	right	advanced	rarely	female	en	5	us	896	414	thumb	right	1580146948	gm7botddoq9298c1lvb4rkglf8	apple computer, inc.
+38	right	intermediate	often	female	en	5	ph	732	412	index	right	1580001577	gn39u2iqcnshuodto6u708e4dk	google inc.
+18	right	intermediate	sometimes	female	en	5	gb	667	375	thumb	both	1581355589	h9jivoaeqa3jkn5gd7po9mplnu	apple computer, inc.
+20	right	intermediate	everyday	female	en	5	us	896	414	thumb	right	1579722855	hkdstg964msgtfpfiunjh3di1d	apple computer, inc.
+20	right	native	sometimes	male	en	5	us	896	414	thumb	right	1580909076	hma0pbllo3qvteu37hhsdnol2n	apple computer, inc.
+18	right	native	rarely	female	en	5	us	667	375	index	both	1579794873	idrp5ekftd81mibhpoln2sm5k9	apple computer, inc.
+28	right	beginner	sometimes	male	en	5	in	892	412	thumb	right	1583631172	ig1qgtnbfs3vqdoij1pb2poqkc	google inc.
+43	right	advanced	rarely	female	en	5	za	640	360	index	right	1580683678	ikjt54gqh7grhalvppnkdj9gsm	google inc.
+20	right	native	never	female	en	5	us	667	375	index	right	1582566725	iodk9l34aonei39g2ira26bquc	apple computer, inc.
+19	right	beginner	sometimes	male	en	5	in	667	375	thumb	right	1580275443	iqamr6omelefmc9g4jmu0dj5ur	apple computer, inc.
+19	right	beginner	often	female	en	5	ph	760	360	thumb	right	1582046894	j2kmu1i6imbulhrmrq0msbe9bv	google inc.
+28	right	intermediate	everyday	male	en	5	id	640	360	other	both	1582515052	j51mbgg21loim8c2jfb7lrmruk	google inc.
+18	right	advanced	often	male	en	5	us	760	360	thumb	right	1582074644	jc4c1rqsp9hbpf585tftpgj20v	google inc.
+23	right	intermediate	rarely	male	en	5	mx	760	360	thumb	right	1581988679	jk8q2kcktnl7ghnq7umston91p	google inc.
+23	right	intermediate	rarely	male	en	5	mx	846	412	thumb	right	1582606898	k1tbt41h5ja7s3cvi218g40mc2	google inc.
+25	right	intermediate	often	male	en	5	mx	771	360	thumb	left	1582883451	k4ueu6qo0neo557nqtnbqlsh2b	google inc.
+18	right	native	everyday	other	en	5	gb	667	375	index	right	1581595072	k76143qb1s002ndencqk3bsocf	apple computer, inc.
+37	right	intermediate	everyday	female	en	5	ph	720	360	index	right	1581505967	k9eg4bj7fvmuk6ugvqnpkfjs4m	google inc.
+35	right	native	sometimes	female	en	5	gb	667	375	index	right	1583097616	kkvsraondqp4a104df0961i7e2	apple computer, inc.
+18	left	native	sometimes	male	en	5	us	896	414	index	both	1581383213	krsg1l0i042kjn778rpp6pb1gm	apple computer, inc.
+20	right	intermediate	rarely	female	en	5	us	812	375	index	right	1582074999	kt21fs2t9rc6ku0s15n5v2c8ct	apple computer, inc.
+18	right	advanced	rarely	male	en	5	us	736	414	thumb	right	1583302977	l2eb2ecafjbjohdsfm37ig2m6t	apple computer, inc.
+20	right	advanced	rarely	female	en	5	us	780	360	thumb	right	1582681763	l9dvhm1jkk1d8qm8bdn4cac9sf	google inc.
+22	right	beginner	rarely	female	en	5	ph	800	360	thumb	both	1582622280	lqhtmvt616si4ir4jf7dcglr17	google inc.
+20	right	intermediate	never	male	en	5	mx	667	375	thumb	right	1581369136	lvf3et9qkfngfqjsdrie8oamlt	apple computer, inc.
+20	right	advanced	sometimes	female	en	5	za	869	412	other	right	1583171292	m53ltuqgpu7rtrd8a7oskr9l6i	google inc.
+18	right	advanced	everyday	female	pl	5	in	640	360	thumb	right	1580999116	marhhssku0p8538g1o65f9mfp4	google inc.
+44	right	native	sometimes	female	en	5	lc	757	360	index	right	1580258517	mba80m6tqqt5h3qd4oj4f1bm3n	google inc.
+40	right	advanced	everyday	male	en	5	es	720	360	index	right	1579164760	n1sr1tch2fqgqppetav47j0nfd	google inc.
+19	right	advanced	sometimes	female	en	5	za	892	412	thumb	right	1579862778	n7f1200vgkpqclvvms3a09q59s	google inc.
+41	right	advanced	everyday	male	en	5	pk	760	360	thumb	right	1580780702	nchm275uqqs4a2fk3kqb4vp5mo	google inc.
+29	right	native	rarely	female	en	5	lc	892	412	thumb	right	1580259758	ndh15ncs8p4n2k397icloro1j5	google inc.
+19	right	native	everyday	other	en	5	us	896	414	thumb	right	1582241024	ng398s8avt190m4ms266ocnsrr	apple computer, inc.
+25	right	intermediate	rarely	male	en	5	us	869	412	thumb	right	1580063240	nsbpc1d4jpf0caukktf6n3sonl	google inc.
+18	right	native	sometimes	female	en	5	gb	896	414	index	right	1579723643	ntli4vem537k1ek8ud0v6pvb8e	apple computer, inc.
+18	right	advanced	everyday	female	pl	5	in	640	360	thumb	right	1580997221	oj3k5jjl8l3hlo4iokitu18cru	google inc.
+20	right	native	sometimes	female	en	5	jm	640	360	index	right	1583281358	p70qpjv1k6hr3entladc63f09p	google inc.
+38	right	native	sometimes	female	en	5	us	640	360	index	right	1581475403	pbujbq0r7r97sr8t8fk0789mac	google inc.
+19	right	native	never	female	en	5	us	896	414	other	right	1582221319	pflajhgmgfecsrrv68ru3b43n7	apple computer, inc.
+25	right	intermediate	sometimes	female	en	5	in	780	360	thumb	right	1580736030	pnlsjm1dhn8ucidarf62o4l718	google inc.
+26	right	native	rarely	female	en	5	us	896	414	thumb	right	1579862384	q5a1gvqtnchjfcb26ov5skqfhg	apple computer, inc.
+40	right	native	rarely	female	en	5	us	869	412	index	right	1583149569	qe3ism46d0uhcfcr0rbpr60gsr	google inc.
+80	right	native	often	male	en	5	us	823	412	thumb	right	1582657128	r1ug5ndlbus96vi8oj9fvs9nn3	google inc.
+27	right	advanced	never	female	en	5	us	640	360	other	right	1580754780	r7jpl1v9g8v6rehftap3bmmfm1	google inc.
+19	right	beginner	everyday	female	en	5	in	640	360	thumb	right	1582953011	rd855r5bms9kvgg2be0mjj4rde	google inc.
+18	right	advanced	rarely	male	en	5	in	830	393	thumb	right	1581678739	rnctrgnba08rmiaescbc63f9d0	google inc.
+22	right	advanced	rarely	female	en	5	za	780	360	thumb	right	1580374804	rngcgieu7gj3kj15ip50jt08f8	google inc.
+20	right	advanced	sometimes	female	en	5	za	869	412	index	right	1583247132	rr3lothsb10hc0is2omp9tbloq	google inc.
+18	right	native	rarely	female	ko	5	gb	640	360	index	right	1583133885	s8850qu5b80tmbj9el1kiumbnu	google inc.
+18	right	advanced	rarely	female	en	5	gb	896	414	thumb	right	1581627255	schpf366cue7m1njid9v2cr8qi	apple computer, inc.
+20	right	intermediate	sometimes	male	en	5	in	640	360	thumb	right	1583559901	sf9se3te3eftnd0q4vf9ct3qid	google inc.
+21	right	beginner	never	male	en	5	mx	892	412	index	right	1582814035	sj50avsrj957kqbcb9camnq314	google inc.
+31	right	beginner	often	female	es	5	mx	667	375	index	right	1583158340	t3lnoeee4utvfdv4av0qaca0bh	apple computer, inc.
+21	right	intermediate	often	male	en	5	mx	720	360	thumb	right	1581568850	tebbvjq11ah5vujrc0grhuvool	google inc.
+18	right	native	rarely	female	en	5	us	869	412	thumb	right	1580245190	ug96bo3dlhorb5ievs16u32gf0	google inc.
+26	right	advanced	everyday	male	en	5	ph	720	360	thumb	both	1580145686	ugk00s26icc0hjuh8fleu6lu2i	google inc.
+18	right	advanced	sometimes	female	en	5	in	760	360	index	right	1580284559	uho17iaa824cddprfcfmi5iiuv	google inc.
+21	right	advanced	rarely	female	en	5	us	740	360	index	right	1583271011	uhvg857bfkja9bguatn4iqem5j	google inc.
+22	left	intermediate	often	female	en	5	ng	800	360	index	right	1583712441	uj39f6kjqaj96sep1u79t8s6um	google inc.
+18	right	native	everyday	female	en	5	us	896	414	thumb	right	1583072356	vgpsnt1r2srd1ijjpi861muk45	apple computer, inc.
+18	right	advanced	everyday	female	en	5	in	854	480	thumb	both	1583402408	vmo0mksarctc46mg19v65ik2kq	google inc.
+22	right	native	sometimes	female	en	5	us	896	414	thumb	right	1580841369	iph3n8hs4u876u428ro7r14kp4	apple computer, inc.
+39	right	native	sometimes	male	en	5	us	896	414	thumb	right	1581220919	06c848png23tueouglo78fhhbb	apple computer, inc.
+18	right	native	never	female	en	5	us	667	375	index	right	1580668760	091v425ipps7umcs8638i8clr1	apple computer, inc.
+30	right	beginner	often	female	en	5	de	780	360	thumb	right	1581357145	098t7d8nvvtoc0eefgrverbr3n	google inc.
+22	right	advanced	rarely	female	en	5	us	640	360	thumb	right	1580137633	0cgivjmfvr7jnqqpcdo5jggqrp	google inc.
+39	right	advanced	often	female	en	5	us	780	360	thumb	right	1580572880	15mihbgtgpvs2u7o3doi15bir9	google inc.
+20	right	intermediate	everyday	female	en	5	mx	812	375	thumb	both	1583127159	187ek49l68dkqc5ml3rbo6rejm	apple computer, inc.
+24	right	advanced	never	male	en	5	my	896	414	index	right	1581498741	18fejrhkopnq6mqqvi6pi8c2er	apple computer, inc.
+34	right	intermediate	never	female	en	5	ph	640	360	thumb	right	1583238240	1ar6uaqp7nfphssn5n9ebrte2v	google inc.
+21	right	native	sometimes	female	en	5	us	846	412	thumb	both	1582003880	1bohqoqf11runeteiig4ik70j7	google inc.
+29	right	advanced	sometimes	male	en	5	za	732	412	thumb	right	1579851229	203mnugq4s0rf2a6k5rrar28r2	google inc.
+18	right	native	often	female	en	5	us	896	414	thumb	right	1583876560	29u2n5o49vspqlcu4vojttk2s7	apple computer, inc.
+18	right	native	rarely	male	en	5	gb	780	360	index	right	1582313845	2tcf5e14srj11omnnog5qiateb	google inc.
+24	right	native	never	female	en	5	us	667	375	thumb	right	1580140192	33dmqpu8svg7cl9f3jvi5pjljr	apple computer, inc.
+19	right	native	sometimes	male	en	5	ca	846	412	thumb	right	1579802073	3dgau6gq8c2hqefrljn9lbh1db	google inc.
+29	right	native	rarely	female	en	5	us	896	414	index	right	1582072771	3issbv9n1qubj3eode7p1sqtoe	apple computer, inc.
+24	right	advanced	sometimes	female	en	5	us	892	412	thumb	right	1582474154	455jd8n85odfdniin96gvppjk6	google inc.
+19	right	advanced	rarely	female	en	5	us	846	412	index	right	1583321196	52liqmpj0sgl34ffnr951ng67j	google inc.
+19	right	native	never	male	en	5	gb	667	375	thumb	right	1582842627	5m34jt2mbhs7iltbtin3b567t0	apple computer, inc.
+22	right	intermediate	sometimes	female	en	5	ph	732	412	thumb	right	1580902036	5ntts98efhvcblr0l8mh3g9grk	google inc.
+18	right	advanced	never	female	en	5	in	770	451	thumb	right	1581417563	5qd9gt6hb43n686m2n612jppok	google inc.
+22	right	intermediate	sometimes	female	en	5	us	720	360	thumb	right	1581538486	5r33pinp5a5cmro00r4m82e4po	google inc.
+25	right	intermediate	often	male	en	5	mx	771	360	thumb	right	1581637712	5r90gq2rjqethkattqct8msm6a	google inc.
+22	left	native	often	female	ko	5	us	760	360	thumb	left	1580359195	5rajg5e2ntdvbgrhkpeo7jqfa0	google inc.
+34	right	intermediate	rarely	female	en	5	ws	667	375	thumb	right	1580742197	5sbp1u9ntcthiflupbtt3t8mia	apple computer, inc.
+21	right	advanced	rarely	female	en	5	us	780	360	thumb	right	1583195728	643cb7cc0pof3n5d3d7lbrnbm5	google inc.
+20	right	native	rarely	female	en	5	us	896	414	index	right	1583275535	6punk2hh38ekve28pmf6kjlbd8	apple computer, inc.
+30	right	advanced	often	male	tr	5	de	760	360	thumb	right	1579935670	73ad251o5dgdj3fco5ga2blqsp	google inc.
+22	right	advanced	often	male	en	5	mx	760	360	thumb	both	1579757128	7a9e7idqa791qpen0rkle3unp4	google inc.
+23	right	advanced	sometimes	female	en	5	ng	570	320	other	right	1581273361	7aro05snc4r5r11eb5l43829j0	google inc.
+26	right	intermediate	everyday	female	en	5	us	896	414	thumb	right	1582861385	7jf78urshe95u7vk6m3vct9rle	apple computer, inc.
+23	right	beginner	everyday	female	es	5	mx	846	412	index	both	1583295428	7tiaa1eg4sloe3bv7psmi5m4q3	google inc.
+36	right	native	rarely	female	en	5	pr	740	360	thumb	right	1583252407	899cnobhr8moctuu2mikshv5vu	google inc.
+18	left	advanced	everyday	female	en	5	us	667	375	thumb	both	1583449207	8ck8vd10r3ttcmdbja74jdg0k0	apple computer, inc.
+30	right	native	everyday	male	en	5	us	823	412	index	right	1581061167	8v1uuf07dklp3k7lbrso2fpulm	google inc.
+21	right	native	rarely	female	en	5	jm	896	414	thumb	right	1581228821	997gkffuj6d2rdegq4a9f8np2o	apple computer, inc.
+26	right	intermediate	never	female	en	5	mx	892	412	thumb	right	1583211709	9l0rug9sgn8pg3pik8oi8rporp	google inc.
+19	right	intermediate	rarely	female	en	5	gb	568	320	index	right	1582553681	9lkn14dhdhglk19m3oposm6o9n	apple computer, inc.
+18	right	advanced	rarely	male	ar	5	us	846	412	thumb	right	1579949776	9maf8m7au61vlrsf54eukugt0a	google inc.
+23	right	beginner	rarely	female	en	5	us	896	414	thumb	right	1583366977	9rtk366ka90kkm1htcltl901u5	apple computer, inc.
+18	right	native	sometimes	male	en	5	ca	732	412	thumb	right	1583173038	9sqdpf3ll0l7gttjfpjufgmcoi	google inc.
+18	right	intermediate	sometimes	female	en	5	in	780	360	index	right	1580058997	9tlsq7squuhsjbidf8a0e4dmah	google inc.
+20	right	intermediate	never	male	en	5	lr	760	360	thumb	both	1579986951	a47pkq4grmuev78bq1nuk28sgi	google inc.
+35	right	intermediate	rarely	female	en	5	us	736	414	other	right	1582242371	a6bj8ugikh8q11bdo4hdl6gqai	apple computer, inc.
+28	right	native	rarely	female	en	5	us	760	360	index	right	1581957219	a7d31ei3hglrd7d0bmfbdt48p1	google inc.
+25	right	beginner	everyday	male	en	5	ph	760	360	thumb	both	1580291208	a8vqmofbdtmhov1ud3ii8jv4m3	google inc.
+21	right	intermediate	rarely	male	en	5	ph	869	412	thumb	both	1580781640	bsp6ira64ga3964sgettjfdnhn	google inc.
+19	right	native	rarely	female	en	5	gb	896	414	thumb	right	1583179674	cf3ea50jppbqfi4aol96ej8k9d	apple computer, inc.
+24	right	native	sometimes	female	en	5	us	896	414	index	right	1582293816	ck9rb417qr7lvrn7sbp4aq1alu	apple computer, inc.
+20	right	advanced	sometimes	female	pl	5	pl	846	412	thumb	both	1581526757	clec95gd03j5guatr1thmroah3	google inc.
+26	right	intermediate	often	female	en	5	gb	568	320	thumb	both	1580592138	cr1f687m2ugton02egjurkghfb	apple computer, inc.
+18	right	intermediate	sometimes	male	fr	5	in	569	320	thumb	right	1582011233	csl0o4j45vpaqgprhl6spd9je4	google inc.
+18	right	intermediate	rarely	male	en	5	us	846	412	thumb	right	1583426142	cu3c83uv4uciklfvqjn4ftls43	google inc.
+18	right	advanced	never	female	en	5	gb	896	414	index	right	1582068147	d0o6ebed7rff1f6btukpalf41k	apple computer, inc.
+30	right	beginner	never	female	en	5	in	640	360	index	right	1582396729	d1839dpf9d1liija4buvjvm2cm	google inc.
+29	right	advanced	often	male	en	5	in	772	360	index	right	1576856071	deoilbn3bpp5cteots1ma91bi7	google inc.
+26	right	intermediate	sometimes	male	en	5	bd	740	360	other	right	1583128015	e0ckdeh94hc5tu682ah99bqddb	google inc.
+29	right	advanced	sometimes	female	en	5	ng	640	360	thumb	right	1582002181	e0e2upgnq7dlb0grkg53t75oct	google inc.
+47	right	intermediate	everyday	female	en	5	ph	780	360	other	right	1581741713	e16spqfvlc8s6mvqphiget54gt	google inc.
+20	right	beginner	rarely	male	en	5	us	740	360	thumb	right	1583324688	e7nt1sq8n6uj0lbi4rfi8q05oi	google inc.
+18	right	intermediate	often	male	es	5	mx	756	360	thumb	right	1582641056	ei065rv3t8rbk3kmu9fido5go6	google inc.
+27	right	advanced	rarely	female	es	5	mx	640	360	thumb	left	1582732519	f56qu4nfbvcrss5tj0r03odrs1	google inc.
+18	right	native	never	female	en	5	au	892	412	index	right	1583147037	f7illofgptruc2fpstqoh1bb55	google inc.
+26	left	beginner	sometimes	female	en	5	us	896	414	index	right	1580558103	fcimfg050alk5kj2t5ddbqq0ud	apple computer, inc.
+19	right	intermediate	often	female	en	5	us	736	414	thumb	right	1582689666	fd5gmaablg1v5uds07dhgrd48s	apple computer, inc.
+26	left	native	everyday	other	el	5	us	640	360	index	both	1581912796	flcv0btqthq84nmudv4f599ine	google inc.
+19	right	advanced	often	female	en	5	us	846	412	thumb	right	1580517703	fmvgid6jhma3no2bpa3bg3ejst	google inc.
+19	right	advanced	never	male	en	5	mx	896	414	thumb	right	1582938797	fqv1met0qktqasckl3a15a3p3p	apple computer, inc.
+27	right	native	often	female	en	5	us	892	412	thumb	right	1579725083	frskqfmecnscmrffeh8ibp6g9n	google inc.
+19	right	native	never	female	en	5	us	667	375	thumb	right	1582002292	gprhisfliuk2rc7g95rouemnj6	apple computer, inc.
+20	right	intermediate	sometimes	male	en	5	in	848	424	thumb	right	1579791538	gsor9mbsvoja8ko0ude0eat3qb	google inc.
+31	right	native	everyday	male	en	5	us	896	414	thumb	right	1581114573	gukhq6fqa5td0laj89r0f957ld	apple computer, inc.
+20	right	native	sometimes	male	en	5	us	812	375	thumb	right	1582899193	h1l6krhsq1ft811prl4up01qo3	apple computer, inc.
+23	right	advanced	rarely	female	en	5	gh	812	375	index	right	1579842630	h4dacp31aomdq6u6r1omb1ttjs	apple computer, inc.
+20	right	native	rarely	female	ko	5	gb	640	360	thumb	right	1581698268	h8qf4nrf9n05nt1jabach0g45o	google inc.
+18	left	intermediate	everyday	male	en	5	ng	800	360	thumb	right	1580341831	heq7aitr9mdbe487hai6io3lko	google inc.
+18	right	beginner	rarely	male	en	5	gb	869	412	thumb	right	1580336620	hgof0d3oddim33gghtvfvc5pum	google inc.
+35	right	advanced	sometimes	female	en	5	ph	780	360	index	right	1581518319	hship2861vrqd7v93254hjv8qn	google inc.
+20	right	beginner	everyday	male	en	5	ph	640	360	thumb	right	1581299347	hsqguoojkagtnrdfnq5g7gbtqp	google inc.
+21	right	native	everyday	male	en	5	gb	740	360	thumb	right	1580117402	i928u55scpr1mojtk59vrb8s7e	google inc.
+18	right	advanced	rarely	female	el	5	de	640	360	index	both	1580665710	ia9hetmnvc4te4c8rtsu38no8p	google inc.
+30	left	advanced	rarely	female	es	5	mx	812	375	index	both	1583349123	ihk4kneo4ll9uc3en26of4i1r8	apple computer, inc.
+22	right	intermediate	sometimes	female	en	5	in	869	412	index	both	1582865190	it6qltl836j9pr3bi5g21pj34c	google inc.
+25	right	advanced	rarely	female	es	5	mx	896	414	index	right	1582153520	itqfp0ti5lf0pnqjvat6k5pgiu	apple computer, inc.
+25	right	intermediate	never	male	en	5	mx	840	360	index	right	1581959654	j4e11s5dpa8qirimk7gk9i9sg1	google inc.
+18	right	advanced	everyday	female	en	5	us	896	414	index	right	1580444037	jclk7m2upsqn0qf21n6rppdhpr	apple computer, inc.
+26	right	intermediate	rarely	female	en	5	ph	780	360	index	right	1581214262	k57n50c9r9lp4vhth156sha3tt	google inc.
+18	right	beginner	never	female	en	5	us	896	414	thumb	right	1581968559	k5ndvcsirtoa0pjgqsceic1k3t	apple computer, inc.
+21	right	advanced	rarely	female	en	5	nz	753	424	thumb	right	1581403013	k7mlmitkkpgjgte2knh16f7ah4	google inc.
+29	right	advanced	never	female	en	5	mx	812	375	index	right	1582655971	kskh7rjl2fom6a6jrcbmrh052o	apple computer, inc.
+22	left	intermediate	rarely	male	en	5	ph	780	360	thumb	left	1581903417	lql0mpqglhq9vl3rsvdnoo047c	google inc.
+28	right	native	sometimes	female	en	5	us	570	320	thumb	right	1579842212	m86pvp37t0cd6torr48dnj9gej	google inc.
+18	right	intermediate	rarely	male	en	5	mx	760	360	thumb	right	1582607841	ma6ktt2d1bm0qkggjgfo1uhgrb	google inc.
+32	right	native	rarely	female	en	5	in	640	360	thumb	right	1581414495	n2hmbhvoqpc3ra8u6tvf4thgij	google inc.
+99	right	native	never	female	en	5	gb	747	360	thumb	right	1581888976	n8uh219pjujvbdi0mgi72t7840	google inc.
+23	right	advanced	sometimes	female	en	5	us	720	360	thumb	right	1580236559	nct8tah184rhpcpd7coeu3m226	google inc.
+99	right	intermediate	rarely	other	en	5	us	640	360	thumb	right	1583009100	ndpmeoe3hnqoc4ubjkpjga6a5s	google inc.
+18	right	native	often	female	en	5	gb	732	412	thumb	right	1580585083	nnftdkc1ceq5298741ls6bv0u2	google inc.
+18	right	native	never	female	en	5	ca	667	375	thumb	right	1582593785	nr180apuq6j4cm39ctjab06j4h	apple computer, inc.
+19	right	native	sometimes	male	en	5	us	812	375	thumb	right	1580438456	o0l0ru1uspq7df5nvd2erilb1n	apple computer, inc.
+32	right	native	often	female	en	5	us	732	412	thumb	both	1580275528	o1027jbnr98eu658nas5k9t0ke	google inc.
+45	right	intermediate	rarely	female	en	5	in	760	360	thumb	right	1579866444	o21pje926ao8l6q1ffpt7nv7se	google inc.
+25	right	intermediate	often	female	zh	5	ph	760	360	index	both	1583506446	oalrsmh107rritak2u1hvnvtvo	google inc.
+29	right	advanced	everyday	female	en	5	ph	780	360	thumb	right	1582111295	oamppgjl2pqqbvokcuvh660sri	google inc.
+34	right	native	often	female	en	5	us	569	320	thumb	right	1582840624	ob4mtlqhpto7iin9bjrbmbm8e5	google inc.
+28	right	advanced	often	male	en	5	us	823	412	index	both	1582552880	ocr2rnfj7qsmtu4crmk16gqtsi	google inc.
+24	right	advanced	everyday	male	en	5	ar	892	412	thumb	right	1582927213	ojr2g16tmksm2jsarskdkmajcm	google inc.
+30	right	native	often	male	en	5	us	896	414	other	right	1583291726	ott6cjird9bbrj2cjc5gafjsha	apple computer, inc.
+23	right	native	everyday	female	en	5	za	720	360	thumb	right	1581345897	pbo7sikushk6pgalc8bctnqto6	google inc.
+18	right	advanced	everyday	female	en	5	gb	667	375	thumb	right	1580665882	pgmh8t9ip2meas4fj50mqtobce	apple computer, inc.
+18	right	native	rarely	female	en	5	us	736	414	thumb	right	1580701174	pr52nek8v0h6960poptq7sq6nm	apple computer, inc.
+19	right	advanced	rarely	female	en	5	us	846	412	thumb	right	1582239501	qgs8cmn33ul54uknjpe267mikk	google inc.
+37	right	native	sometimes	male	en	5	ie	846	412	thumb	right	1582583121	qm1g61h8cl0t0rlifmbn571v7a	google inc.
+21	right	advanced	rarely	male	es	5	mx	736	414	thumb	right	1580318184	qpri6ac0nlt02g19vcp865f659	apple computer, inc.
+21	left	native	everyday	female	en	5	us	780	360	thumb	right	1580416632	qqk0le64j3eruogkrscpo7r8vp	google inc.
+32	right	native	sometimes	male	en	5	in	667	375	thumb	right	1576833713	r2v2mn13dlerbh047mvs2ffmkt	apple computer, inc.
+36	left	native	sometimes	female	en	5	us	720	360	index	left	1580862585	r33kuj75ucioea17vnrbbmk469	google inc.
+25	left	native	everyday	female	en	5	us	823	412	thumb	both	1583433307	r45h97c67580bvc521u6r8v4er	google inc.
+20	right	native	sometimes	male	en	5	in	720	360	index	both	1583676201	rf6sa0t1jf00j1m4fp6qjf7g4l	google inc.
+18	right	native	rarely	male	en	5	us	896	414	thumb	right	1583447066	ri3i4iq3refgdp72v3h3sn9um8	apple computer, inc.
+24	right	advanced	rarely	female	en	5	us	869	412	thumb	right	1582817003	rnoersipiqn5f21j3vh4v2fau4	google inc.
+28	right	native	never	female	en	5	ph	772	360	index	right	1581050219	rv373rid6j3baq7q2m8plm29am	google inc.
+20	right	advanced	often	female	es	5	mx	896	414	index	right	1582767043	s250oj2rgiromsusd3tq9272e1	apple computer, inc.
+34	right	advanced	sometimes	male	ko	5	kr	568	320	thumb	right	1576501746	s53rlfv0fsckniug5vkc6ouu71	apple computer, inc.
+18	right	advanced	often	male	en	5	hu	892	412	thumb	both	1580678372	t9ee0hvshafop8s53q5nldrq6n	google inc.
+22	right	intermediate	often	female	en	5	ph	800	360	index	right	1579788606	ti7m9u2c111usfjl0up9jt9js2	google inc.
+28	left	advanced	rarely	female	en	5	us	846	412	other	left	1580757544	v3hciif7q6sqeaieaqv8da8omj	google inc.
+18	right	advanced	rarely	female	fi	5	fi	667	375	thumb	right	1581764314	vdonb3c6qom2qtf9fubf0ldkbq	apple computer, inc.
+19	right	advanced	sometimes	female	en	5	mx	896	414	thumb	right	1582311102	vh6kcdnnts81d39s7qcemaps0r	apple computer, inc.
+21	right	native	sometimes	female	en	5	us	896	414	thumb	both	1580940343	viokfhu3mhstiun8guh8f4lplb	apple computer, inc.
+29	left	intermediate	often	male	en	5	za	760	360	thumb	right	1580312528	vkeltsd44aoejb4o4lbbptvlfe	google inc.
+56	right	native	sometimes	female	en	5	us	640	320	index	right	1580986368	vuidvssv54irp6vppd0vtlu2gq	google inc.
+27	right	advanced	rarely	female	en	5	us	896	414	thumb	right	1580143170	01rg5cvptn05eag69m0gckjer9	apple computer, inc.
+23	right	beginner	rarely	female	en	5	ph	640	360	index	both	1582833861	0f29l241oicoro0crftndffftu	google inc.
+22	right	native	everyday	male	en	5	us	812	375	thumb	right	1582851072	0ihu4fa7ilvhrge9bb8vdis0d4	apple computer, inc.
+26	right	advanced	sometimes	male	ar	5	jo	780	360	index	right	1583466032	0l2qio2mtgtv7nhkllcqj8jgbe	google inc.
+18	right	native	sometimes	male	en	5	us	667	375	thumb	right	1581044469	0p3e8p7qdeti2ci3ppbc8kdd8c	apple computer, inc.
+25	right	native	sometimes	female	en	5	ke	720	360	thumb	right	1582649952	17kgfne9gsi7dd4uo5rkn5v5h6	google inc.
+18	right	advanced	sometimes	female	en	5	it	896	414	thumb	right	1581243303	1b5nob75bo90tbskp56kp33gq8	apple computer, inc.
+18	right	beginner	everyday	female	en	5	us	780	360	thumb	right	1582406128	1d2b9ttq9k75ruuhljaq8t09bt	google inc.
+26	right	intermediate	often	female	en	5	in	812	375	other	right	1582764180	1eq3lrfih285jt26l5u9oulbu3	apple computer, inc.
+22	right	advanced	rarely	female	ko	5	my	753	424	thumb	both	1582649892	1grug5pdvi8jgut74ogaej9k9u	google inc.
+24	right	intermediate	everyday	female	es	5	pa	892	412	thumb	both	1583345411	1j5iitf3if64n9v7dcl1lje3l1	google inc.
+18	right	advanced	rarely	male	en	5	gb	896	414	thumb	right	1582787839	1o30beptlv2cu7svn3ileenopn	apple computer, inc.
+55	right	beginner	everyday	male	en	5	us	812	375	thumb	right	1582872834	20b1fhsjk4p6qq0jgvbamk1cko	apple computer, inc.
+26	right	intermediate	often	female	en	5	gb	568	320	thumb	right	1580578775	24unskk8k5e3thf2j13bak34v3	apple computer, inc.
+27	right	native	often	female	en	5	us	896	414	index	right	1583382124	2mk4qs7t4i4dj3h3kqdq2tior6	apple computer, inc.
+30	right	native	everyday	female	en	5	ph	736	414	index	right	1583421991	3fh7v9kqvsh8efa8lvsn1a7cqj	apple computer, inc.
+23	right	intermediate	sometimes	female	en	5	bd	851	393	thumb	right	1582641531	3jcbv3go9i5s7o0c8v99se4goa	google inc.
+18	right	native	everyday	female	en	5	us	720	360	thumb	right	1582679447	3um5c2jq8jsq8k0fcfjb5n4dlh	google inc.
+39	right	beginner	sometimes	female	en	5	ph	760	360	index	right	1580131902	42q3qldluslc37vad5i8oa27uo	google inc.
+36	right	native	never	male	en	5	us	732	412	thumb	right	1581146451	4uoa54rnaaqfoq6hal5bhp9e9s	google inc.
+18	right	beginner	everyday	male	en	5	in	851	393	thumb	both	1580484523	51gf4j0udulokd47br5egeo5v9	google inc.
+29	right	intermediate	rarely	male	en	5	ph	848	424	thumb	right	1580181363	54mhgeh2eq2q5iv6rd732esp8o	google inc.
+27	right	advanced	everyday	female	en	5	us	892	412	index	right	1579891615	570hic7q4c8chveu8fdhradfh2	google inc.
+22	left	advanced	everyday	female	en	5	za	570	320	thumb	both	1580764996	5gkdg03nkveprjd75p40kq5p3c	google inc.
+33	right	advanced	everyday	female	en	5	ph	869	412	other	right	1583548005	5hviqn9hjmbtu68qmg32rl6rpa	google inc.
+31	right	native	never	female	en	5	us	846	412	thumb	right	1583839418	5l00mgfv8vqnfrdkmk0re0ggro	google inc.
+22	right	native	never	female	en	5	us	896	414	thumb	right	1580093399	5ql4jqbidlnja06vlkt77u1nva	apple computer, inc.
+24	right	native	sometimes	female	en	5	jm	640	360	thumb	right	1583957738	6gonibf22c0394rqtd5j0koqbm	google inc.
+32	right	beginner	everyday	female	en	5	cm	640	360	index	both	1581014093	79oaskvpsjvkb2mhp5r4v7pbc3	google inc.
+21	right	native	rarely	male	en	5	us	896	414	thumb	right	1580367804	7hf2jkfcab27m9pfguastqr29d	apple computer, inc.
+18	right	beginner	rarely	male	es	5	mx	720	360	index	right	1581384815	7iucpb0rdd89n5pi0ihu63tlnr	google inc.
+20	right	intermediate	sometimes	male	en	5	ph	846	412	thumb	right	1582192307	7p6gpooponismgvam0vvvsjgse	google inc.
+37	right	intermediate	everyday	female	en	5	ph	772	360	index	both	1583420023	986oivjgg3rpb7a7718g25iqh1	google inc.
+20	right	advanced	rarely	female	en	5	us	896	414	thumb	right	1582138262	9b5sidaj2fhvfdmmfee6fq6igu	apple computer, inc.
+43	right	advanced	everyday	female	en	5	us	892	412	index	right	1582970524	9lchgibo2dr3clvub4pmacnf6q	google inc.
+20	right	beginner	sometimes	female	en	5	ph	760	360	thumb	right	1581939032	9rtou4527e8kuphgnf3kv6lloj	google inc.
+24	right	native	rarely	female	en	5	tt	736	414	index	right	1581616430	aj94v1643acd19mat3jeggcci5	apple computer, inc.
+22	right	native	sometimes	female	en	5	us	812	375	index	right	1580825699	ajig9a016qdhgeft7tv7v0s51r	apple computer, inc.
+40	right	native	often	female	en	5	us	896	414	index	right	1580998107	aoesd0o3ru3pekbkklhg159jdh	apple computer, inc.
+19	left	beginner	sometimes	female	en	5	us	736	414	thumb	left	1579701248	apn6mh7ac04ib67adub35ihq73	apple computer, inc.
+21	right	advanced	sometimes	female	en	5	ng	812	375	thumb	right	1580078381	b2pmjqa8r7drfj8kq1r445oj82	apple computer, inc.
+24	left	advanced	rarely	female	es	5	mx	780	360	thumb	right	1582144254	b3ir1kvh9atp2vfl6nnb6onqbs	google inc.
+18	right	native	everyday	male	en	5	us	667	375	thumb	right	1582173306	botulu824l452bt05dcmupkgse	apple computer, inc.
+18	right	native	sometimes	male	en	5	us	896	414	thumb	both	1580017813	c24ejmdpvst3144q7msg5kr2o5	apple computer, inc.
+23	right	advanced	sometimes	female	en	5	us	736	414	thumb	right	1580759958	c5cj70pkhs1s3i21u6daopcitk	apple computer, inc.
+31	right	advanced	everyday	female	en	5	us	760	360	index	both	1581014635	c6de62d52slctlmelc9725glhn	google inc.
+23	right	intermediate	sometimes	female	en	5	ph	760	360	index	right	1582091073	c74l58760130gvoh8but66pp51	google inc.
+20	right	intermediate	never	female	en	5	mx	892	412	index	right	1583276838	c9otr0g48uefeehhnq9chlu9ba	google inc.
+18	left	native	sometimes	female	en	5	us	896	414	thumb	both	1580016879	cf0utrsgfmj7fga2av01ubvrr0	apple computer, inc.
+31	right	native	often	female	en	5	us	896	414	thumb	right	1581860506	dlejsgcovtht3t06cniqg47mpg	apple computer, inc.
+22	right	intermediate	sometimes	female	en	5	mx	760	360	thumb	both	1581096407	e212hateq2hs46f8ro032d1erh	google inc.
+41	right	advanced	everyday	female	en	5	us	640	360	index	right	1581519389	e2su850j1f5hgeph76nfb5htvp	google inc.
+21	right	native	never	male	en	5	in	760	360	thumb	right	1580170284	e8kfa12t1ln7uobm536b659d8c	google inc.
+18	right	intermediate	everyday	female	en	5	ph	760	360	thumb	right	1580117649	effsfcnqn82ep0d8gsvno6ov74	google inc.
+49	right	native	often	female	en	5	us	760	360	index	right	1582234916	ehl7pvqnosn2n89i0v3bsga7em	google inc.
+30	right	beginner	never	female	en	5	ph	846	412	index	right	1580327284	elm0rj25290gj82dkd8o5d6cup	google inc.
+18	right	intermediate	often	male	en	5	sg	760	360	index	right	1580109060	elud1547ile78mpg9ggvtgialj	google inc.
+18	right	native	sometimes	female	en	5	ca	667	375	thumb	right	1580262940	f0iabqarc6pq27bg1fmnddd477	apple computer, inc.
+29	right	native	everyday	female	en	5	us	736	414	index	right	1580436401	fg3kpiiafun0ano3fjnv2ag698	apple computer, inc.
+25	right	advanced	sometimes	male	en	5	pk	780	360	index	right	1580474735	fhirsbma34r2pff9uvpo2moj49	google inc.
+18	right	native	never	male	en	5	us	896	414	index	right	1580222923	fm1i7hncmrvrj9dbs7cj4k8tha	apple computer, inc.
+48	right	advanced	sometimes	female	en	5	nl	896	414	thumb	right	1581677223	g2bu6ks02c1k3l1b7knjnkp817	apple computer, inc.
+31	right	intermediate	rarely	male	es	5	mx	736	414	thumb	left	1582929771	g46auos4ub2b8qpd1hjad1frc5	apple computer, inc.
+18	right	beginner	rarely	male	lt	5	lt	732	412	thumb	both	1583405334	g5l2odpa9n2p5qos1jida79lb8	google inc.
+38	right	native	rarely	female	en	5	us	846	412	index	right	1580166152	ggeajavedgsmk22grfml50rns1	google inc.
+21	right	advanced	rarely	female	en	5	us	896	414	index	right	1579803748	gkautjq69un303a81odt6b1jvk	apple computer, inc.
+24	right	native	never	female	en	5	us	896	414	thumb	right	1583109894	h2pcki2vdamg5qo17rn2i1ufud	apple computer, inc.
+27	right	advanced	often	female	en	5	us	892	412	index	right	1579892934	hkjbhacbaj4bbfa41bo4p7d8b7	google inc.
+19	right	native	sometimes	female	en	5	sg	846	412	thumb	both	1583372765	i0k33gpcflub14gvknvpvajlmk	google inc.
+22	left	native	rarely	male	es	5	mx	760	360	thumb	left	1583217366	i2v65cok320mprtljd4b97ea6h	google inc.
+20	right	native	sometimes	female	en	5	ca	896	414	index	right	1581436262	ili9rb99fuhjpm6tv5bojj83p7	apple computer, inc.
+20	right	intermediate	sometimes	other	en	5	ph	720	360	thumb	right	1582738669	it1usgu71rddrnrebgusid71dk	google inc.
+18	left	advanced	rarely	female	en	5	us	896	414	index	left	1582396690	iv7p8pnj26bhrf4cqi7jp7r1rr	apple computer, inc.
+26	right	advanced	rarely	male	en	5	za	570	320	index	right	1579782857	j1m5hnpod7fhl9ho1757v4pfvo	google inc.
+18	right	advanced	everyday	female	en	5	mx	667	375	thumb	both	1582938852	j77m92v53f1ioei34huj2v3jv1	apple computer, inc.
+21	right	intermediate	often	female	en	5	in	851	393	thumb	right	1580399238	jo5vflre4iaul9mji0imd5anl8	google inc.
+19	right	native	everyday	female	en	5	us	736	414	thumb	right	1581888922	k5gk1b1fi8iljqr57htms5rjbc	apple computer, inc.
+18	right	advanced	rarely	male	lt	5	gb	720	360	thumb	right	1582705413	ka1fh32offunicjic5h5tmdrb0	google inc.
+18	right	native	sometimes	female	fr	5	us	747	360	thumb	right	1581842099	list9hlgshcruo3bka60acc0r3	google inc.
+31	right	native	everyday	female	en	5	us	812	375	thumb	right	1581956793	lk19fmfrbpaofkkg09pv62mqhg	apple computer, inc.
+23	right	intermediate	sometimes	male	ur	5	pk	640	360	thumb	right	1582695112	lmfrqdle8q3d6nmqoruhgbv3o4	google inc.
+29	right	intermediate	rarely	female	en	5	ca	736	414	thumb	right	1582832251	ln78em546k3e8asmvu6i3o0fsk	apple computer, inc.
+22	right	native	rarely	female	en	5	us	869	412	index	right	1581541734	loct7t81o769tl7pkh8g9kkk62	google inc.
+31	right	native	never	female	en	5	us	846	412	thumb	right	1583454426	lp6ejphhjkctqm0bg8m35pkjiv	google inc.
+18	right	intermediate	often	male	en	5	sg	869	412	thumb	right	1581640991	lq50305gn809vi6h537s3sge32	google inc.
+28	right	native	rarely	female	en	5	au	812	375	thumb	right	1581572621	m8ikcd05kdgm2ib00sv98rddne	apple computer, inc.
+18	right	native	rarely	male	en	5	us	667	375	thumb	right	1580358068	mf0dkpd4ohsa178ghvm2pdoapr	apple computer, inc.
+18	right	intermediate	often	male	en	5	au	869	412	thumb	right	1583476813	mm0f44qd2rtcjuhep810248lh6	google inc.
+28	right	advanced	rarely	female	en	5	mx	740	360	thumb	right	1580924447	mu3oto9ro4ctsoqirpmlmeo71a	google inc.
+24	right	native	rarely	female	en	5	us	667	375	thumb	right	1582762708	mvpu78atrut3ivr29nv9srsdcs	apple computer, inc.
+23	left	intermediate	everyday	female	en	5	ke	750	360	thumb	right	1580479378	n482ad1l04eggilav0ve240vki	google inc.
+20	right	native	everyday	male	en	5	us	812	375	thumb	right	1579837589	n75jc9shaunt4ud144sgd2ors1	apple computer, inc.
+28	right	native	often	male	en	5	us	667	375	thumb	both	1581991029	n8qbv2hlt22u978m8q4m67lhrl	apple computer, inc.
+31	right	beginner	rarely	female	en	5	ca	640	360	index	right	1581954239	nbari5h7h8nh2bkke5dckoh6gl	google inc.
+24	right	advanced	everyday	female	en	5	us	780	360	index	right	1579800871	nfcbdlppmkrceq1lu5p424ed4r	google inc.
+34	right	intermediate	rarely	female	en	5	za	570	320	thumb	right	1581905637	nqqkn4eppumb959tmencb89ils	google inc.
+22	right	intermediate	often	female	en	5	us	846	412	index	right	1583469511	of8c9ngiuv4dc5lcmn3ej4joqr	google inc.
+30	right	native	rarely	female	en	5	ca	812	375	index	right	1582227048	ofhb4ih2ak5p7p68u1r4vl4g5h	apple computer, inc.
+20	right	beginner	never	male	en	5	ph	640	360	thumb	both	1583160472	ol08ng1j74i3togha376tc8e4m	google inc.
+20	right	intermediate	rarely	female	en	5	in	720	360	index	right	1583098727	p1bekb2q78gngurtba6g4asndh	google inc.
+25	right	native	never	female	en	5	lc	846	412	thumb	right	1580260240	pm5af7fjuu1rigv72kkvd96tq1	google inc.
+18	left	native	rarely	male	en	5	us	892	412	index	both	1581803497	puf0pmcs14nnmfivth024g30na	google inc.
+22	left	intermediate	rarely	male	es	5	mx	780	360	index	right	1583250287	q24vsjmd40nvlckdosp58lvl7d	google inc.
+20	right	native	rarely	female	en	5	us	740	360	thumb	right	1583198748	q4kn53r2ncul4j7lhfpl4b5ko9	google inc.
+23	right	beginner	sometimes	female	en	5	pk	800	360	index	right	1582222846	qbjori9dtab54flimhlt94ge6h	google inc.
+22	right	intermediate	sometimes	female	en	5	in	848	424	thumb	both	1580421166	qd6imo0dflvbm1tanfcjk50552	google inc.
+29	right	native	everyday	female	en	5	us	740	360	thumb	right	1580352215	qjq3i76ueufqke6vj334uq8joo	google inc.
+38	right	native	never	female	fr	5	us	869	412	thumb	both	1582896907	qksq4skp0rilj3t9mvehhcoo3m	google inc.
+20	right	advanced	often	female	en	5	ht	892	412	thumb	both	1580535343	rbebami6qtjj6835q4cd5nb7uv	google inc.
+30	right	advanced	often	female	en	5	in	760	360	index	both	1580357026	ref84uur2seft759hsh9up72k0	google inc.
+19	right	beginner	sometimes	female	en	5	ph	780	360	thumb	right	1581428979	rrpdl82f53qtgntin2mpj2hnbi	google inc.
+23	right	intermediate	never	female	en	5	ph	846	412	index	right	1580310870	s494moo3hc53i710r86894fpqk	google inc.
+28	right	advanced	sometimes	female	pa	5	in	753	424	thumb	both	1582840081	sul0qfslfk30h6mrl1dp812gt5	google inc.
+18	right	native	sometimes	female	fr	5	br	846	412	thumb	both	1581050488	th7dd037gkil21mojkbehj8s37	google inc.
+20	left	native	rarely	male	en	5	us	740	360	thumb	right	1582901812	u7jjds5obfv1dk9oj3kbom91bs	google inc.
+32	right	native	sometimes	female	en	5	us	780	360	index	both	1582730695	u9cfp73kqk16h34qb0rv2f8rfr	google inc.
+27	left	native	sometimes	male	en	5	ph	760	360	thumb	both	1581059792	v30c018fnprd4qsa6mc6ots80p	google inc.
+30	right	native	rarely	male	en	5	us	720	360	other	right	1579925088	voeun5ddqp6vjqkj1ck0a2avml	google inc.
+20	right	advanced	never	female	en	5	sg	896	414	thumb	right	1583148257	vs9nmoj0kboa0uhoubblculnc7	apple computer, inc.
