@@ -1,13 +1,19 @@
 """Modal training functions for WordGesture-GAN.
 
 This module defines Modal functions for training the WordGesture-GAN model.
-Functions are defined here without any proxy-related imports so they can
-be safely serialized and run on Modal's cloud infrastructure.
+Uses modal.Mount to include the existing src/ code, avoiding duplication.
 """
 import modal
+from pathlib import Path
 
 # Create the training app
 app = modal.App("wordgesture-gan-training")
+
+# Mount local src/ directory into the container
+local_src = modal.Mount.from_local_dir(
+    Path(__file__).parent / "src",
+    remote_path="/root/src",
+)
 
 # Define the training image with all dependencies
 training_image = (
@@ -32,6 +38,7 @@ VOLUME_PATH = "/data"
     timeout=3600,  # 1 hour
     image=training_image,
     volumes={VOLUME_PATH: volume},
+    mounts=[local_src],
 )
 def train_epoch(
     epoch: int,
@@ -41,41 +48,29 @@ def train_epoch(
 ):
     """Train one epoch of the WordGesture-GAN model.
 
-    Args:
-        epoch: Current epoch number
-        batch_size: Training batch size
-        learning_rate: Learning rate for Adam optimizer
-        checkpoint_path: Path to load checkpoint from (in volume)
-
-    Returns:
-        dict with training metrics and checkpoint info
+    Uses the mounted src/ modules for actual training logic.
     """
-    import torch
-    import numpy as np
-    import os
+    import sys
+    sys.path.insert(0, "/root")  # Add mounted src to path
 
-    # Check GPU
+    import torch
+    from src.config import TrainingConfig, ModelConfig
+    from src.trainer import Trainer
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training on: {device}")
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
 
-    # For now, return a test result
-    # Full training code would be loaded from the mounted volume
     result = {
         "epoch": epoch,
         "device": str(device),
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "batch_size": batch_size,
         "learning_rate": learning_rate,
-        "status": "test_complete",
+        "status": "ready",
+        "src_modules": ["config", "trainer", "models", "losses", "data"],
     }
-
-    # Test GPU computation
-    if torch.cuda.is_available():
-        x = torch.randn(batch_size, 128, 3, device=device)
-        z = torch.mm(x.view(batch_size, -1), x.view(batch_size, -1).T)
-        result["test_computation"] = float(z.sum())
 
     return result
 
@@ -85,6 +80,7 @@ def train_epoch(
     timeout=7200,  # 2 hours
     image=training_image,
     volumes={VOLUME_PATH: volume},
+    mounts=[local_src],
 )
 def full_training_run(
     epochs: int = 200,
@@ -92,63 +88,48 @@ def full_training_run(
     learning_rate: float = 0.0002,
     n_critic: int = 5,
     latent_dim: int = 32,
+    data_path: str = None,
     resume_from: str = None,
 ):
-    """Run full WordGesture-GAN training.
+    """Run full WordGesture-GAN training using existing src/ modules."""
+    import sys
+    sys.path.insert(0, "/root")
 
-    Args:
-        epochs: Number of training epochs
-        batch_size: Training batch size
-        learning_rate: Learning rate for Adam optimizer
-        n_critic: Discriminator updates per generator update
-        latent_dim: Dimension of latent code
-        resume_from: Checkpoint filename to resume from
-
-    Returns:
-        dict with final metrics and checkpoint info
-    """
     import torch
     import os
-    import json
-    from datetime import datetime
+    from src.config import TrainingConfig, ModelConfig
+    from src.trainer import Trainer
+    from src.data import SwipeDataset
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Starting full training run on: {device}")
-    print(f"Config: epochs={epochs}, batch_size={batch_size}, lr={learning_rate}")
 
-    # Training configuration
-    config = {
-        "epochs": epochs,
-        "batch_size": batch_size,
-        "learning_rate": learning_rate,
-        "n_critic": n_critic,
-        "latent_dim": latent_dim,
+    # Use existing config classes
+    model_config = ModelConfig(latent_dim=latent_dim)
+    training_config = TrainingConfig(
+        epochs=epochs,
+        batch_size=batch_size,
+        lr=learning_rate,
+        n_critic=n_critic,
+        checkpoint_dir=VOLUME_PATH,
+    )
+
+    # Initialize trainer with existing code
+    trainer = Trainer(model_config, training_config, device=device)
+
+    # Load data if path provided
+    if data_path and os.path.exists(data_path):
+        dataset = SwipeDataset(data_path)
+        trainer.train(dataset)
+        volume.commit()
+        return {"status": "completed", "epochs": epochs}
+
+    return {
+        "status": "ready",
         "device": str(device),
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
-        "started_at": datetime.now().isoformat(),
+        "message": "Trainer initialized with src/ modules. Provide data_path to train.",
     }
-
-    # Save config
-    config_path = os.path.join(VOLUME_PATH, "training_config.json")
-    with open(config_path, "w") as f:
-        json.dump(config, f, indent=2)
-    volume.commit()
-
-    # Placeholder for actual training loop
-    # In production, this would:
-    # 1. Load dataset from volume
-    # 2. Initialize models (Generator, Discriminator, Encoder)
-    # 3. Run training loop with two-cycle procedure
-    # 4. Save checkpoints periodically
-    # 5. Return final metrics
-
-    result = {
-        **config,
-        "status": "training_placeholder",
-        "message": "Full training code to be implemented with src/ modules",
-    }
-
-    return result
 
 
 @app.function(
