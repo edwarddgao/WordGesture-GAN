@@ -1,28 +1,34 @@
 # Claude Code Instructions
 
-## Running GPU Experiments
+## Cloud GPU Access
 
-This repo uses **Modal** for cloud GPU access. The `modal` CLI won't work due to proxy restrictions. Use the Python API instead:
+This repo has Modal configured for cloud GPU access. The `modal` CLI won't work due to proxy restrictions. Use the Python API instead.
 
-```bash
-python run_training.py test      # Test GPU access
-python run_training.py train     # Run training (mounts dataset/ and src/)
-python run_training.py list      # List saved checkpoints
-```
+### Proxy Patch
 
-## Important: Proxy Patch
-
-The `modal_proxy_patch.py` must be imported BEFORE `modal`. This is already handled in `run_training.py`. If writing new Modal scripts:
+The `modal_proxy_patch.py` must be imported BEFORE `modal`. Example:
 
 ```python
-import modal_proxy_patch  # MUST be first
+import modal_proxy_patch  # MUST be first - patches grpclib for HTTP proxy
 import modal
+
+app = modal.App("my-app")
+
+@app.function(gpu="T4")
+def train():
+    import torch
+    # ... training code
 ```
 
-## File Structure
+### Running Functions
 
-- `run_training.py` - Entry point (handles proxy patch)
-- `modal_train.py` - Modal functions (mounts `src/` and `dataset/`)
-- `modal_proxy_patch.py` - Patches grpclib for HTTP proxy
-- `src/` - Training code (mounted into container)
-- `dataset/` - Dataset files (mounted into container)
+```python
+async with app.run():
+    result = await train.remote.aio()
+```
+
+### Notes
+
+- Modal credentials are set via `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` env vars
+- The proxy patch routes gRPC through the HTTP CONNECT proxy
+- Use `modal.Mount` to include local code in the container
