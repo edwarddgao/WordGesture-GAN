@@ -13,3 +13,6 @@ matplotlib>=3.4.0
 
 # Utilities
 tqdm>=4.62.0
+
+# Cloud Training
+modal>=0.64.0
