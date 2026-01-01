@@ -117,24 +117,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     lambda_rec = 5.0    # Reconstruction (L1)
     lambda_lat = 0.5    # Latent recovery
     lambda_kld = 0.05   # KL divergence
-    lambda_gp = 10.0    # Gradient penalty weight (WGAN-GP)
-    # Note: Paper uses spectral normalization, but GP can help with stability
-
-    def gradient_penalty(disc, real, fake):
-        """Compute gradient penalty for WGAN-GP."""
-        batch = real.size(0)
-        alpha = torch.rand(batch, 1, 1, device=real.device)
-        interp = alpha * real + (1 - alpha) * fake.detach()
-        interp.requires_grad_(True)
-        d_interp = disc(interp)
-        grads = torch.autograd.grad(
-            outputs=d_interp, inputs=interp,
-            grad_outputs=torch.ones_like(d_interp),
-            create_graph=True, retain_graph=True
-        )[0]
-        grads = grads.view(batch, -1)
-        gp = ((grads.norm(2, dim=1) - 1) ** 2).mean()
-        return gp
+    # Note: Paper uses spectral normalization only (no weight clipping, no GP)
 
     def get_features(disc, x):
         """Get intermediate features from discriminator for feature matching."""
@@ -176,8 +159,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                 with torch.no_grad():
                     fake = generator(proto, z)
                 d1_loss = discriminator_1(fake).mean() - discriminator_1(real).mean()
-                gp1 = gradient_penalty(discriminator_1, real, fake)
-                (d1_loss + lambda_gp * gp1).backward()
+                d1_loss.backward()
                 optimizer_D1.step()
 
             # Train generator
@@ -214,8 +196,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                     z_enc, _, _ = encoder(real)
                     fake2 = generator(proto, z_enc)
                 d2_loss = discriminator_2(fake2).mean() - discriminator_2(real).mean()
-                gp2 = gradient_penalty(discriminator_2, real, fake2)
-                (d2_loss + lambda_gp * gp2).backward()
+                d2_loss.backward()
                 optimizer_D2.step()
 
             # Train generator + encoder
