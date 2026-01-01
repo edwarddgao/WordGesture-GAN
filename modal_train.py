@@ -117,7 +117,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     lambda_rec = 5.0    # Reconstruction (L1)
     lambda_lat = 0.5    # Latent recovery
     lambda_kld = 0.05   # KL divergence
-    lambda_vel = 0.1    # Velocity smoothness (encourages low jerk)
+    lambda_vel = 0.01   # Velocity smoothness (encourages low jerk) - small weight
     # Note: Paper uses spectral normalization only (no weight clipping)
 
     def velocity_loss(gestures):
