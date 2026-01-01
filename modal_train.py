@@ -117,18 +117,24 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     lambda_rec = 5.0    # Reconstruction (L1)
     lambda_lat = 0.5    # Latent recovery
     lambda_kld = 0.05   # KL divergence
-    lambda_vel = 0.01   # Velocity smoothness (encourages low jerk) - small weight
-    # Note: Paper uses spectral normalization only (no weight clipping)
+    lambda_gp = 10.0    # Gradient penalty weight (WGAN-GP)
+    # Note: Paper uses spectral normalization, but GP can help with stability
 
-    def velocity_loss(gestures):
-        """Penalize high acceleration (second derivative) for smoother trajectories."""
-        # gestures: (batch, seq_len, 3)
-        # Compute velocity (first derivative)
-        velocity = gestures[:, 1:, :2] - gestures[:, :-1, :2]
-        # Compute acceleration (second derivative)
-        acceleration = velocity[:, 1:, :] - velocity[:, :-1, :]
-        # L2 norm of acceleration - lower is smoother
-        return torch.mean(acceleration ** 2)
+    def gradient_penalty(disc, real, fake):
+        """Compute gradient penalty for WGAN-GP."""
+        batch = real.size(0)
+        alpha = torch.rand(batch, 1, 1, device=real.device)
+        interp = alpha * real + (1 - alpha) * fake.detach()
+        interp.requires_grad_(True)
+        d_interp = disc(interp)
+        grads = torch.autograd.grad(
+            outputs=d_interp, inputs=interp,
+            grad_outputs=torch.ones_like(d_interp),
+            create_graph=True, retain_graph=True
+        )[0]
+        grads = grads.view(batch, -1)
+        gp = ((grads.norm(2, dim=1) - 1) ** 2).mean()
+        return gp
 
     def get_features(disc, x):
         """Get intermediate features from discriminator for feature matching."""
@@ -170,9 +176,9 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                 with torch.no_grad():
                     fake = generator(proto, z)
                 d1_loss = discriminator_1(fake).mean() - discriminator_1(real).mean()
-                d1_loss.backward()
+                gp1 = gradient_penalty(discriminator_1, real, fake)
+                (d1_loss + lambda_gp * gp1).backward()
                 optimizer_D1.step()
-                # NO weight clipping - paper uses spectral norm only
 
             # Train generator
             optimizer_G.zero_grad()
@@ -196,10 +202,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             for p in encoder.parameters():
                 p.requires_grad = True
 
-            # Velocity smoothness loss (reduces jerk)
-            vel_loss = velocity_loss(fake)
-
-            total_g1 = g1_loss + lambda_feat * feat_loss + lambda_lat * lat_loss + lambda_vel * vel_loss
+            total_g1 = g1_loss + lambda_feat * feat_loss + lambda_lat * lat_loss
             total_g1.backward()
             optimizer_G.step()
 
@@ -211,9 +214,9 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                     z_enc, _, _ = encoder(real)
                     fake2 = generator(proto, z_enc)
                 d2_loss = discriminator_2(fake2).mean() - discriminator_2(real).mean()
-                d2_loss.backward()
+                gp2 = gradient_penalty(discriminator_2, real, fake2)
+                (d2_loss + lambda_gp * gp2).backward()
                 optimizer_D2.step()
-                # NO weight clipping - paper uses spectral norm only
 
             # Train generator + encoder
             optimizer_G.zero_grad()
@@ -235,10 +238,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             # KL divergence
             kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
 
-            # Velocity smoothness loss (reduces jerk)
-            vel_loss2 = velocity_loss(fake2)
-
-            total_g2 = g2_loss + lambda_feat * feat_loss2 + lambda_rec * rec_loss + lambda_kld * kld_loss + lambda_vel * vel_loss2
+            total_g2 = g2_loss + lambda_feat * feat_loss2 + lambda_rec * rec_loss + lambda_kld * kld_loss
             total_g2.backward()
             optimizer_G.step()
             optimizer_E.step()
@@ -248,7 +248,6 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             epoch_g += (g1_loss.item() + g2_loss.item()) / 2
             epoch_rec += rec_loss.item()
             epoch_feat += (feat_loss.item() + feat_loss2.item()) / 2
-            epoch_vel = (vel_loss.item() + vel_loss2.item()) / 2
             n_batches += 1
 
         wandb.log({
@@ -257,10 +256,9 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             'd2': epoch_d2/n_batches,
             'g_loss': epoch_g/n_batches,
             'rec': epoch_rec/n_batches,
-            'feat': epoch_feat/n_batches,
-            'vel': epoch_vel
+            'feat': epoch_feat/n_batches
         })
-        print(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_d1/n_batches:.3f} D2:{epoch_d2/n_batches:.3f} rec:{epoch_rec/n_batches:.4f} vel:{epoch_vel:.6f}')
+        print(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_d1/n_batches:.3f} D2:{epoch_d2/n_batches:.3f} rec:{epoch_rec/n_batches:.4f}')
 
         # Log gesture images every 10 epochs
         if (epoch + 1) % 10 == 0:
