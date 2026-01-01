@@ -401,13 +401,23 @@ def evaluate(n_samples: int = 50):
     dtw_xy = dtw_dist[r2, c2].mean()
     print(f'  DTW Wasserstein: {dtw_xy:.3f}')
 
-    # Jerk
+    # Jerk (with proper time normalization as in paper)
     print(f'[4/6] Computing jerk...')
-    def jerk(gs):
-        j = [np.mean(np.abs(savgol_filter(g[:,:2].flatten(), 5, 3, deriv=3))) for g in gs if len(g)>=5]
-        return np.mean(j)
-    jerk_real, jerk_fake = jerk(real_g), jerk(fake_g)
-    print(f'  Jerk: {jerk_fake:.6f}')
+    def compute_gesture_jerk(g):
+        """Compute jerk with time normalization."""
+        x, y, t = g[:, 0], g[:, 1], g[:, 2]
+        if len(x) < 5:
+            return 0.0
+        d3x = savgol_filter(x, 5, 3, deriv=3)
+        d3y = savgol_filter(y, 5, 3, deriv=3)
+        dt = np.gradient(t)
+        dt[dt == 0] = 1e-6
+        jerk_x = d3x / (dt ** 3)
+        jerk_y = d3y / (dt ** 3)
+        return np.mean(np.sqrt(jerk_x**2 + jerk_y**2))
+    jerk_real = np.mean([compute_gesture_jerk(g) for g in real_g])
+    jerk_fake = np.mean([compute_gesture_jerk(g) for g in fake_g])
+    print(f'  Jerk: {jerk_fake:.6f} (real: {jerk_real:.6f})')
 
     # Velocity correlation
     print(f'[5/6] Computing velocity correlation...')
