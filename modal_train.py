@@ -117,7 +117,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     lambda_rec = 5.0    # Reconstruction (L1)
     lambda_lat = 0.5    # Latent recovery
     lambda_kld = 0.05   # KL divergence
-    clip_val = 0.01     # Weight clipping
+    # Note: Paper uses spectral normalization only (no weight clipping)
 
     def get_features(disc, x):
         """Get intermediate features from discriminator for feature matching."""
@@ -161,8 +161,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                 d1_loss = discriminator_1(fake).mean() - discriminator_1(real).mean()
                 d1_loss.backward()
                 optimizer_D1.step()
-                for p in discriminator_1.parameters():
-                    p.data.clamp_(-clip_val, clip_val)
+                # NO weight clipping - paper uses spectral norm only
 
             # Train generator
             optimizer_G.zero_grad()
@@ -177,9 +176,14 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             fake_feats = get_features(discriminator_1, fake)
             feat_loss = feature_matching_loss(real_feats, fake_feats)
 
-            # Latent recovery loss
-            z_rec, _, _ = encoder(fake.detach())  # detach to not backprop through generator twice
+            # Latent recovery loss - freeze encoder but allow gradient through to generator
+            # Paper: "freeze the encoder when updating latent code loss"
+            for p in encoder.parameters():
+                p.requires_grad = False
+            z_rec, _, _ = encoder(fake)  # NO detach - gradient flows to generator
             lat_loss = torch.mean(torch.abs(z - z_rec))
+            for p in encoder.parameters():
+                p.requires_grad = True
 
             total_g1 = g1_loss + lambda_feat * feat_loss + lambda_lat * lat_loss
             total_g1.backward()
@@ -195,8 +199,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                 d2_loss = discriminator_2(fake2).mean() - discriminator_2(real).mean()
                 d2_loss.backward()
                 optimizer_D2.step()
-                for p in discriminator_2.parameters():
-                    p.data.clamp_(-clip_val, clip_val)
+                # NO weight clipping - paper uses spectral norm only
 
             # Train generator + encoder
             optimizer_G.zero_grad()
