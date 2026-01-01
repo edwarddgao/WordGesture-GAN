@@ -303,7 +303,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
-def evaluate(n_samples: int = 200):
+def evaluate(n_samples: int = 50):
     """Evaluate trained model with all paper metrics.
 
     Args:
