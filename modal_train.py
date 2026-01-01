@@ -364,13 +364,7 @@ def evaluate(n_samples: int = 50):
             if (i + 1) % 50 == 0:
                 print(f'  Generated {i+1}/{n}')
     real_g, fake_g = np.array(real_g), np.array(fake_g)
-
-    # Post-process: Apply Savitzky-Golay smoothing to reduce jerk
-    print(f'  Applying Savitzky-Golay smoothing...')
-    for i in range(n):
-        for dim in range(2):  # Smooth x and y only
-            fake_g[i, :, dim] = savgol_filter(fake_g[i, :, dim], window_length=11, polyorder=3)
-    print(f'  Done generating and smoothing.')
+    print(f'  Done generating.')
 
     # L2 Wasserstein
     print(f'[2/6] Computing L2 Wasserstein distance...')
@@ -401,20 +395,16 @@ def evaluate(n_samples: int = 50):
     dtw_xy = dtw_dist[r2, c2].mean()
     print(f'  DTW Wasserstein: {dtw_xy:.3f}')
 
-    # Jerk (with proper time normalization as in paper)
+    # Jerk (third derivative magnitude, no time normalization)
     print(f'[4/6] Computing jerk...')
     def compute_gesture_jerk(g):
-        """Compute jerk with time normalization."""
-        x, y, t = g[:, 0], g[:, 1], g[:, 2]
-        if len(x) < 5:
+        """Compute jerk as third derivative magnitude."""
+        x, y = g[:, 0], g[:, 1]
+        if len(x) < 7:  # Need enough points for window_size=7
             return 0.0
-        d3x = savgol_filter(x, 5, 3, deriv=3)
-        d3y = savgol_filter(y, 5, 3, deriv=3)
-        dt = np.gradient(t)
-        dt[dt == 0] = 1e-6
-        jerk_x = d3x / (dt ** 3)
-        jerk_y = d3y / (dt ** 3)
-        return np.mean(np.sqrt(jerk_x**2 + jerk_y**2))
+        d3x = savgol_filter(x, 7, 3, deriv=3)
+        d3y = savgol_filter(y, 7, 3, deriv=3)
+        return np.mean(np.sqrt(d3x**2 + d3y**2))
     jerk_real = np.mean([compute_gesture_jerk(g) for g in real_g])
     jerk_fake = np.mean([compute_gesture_jerk(g) for g in fake_g])
     print(f'  Jerk: {jerk_fake:.6f} (real: {jerk_real:.6f})')
