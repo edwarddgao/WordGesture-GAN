@@ -20,7 +20,7 @@ volume = modal.Volume.from_name('wordgesture-data', create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version='3.11')
-    .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow')
+    .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow', 'matplotlib')
 )
 
 WANDB_KEY = 'd68f9b4406a518b2095a579d37b0355bc18ad1a8'
@@ -179,6 +179,46 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
         wandb.log({'epoch': epoch, 'd1': epoch_d1/n_batches, 'd2': epoch_d2/n_batches, 'rec': epoch_rec/n_batches})
         print(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_d1/n_batches:.3f} D2:{epoch_d2/n_batches:.3f} rec:{epoch_rec/n_batches:.4f}')
+
+        # Log gesture images every 10 epochs
+        if (epoch + 1) % 10 == 0:
+            generator.eval()
+            with torch.no_grad():
+                # Get a few samples
+                sample_batch = next(iter(train_loader))
+                sample_real = sample_batch['gesture'][:4].to(device)
+                sample_proto = sample_batch['prototype'][:4].to(device)
+                z = torch.randn(4, 32, device=device)
+                sample_fake = generator(sample_proto, z)
+
+                # Plot gestures
+                import matplotlib.pyplot as plt
+                fig, axes = plt.subplots(2, 4, figsize=(16, 8))
+                for i in range(4):
+                    # Real
+                    r = sample_real[i].cpu().numpy()
+                    axes[0, i].plot(r[:, 0], r[:, 1], 'b-', linewidth=1)
+                    axes[0, i].scatter(r[::10, 0], r[::10, 1], c='blue', s=10)
+                    axes[0, i].set_title(f'Real {i+1}')
+                    axes[0, i].set_xlim(-1, 1)
+                    axes[0, i].set_ylim(-1, 1)
+                    axes[0, i].invert_yaxis()
+                    axes[0, i].set_aspect('equal')
+
+                    # Fake
+                    f = sample_fake[i].cpu().numpy()
+                    axes[1, i].plot(f[:, 0], f[:, 1], 'r-', linewidth=1)
+                    axes[1, i].scatter(f[::10, 0], f[::10, 1], c='red', s=10)
+                    axes[1, i].set_title(f'Generated {i+1}')
+                    axes[1, i].set_xlim(-1, 1)
+                    axes[1, i].set_ylim(-1, 1)
+                    axes[1, i].invert_yaxis()
+                    axes[1, i].set_aspect('equal')
+
+                plt.tight_layout()
+                wandb.log({'gestures': wandb.Image(fig)})
+                plt.close(fig)
+            generator.train()
 
         # Save checkpoint
         if (epoch + 1) % checkpoint_every == 0 or epoch == num_epochs - 1:
