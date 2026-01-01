@@ -364,7 +364,13 @@ def evaluate(n_samples: int = 50):
             if (i + 1) % 50 == 0:
                 print(f'  Generated {i+1}/{n}')
     real_g, fake_g = np.array(real_g), np.array(fake_g)
-    print(f'  Done generating.')
+
+    # Post-process: Apply Savitzky-Golay smoothing to reduce jerk
+    print(f'  Applying Savitzky-Golay smoothing...')
+    for i in range(n):
+        for dim in range(2):  # Smooth x and y only
+            fake_g[i, :, dim] = savgol_filter(fake_g[i, :, dim], window_length=11, polyorder=3)
+    print(f'  Done generating and smoothing.')
 
     # L2 Wasserstein
     print(f'[2/6] Computing L2 Wasserstein distance...')
