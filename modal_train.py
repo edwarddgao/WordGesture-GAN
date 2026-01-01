@@ -117,7 +117,18 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     lambda_rec = 5.0    # Reconstruction (L1)
     lambda_lat = 0.5    # Latent recovery
     lambda_kld = 0.05   # KL divergence
+    lambda_vel = 0.1    # Velocity smoothness (encourages low jerk)
     # Note: Paper uses spectral normalization only (no weight clipping)
+
+    def velocity_loss(gestures):
+        """Penalize high acceleration (second derivative) for smoother trajectories."""
+        # gestures: (batch, seq_len, 3)
+        # Compute velocity (first derivative)
+        velocity = gestures[:, 1:, :2] - gestures[:, :-1, :2]
+        # Compute acceleration (second derivative)
+        acceleration = velocity[:, 1:, :] - velocity[:, :-1, :]
+        # L2 norm of acceleration - lower is smoother
+        return torch.mean(acceleration ** 2)
 
     def get_features(disc, x):
         """Get intermediate features from discriminator for feature matching."""
@@ -185,7 +196,10 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             for p in encoder.parameters():
                 p.requires_grad = True
 
-            total_g1 = g1_loss + lambda_feat * feat_loss + lambda_lat * lat_loss
+            # Velocity smoothness loss (reduces jerk)
+            vel_loss = velocity_loss(fake)
+
+            total_g1 = g1_loss + lambda_feat * feat_loss + lambda_lat * lat_loss + lambda_vel * vel_loss
             total_g1.backward()
             optimizer_G.step()
 
@@ -221,7 +235,10 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             # KL divergence
             kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
 
-            total_g2 = g2_loss + lambda_feat * feat_loss2 + lambda_rec * rec_loss + lambda_kld * kld_loss
+            # Velocity smoothness loss (reduces jerk)
+            vel_loss2 = velocity_loss(fake2)
+
+            total_g2 = g2_loss + lambda_feat * feat_loss2 + lambda_rec * rec_loss + lambda_kld * kld_loss + lambda_vel * vel_loss2
             total_g2.backward()
             optimizer_G.step()
             optimizer_E.step()
@@ -231,6 +248,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             epoch_g += (g1_loss.item() + g2_loss.item()) / 2
             epoch_rec += rec_loss.item()
             epoch_feat += (feat_loss.item() + feat_loss2.item()) / 2
+            epoch_vel = (vel_loss.item() + vel_loss2.item()) / 2
             n_batches += 1
 
         wandb.log({
@@ -239,9 +257,10 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             'd2': epoch_d2/n_batches,
             'g_loss': epoch_g/n_batches,
             'rec': epoch_rec/n_batches,
-            'feat': epoch_feat/n_batches
+            'feat': epoch_feat/n_batches,
+            'vel': epoch_vel
         })
-        print(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_d1/n_batches:.3f} D2:{epoch_d2/n_batches:.3f} rec:{epoch_rec/n_batches:.4f}')
+        print(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_d1/n_batches:.3f} D2:{epoch_d2/n_batches:.3f} rec:{epoch_rec/n_batches:.4f} vel:{epoch_vel:.6f}')
 
         # Log gesture images every 10 epochs
         if (epoch + 1) % 10 == 0:
