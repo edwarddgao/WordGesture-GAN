@@ -350,6 +350,7 @@ def evaluate(n_samples: int = 200):
 
     # Generate (use fewer samples to speed up DTW)
     n = min(n_samples, len(test_ds))
+    print(f'[1/6] Generating {n} samples...')
     real_g, fake_g = [], []
     with torch.no_grad():
         for i in range(n):
@@ -359,34 +360,50 @@ def evaluate(n_samples: int = 200):
             fake = generator(proto, z).cpu().numpy()[0]
             real_g.append(item['gesture'].numpy())
             fake_g.append(fake)
+            if (i + 1) % 50 == 0:
+                print(f'  Generated {i+1}/{n}')
     real_g, fake_g = np.array(real_g), np.array(fake_g)
+    print(f'  Done generating.')
 
     # L2 Wasserstein
+    print(f'[2/6] Computing L2 Wasserstein distance...')
     dist = np.array([[np.sqrt(np.sum((real_g[i,:,:2] - fake_g[j,:,:2])**2)) for j in range(n)] for i in range(n)])
     r, c = linear_sum_assignment(dist)
     l2_xy = dist[r, c].mean()
+    print(f'  L2 Wasserstein: {l2_xy:.3f}')
 
-    # DTW
+    # DTW (slowest part)
+    print(f'[3/6] Computing DTW distance ({n}x{n} pairs, this takes time)...')
     def dtw(a, b):
-        n, m = len(a), len(b)
-        d = np.full((n+1, m+1), np.inf)
+        n_pts, m = len(a), len(b)
+        d = np.full((n_pts+1, m+1), np.inf)
         d[0,0] = 0
-        for i in range(1, n+1):
+        for i in range(1, n_pts+1):
             for j in range(1, m+1):
                 cost = np.sqrt(np.sum((a[i-1,:2] - b[j-1,:2])**2))
                 d[i,j] = cost + min(d[i-1,j], d[i,j-1], d[i-1,j-1])
-        return d[n,m]
-    dtw_dist = np.array([[dtw(real_g[i], fake_g[j]) for j in range(n)] for i in range(n)])
+        return d[n_pts,m]
+
+    dtw_dist = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            dtw_dist[i, j] = dtw(real_g[i], fake_g[j])
+        if (i + 1) % 20 == 0:
+            print(f'  DTW row {i+1}/{n}')
     r2, c2 = linear_sum_assignment(dtw_dist)
     dtw_xy = dtw_dist[r2, c2].mean()
+    print(f'  DTW Wasserstein: {dtw_xy:.3f}')
 
     # Jerk
+    print(f'[4/6] Computing jerk...')
     def jerk(gs):
         j = [np.mean(np.abs(savgol_filter(g[:,:2].flatten(), 5, 3, deriv=3))) for g in gs if len(g)>=5]
         return np.mean(j)
     jerk_real, jerk_fake = jerk(real_g), jerk(fake_g)
+    print(f'  Jerk: {jerk_fake:.6f}')
 
     # Velocity correlation
+    print(f'[5/6] Computing velocity correlation...')
     vcorrs = []
     for i in range(n):
         vr = np.diff(real_g[i,:,:2], axis=0).flatten()
@@ -396,13 +413,31 @@ def evaluate(n_samples: int = 200):
             if not np.isnan(cr):
                 vcorrs.append(cr)
     vcorr = np.mean(vcorrs)
+    print(f'  Velocity correlation: {vcorr:.3f}')
 
     # Precision/Recall (k=3)
+    print(f'[6/6] Computing precision/recall...')
     def knn_r(data, k=3):
         return [sorted([np.sqrt(np.sum((data[i,:,:2]-data[j,:,:2])**2)) for j in range(len(data)) if i!=j])[k-1] for i in range(len(data))]
     rr, fr = knn_r(real_g), knn_r(fake_g)
     prec = sum(1 for i in range(n) if any(np.sqrt(np.sum((fake_g[i,:,:2]-real_g[j,:,:2])**2)) <= rr[j] for j in range(n))) / n
     rec = sum(1 for i in range(n) if any(np.sqrt(np.sum((real_g[i,:,:2]-fake_g[j,:,:2])**2)) <= fr[j] for j in range(n))) / n
+    print(f'  Precision: {prec:.3f}, Recall: {rec:.3f}')
+
+    # Log to wandb
+    import wandb
+    os.environ['WANDB_API_KEY'] = WANDB_KEY
+    wandb.init(project='wordgesture-gan', name=f'eval-epoch{epoch}', reinit=True)
+    wandb.log({
+        'eval/l2_wasserstein': l2_xy,
+        'eval/dtw_wasserstein': dtw_xy,
+        'eval/jerk': jerk_fake,
+        'eval/velocity_corr': vcorr,
+        'eval/precision': prec,
+        'eval/recall': rec,
+        'epoch': epoch
+    })
+    wandb.finish()
 
     print('\n' + '='*65)
     print(f'{"RESULTS (epoch "+str(epoch)+")":<30} {"Paper":<12} {"Ours":<12}')
