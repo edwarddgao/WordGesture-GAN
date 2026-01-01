@@ -42,7 +42,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     from src.config import ModelConfig, TrainingConfig
     from src.keyboard import QWERTYKeyboard
     from src.data import load_dataset_from_zip, create_train_test_split, create_data_loaders
-    from src.models import Generator, Discriminator, Encoder
+    from src.models import Generator, Discriminator, VariationalEncoder as Encoder
 
     device = 'cuda'
     checkpoint_dir = Path('/data/checkpoints')
