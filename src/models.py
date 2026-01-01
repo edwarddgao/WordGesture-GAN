@@ -126,6 +126,9 @@ class Generator(nn.Module):
         """
         Generate gesture from prototype and latent code.
 
+        Uses residual connection: output = prototype + delta
+        This helps with temporal alignment since prototype has correct timing.
+
         Args:
             prototype: Word prototype of shape (batch, seq_length, 3)
             z: Latent code of shape (batch, latent_dim)
@@ -144,8 +147,11 @@ class Generator(nn.Module):
         # Pass through BiLSTM
         lstm_out, _ = self.lstm(x)
 
-        # Output layer with Tanh activation
-        output = torch.tanh(self.output_layer(lstm_out))
+        # Output layer predicts residual (delta from prototype)
+        delta = torch.tanh(self.output_layer(lstm_out)) * 0.5  # Scale delta
+
+        # Residual connection: prototype + delta, clamp to valid range
+        output = torch.clamp(prototype + delta, -1.0, 1.0)
 
         return output
 

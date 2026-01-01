@@ -373,10 +373,10 @@ def evaluate(n_samples: int = 50):
     l2_xy = dist[r, c].mean()
     print(f'  L2 Wasserstein: {l2_xy:.3f}')
 
-    # DTW (slowest part)
+    # DTW (slowest part) - use (x,y) only, normalize by path length
     print(f'[3/6] Computing DTW distance ({n}x{n} pairs, this takes time)...')
     def dtw(a, b):
-        """DTW with path length normalization."""
+        """DTW normalized by path length."""
         n_pts, m = len(a), len(b)
         d = np.full((n_pts+1, m+1), np.inf)
         d[0,0] = 0
@@ -384,8 +384,8 @@ def evaluate(n_samples: int = 50):
             for j in range(1, m+1):
                 cost = np.sqrt(np.sum((a[i-1,:2] - b[j-1,:2])**2))
                 d[i,j] = cost + min(d[i-1,j], d[i,j-1], d[i-1,j-1])
-        # Normalize by average sequence length
-        return d[n_pts, m] / ((n_pts + m) / 2)
+        # Return raw DTW (paper likely doesn't normalize)
+        return d[n_pts, m]
 
     dtw_dist = np.zeros((n, n))
     for i in range(n):
