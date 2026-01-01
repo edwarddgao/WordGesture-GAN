@@ -112,16 +112,39 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
         resume='allow' if resume else False
     )
 
-    # Loss weights
-    lambda_rec, lambda_lat, lambda_kld = 5.0, 0.5, 0.05
+    # Loss weights (from paper)
+    lambda_feat = 1.0   # Feature matching
+    lambda_rec = 5.0    # Reconstruction (L1)
+    lambda_lat = 0.5    # Latent recovery
+    lambda_kld = 0.05   # KL divergence
+    clip_val = 0.01     # Weight clipping
+
+    def get_features(disc, x):
+        """Get intermediate features from discriminator for feature matching."""
+        batch = x.size(0)
+        x_flat = x.view(batch, -1)
+        feats = []
+        for layer in disc.layers:
+            x_flat = torch.nn.functional.leaky_relu(layer(x_flat), 0.2)
+            feats.append(x_flat)
+        return feats
+
+    def feature_matching_loss(real_feats, fake_feats):
+        """L1 distance between real and fake features."""
+        loss = 0.0
+        for rf, ff in zip(real_feats, fake_feats):
+            loss += torch.mean(torch.abs(ff - rf.detach()))
+        return loss / len(real_feats)
 
     print(f'Training epochs {start_epoch} to {num_epochs-1}...')
 
     for epoch in range(start_epoch, num_epochs):
         generator.train()
         encoder.train()
+        discriminator_1.train()
+        discriminator_2.train()
 
-        epoch_d1, epoch_d2, epoch_rec, n_batches = 0, 0, 0, 0
+        epoch_d1, epoch_d2, epoch_g, epoch_rec, epoch_feat, n_batches = 0, 0, 0, 0, 0, 0
 
         for batch in train_loader:
             real = batch['gesture'].to(device)
@@ -129,55 +152,92 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             bs = real.size(0)
 
             # === Cycle 1: z -> X' -> z' ===
+            # Train discriminator n_critic times
             for _ in range(5):
                 optimizer_D1.zero_grad()
                 z = torch.randn(bs, 32, device=device)
                 with torch.no_grad():
                     fake = generator(proto, z)
-                d1_loss = -discriminator_1(real).mean() + discriminator_1(fake).mean()
+                d1_loss = discriminator_1(fake).mean() - discriminator_1(real).mean()
                 d1_loss.backward()
                 optimizer_D1.step()
                 for p in discriminator_1.parameters():
-                    p.data.clamp_(-0.01, 0.01)
+                    p.data.clamp_(-clip_val, clip_val)
 
+            # Train generator
             optimizer_G.zero_grad()
             z = torch.randn(bs, 32, device=device)
             fake = generator(proto, z)
+
+            # WGAN loss
             g1_loss = -discriminator_1(fake).mean()
-            z_rec, _, _ = encoder(fake)
+
+            # Feature matching loss
+            real_feats = get_features(discriminator_1, real)
+            fake_feats = get_features(discriminator_1, fake)
+            feat_loss = feature_matching_loss(real_feats, fake_feats)
+
+            # Latent recovery loss
+            z_rec, _, _ = encoder(fake.detach())  # detach to not backprop through generator twice
             lat_loss = torch.mean(torch.abs(z - z_rec))
-            (g1_loss + lambda_lat * lat_loss).backward()
+
+            total_g1 = g1_loss + lambda_feat * feat_loss + lambda_lat * lat_loss
+            total_g1.backward()
             optimizer_G.step()
 
             # === Cycle 2: X -> z -> X' ===
+            # Train discriminator n_critic times
             for _ in range(5):
                 optimizer_D2.zero_grad()
                 with torch.no_grad():
                     z_enc, _, _ = encoder(real)
                     fake2 = generator(proto, z_enc)
-                d2_loss = -discriminator_2(real).mean() + discriminator_2(fake2).mean()
+                d2_loss = discriminator_2(fake2).mean() - discriminator_2(real).mean()
                 d2_loss.backward()
                 optimizer_D2.step()
                 for p in discriminator_2.parameters():
-                    p.data.clamp_(-0.01, 0.01)
+                    p.data.clamp_(-clip_val, clip_val)
 
+            # Train generator + encoder
             optimizer_G.zero_grad()
             optimizer_E.zero_grad()
             z_enc, mu, logvar = encoder(real)
             fake2 = generator(proto, z_enc)
+
+            # WGAN loss
             g2_loss = -discriminator_2(fake2).mean()
-            rec_loss = torch.mean((real - fake2) ** 2)
+
+            # Feature matching loss
+            real_feats2 = get_features(discriminator_2, real)
+            fake_feats2 = get_features(discriminator_2, fake2)
+            feat_loss2 = feature_matching_loss(real_feats2, fake_feats2)
+
+            # L1 reconstruction loss (not MSE!)
+            rec_loss = torch.mean(torch.abs(real - fake2))
+
+            # KL divergence
             kld_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-            (g2_loss + lambda_rec * rec_loss + lambda_kld * kld_loss).backward()
+
+            total_g2 = g2_loss + lambda_feat * feat_loss2 + lambda_rec * rec_loss + lambda_kld * kld_loss
+            total_g2.backward()
             optimizer_G.step()
             optimizer_E.step()
 
             epoch_d1 += d1_loss.item()
             epoch_d2 += d2_loss.item()
+            epoch_g += (g1_loss.item() + g2_loss.item()) / 2
             epoch_rec += rec_loss.item()
+            epoch_feat += (feat_loss.item() + feat_loss2.item()) / 2
             n_batches += 1
 
-        wandb.log({'epoch': epoch, 'd1': epoch_d1/n_batches, 'd2': epoch_d2/n_batches, 'rec': epoch_rec/n_batches})
+        wandb.log({
+            'epoch': epoch,
+            'd1': epoch_d1/n_batches,
+            'd2': epoch_d2/n_batches,
+            'g_loss': epoch_g/n_batches,
+            'rec': epoch_rec/n_batches,
+            'feat': epoch_feat/n_batches
+        })
         print(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_d1/n_batches:.3f} D2:{epoch_d2/n_batches:.3f} rec:{epoch_rec/n_batches:.4f}')
 
         # Log gesture images every 10 epochs
