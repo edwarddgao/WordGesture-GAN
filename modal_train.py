@@ -302,9 +302,13 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     return {'status': 'complete', 'final_epoch': num_epochs}
 
 
-@app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=1800)
-def evaluate():
-    """Evaluate trained model with all paper metrics."""
+@app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
+def evaluate(n_samples: int = 200):
+    """Evaluate trained model with all paper metrics.
+
+    Args:
+        n_samples: Number of samples for evaluation (default 200 for speed)
+    """
     import sys
     sys.path.insert(0, '/data')
 
@@ -327,6 +331,7 @@ def evaluate():
         return {'error': 'No checkpoint found. Run train() first.'}
 
     print(f'GPU: {torch.cuda.get_device_name(0)}')
+    print(f'Evaluating with {n_samples} samples...')
 
     # Load model
     model_config = ModelConfig(seq_length=128, latent_dim=32)
@@ -343,8 +348,8 @@ def evaluate():
     gestures, protos = load_dataset_from_zip('/data/swipelogs.zip', keyboard, model_config, training_config)
     _, test_ds = create_train_test_split(gestures, protos, train_ratio=0.8, seed=42)
 
-    # Generate
-    n = min(1000, len(test_ds))
+    # Generate (use fewer samples to speed up DTW)
+    n = min(n_samples, len(test_ds))
     real_g, fake_g = [], []
     with torch.no_grad():
         for i in range(n):
