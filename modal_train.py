@@ -376,7 +376,7 @@ def evaluate(n_samples: int = 50):
     # DTW (slowest part) - use (x,y) only, normalize by path length
     print(f'[3/6] Computing DTW distance ({n}x{n} pairs, this takes time)...')
     def dtw(a, b):
-        """DTW normalized by path length."""
+        """DTW normalized by warping path length."""
         n_pts, m = len(a), len(b)
         d = np.full((n_pts+1, m+1), np.inf)
         d[0,0] = 0
@@ -384,8 +384,26 @@ def evaluate(n_samples: int = 50):
             for j in range(1, m+1):
                 cost = np.sqrt(np.sum((a[i-1,:2] - b[j-1,:2])**2))
                 d[i,j] = cost + min(d[i-1,j], d[i,j-1], d[i-1,j-1])
-        # Return raw DTW (paper likely doesn't normalize)
-        return d[n_pts, m]
+
+        # Backtrack to get path length
+        i, j = n_pts, m
+        path_len = 0
+        while i > 0 or j > 0:
+            path_len += 1
+            if i == 0:
+                j -= 1
+            elif j == 0:
+                i -= 1
+            else:
+                prev = min(d[i-1,j], d[i,j-1], d[i-1,j-1])
+                if prev == d[i-1,j-1]:
+                    i, j = i-1, j-1
+                elif prev == d[i-1,j]:
+                    i -= 1
+                else:
+                    j -= 1
+
+        return d[n_pts, m] / path_len if path_len > 0 else 0
 
     dtw_dist = np.zeros((n, n))
     for i in range(n):
