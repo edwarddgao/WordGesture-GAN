@@ -435,11 +435,12 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     log(f'  Jerk: {jerk_fake:.6f} (real: {jerk_real:.6f})')
 
     # Velocity correlation
+    # Compare directly (i to i) since each fake is generated for same prototype as real
     log(f'[5/9] Computing velocity correlation...')
     vcorrs = []
     for i in range(n):
         vr = np.diff(real_g[i,:,:2], axis=0).flatten()
-        vf = np.diff(fake_g[c[i],:,:2], axis=0).flatten()
+        vf = np.diff(fake_g[i,:,:2], axis=0).flatten()  # Compare directly, not c[i]
         if len(vr) == len(vf):
             cr = np.corrcoef(vr, vf)[0,1]
             if not np.isnan(cr):
@@ -448,12 +449,13 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     log(f'  Velocity correlation: {vcorr:.3f}')
 
     # Acceleration correlation (2nd derivative)
+    # Compare directly (i to i) since each fake is generated for same prototype as real
     log(f'[6/9] Computing acceleration correlation...')
     acorrs = []
     for i in range(n):
         # Acceleration = 2nd derivative (diff of velocity)
         vr = np.diff(real_g[i,:,:2], axis=0)
-        vf = np.diff(fake_g[c[i],:,:2], axis=0)
+        vf = np.diff(fake_g[i,:,:2], axis=0)  # Compare directly, not c[i]
         ar = np.diff(vr, axis=0).flatten()
         af = np.diff(vf, axis=0).flatten()
         if len(ar) == len(af) and len(ar) > 0:
@@ -483,15 +485,47 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     log(f'  Duration RMSE: {duration_rmse:.4f} (normalized), ~{duration_rmse_ms:.1f}ms (approx)')
 
     # FID Score (Frechet Inception Distance adapted for gestures)
-    log(f'[8/9] Computing FID score...')
-    # Flatten gestures to compute statistics (simple approach without autoencoder)
-    # Paper uses autoencoder features, we approximate with flattened (x,y) coordinates
-    real_flat = real_g[:,:,:2].reshape(n, -1)  # (n, 256)
-    fake_flat = fake_g[:,:,:2].reshape(n, -1)
-    # Compute mean and covariance
-    mu_real, mu_fake = np.mean(real_flat, axis=0), np.mean(fake_flat, axis=0)
-    cov_real, cov_fake = np.cov(real_flat, rowvar=False), np.cov(fake_flat, rowvar=False)
-    # FID = ||mu_r - mu_f||^2 + Tr(cov_r + cov_f - 2*sqrt(cov_r @ cov_f))
+    # Paper uses trained autoencoder for feature extraction (Section 4.3)
+    log(f'[8/9] Computing FID score with autoencoder...')
+    from src.models import AutoEncoder
+    from torch.utils.data import TensorDataset, DataLoader as TorchDataLoader
+
+    # Train autoencoder on real gestures (50 epochs as per paper)
+    log(f'  Training autoencoder on {n} real gestures...')
+    autoencoder = AutoEncoder(model_config, hidden_dim=64).to(device)
+    ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.001)
+    ae_criterion = torch.nn.L1Loss()
+
+    # Create dataloader for real gestures
+    real_tensor = torch.tensor(real_g, dtype=torch.float32)
+    ae_dataset = TensorDataset(real_tensor)
+    ae_loader = TorchDataLoader(ae_dataset, batch_size=32, shuffle=True)
+
+    autoencoder.train()
+    for ae_epoch in range(50):
+        total_loss = 0.0
+        for (batch,) in ae_loader:
+            batch = batch.to(device)
+            ae_optimizer.zero_grad()
+            reconstructed = autoencoder(batch)
+            loss = ae_criterion(reconstructed, batch)
+            loss.backward()
+            ae_optimizer.step()
+            total_loss += loss.item()
+        if (ae_epoch + 1) % 10 == 0:
+            log(f'    AE epoch {ae_epoch+1}/50, loss: {total_loss/len(ae_loader):.4f}')
+
+    # Extract features
+    autoencoder.eval()
+    with torch.no_grad():
+        real_features = autoencoder.encode(real_tensor.to(device)).cpu().numpy()
+        fake_tensor = torch.tensor(fake_g, dtype=torch.float32).to(device)
+        fake_features = autoencoder.encode(fake_tensor).cpu().numpy()
+
+    # Compute FID on autoencoder features
+    mu_real, mu_fake = np.mean(real_features, axis=0), np.mean(fake_features, axis=0)
+    cov_real = np.cov(real_features, rowvar=False) + np.eye(64) * 1e-6
+    cov_fake = np.cov(fake_features, rowvar=False) + np.eye(64) * 1e-6
     diff = mu_real - mu_fake
     covmean = scipy.linalg.sqrtm(cov_real @ cov_fake)
     if np.iscomplexobj(covmean):
