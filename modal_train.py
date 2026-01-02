@@ -398,12 +398,13 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     from joblib import Parallel, delayed
 
     def compute_dtw_row(i, real_g, fake_g):
-        """Compute DTW for one row, normalized by path length."""
+        """Compute DTW for one row (accumulated distance)."""
         row = np.zeros(len(fake_g))
         for j in range(len(fake_g)):
-            distance, path = fastdtw(real_g[i, :, :2], fake_g[j, :, :2], dist=euclidean)
-            # Normalize by path length to get average distance per alignment step
-            row[j] = distance / len(path)
+            # fastdtw returns accumulated distance along optimal path
+            # Paper uses raw accumulated distance, not normalized
+            distance, _ = fastdtw(real_g[i, :, :2], fake_g[j, :, :2], dist=euclidean)
+            row[j] = distance
         return row
 
     # Parallel DTW computation using all CPU cores
@@ -462,22 +463,18 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     # Duration RMSE (compare predicted vs real gesture duration)
     # Each fake[i] is generated for the same prototype as real[i], so compare directly
     log(f'[7/9] Computing duration RMSE...')
-    # Duration is the timestamp of the last point (column 2 is cumulative time)
+    # Duration is the timestamp of the last point (column 2 is cumulative time in seconds)
     real_durations = np.array([g[-1, 2] for g in real_g])  # Last timestamp
     fake_durations = np.array([g[-1, 2] for g in fake_g])
-    # Compare directly (same prototype pairs) - paper reports in milliseconds
-    # If data is normalized (0-1 range), denormalize assuming ~2000ms average duration
-    avg_real_dur = np.mean(real_durations)
-    log(f'  Average real duration (raw): {avg_real_dur:.4f}')
-    # Check if durations seem normalized (< 10 suggests normalized, paper avg is ~1947ms)
-    if avg_real_dur < 10:
-        # Likely normalized - for now compute RMSE in raw units
-        duration_rmse = np.sqrt(np.mean((real_durations - fake_durations)**2))
-        log(f'  Duration RMSE (normalized units): {duration_rmse:.4f}')
-    else:
-        # Already in ms
-        duration_rmse = np.sqrt(np.mean((real_durations - fake_durations)**2))
-        log(f'  Duration RMSE: {duration_rmse:.2f}ms')
+
+    # Debug: show duration statistics
+    log(f'  Real durations: min={real_durations.min():.3f}, max={real_durations.max():.3f}, mean={real_durations.mean():.3f}')
+    log(f'  Fake durations: min={fake_durations.min():.3f}, max={fake_durations.max():.3f}, mean={fake_durations.mean():.3f}')
+
+    # Compute RMSE in seconds (paper reports in ms, so multiply by 1000 for comparison)
+    duration_rmse = np.sqrt(np.mean((real_durations - fake_durations)**2))
+    duration_rmse_ms = duration_rmse * 1000
+    log(f'  Duration RMSE: {duration_rmse:.4f}s ({duration_rmse_ms:.1f}ms)')
 
     # FID Score (Frechet Inception Distance adapted for gestures)
     log(f'[8/9] Computing FID score...')
@@ -527,7 +524,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
         'eval/jerk': jerk_fake,
         'eval/velocity_corr': vcorr,
         'eval/accel_corr': acorr,
-        'eval/duration_rmse': duration_rmse,
+        'eval/duration_rmse_ms': duration_rmse_ms,
         'eval/fid': fid,
         'eval/precision': prec,
         'eval/recall': rec,
@@ -543,8 +540,8 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     log(f'{"Jerk (generated)":<30} {0.0058:<12.4f} {jerk_fake:<12.4f}')
     log(f'{"Velocity Correlation":<30} {0.40:<12.2f} {vcorr:<12.2f}')
     log(f'{"Acceleration Correlation":<30} {0.26:<12.2f} {acorr:<12.2f}')
-    # Paper reports 1180.3ms = 1.1803s. Our data is in seconds.
-    log(f'{"Duration RMSE (sec)":<30} {1.1803:<12.4f} {duration_rmse:<12.4f}')
+    # Paper reports 1180.3ms. Show both sec and ms for comparison.
+    log(f'{"Duration RMSE (ms)":<30} {1180.3:<12.1f} {duration_rmse_ms:<12.1f}')
     log(f'{"FID Score":<30} {0.270:<12.3f} {fid:<12.3f}')
     log(f'{"Precision":<30} {0.973:<12.3f} {prec:<12.3f}')
     log(f'{"Recall":<30} {0.258:<12.3f} {rec:<12.3f}')
@@ -553,7 +550,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     return {
         'epoch': int(epoch), 'l2_xy': float(l2_xy), 'dtw_xy': float(dtw_xy),
         'jerk_fake': float(jerk_fake), 'vcorr': float(vcorr), 'acorr': float(acorr),
-        'duration_rmse': float(duration_rmse), 'fid': float(fid),
+        'duration_rmse_ms': float(duration_rmse_ms), 'fid': float(fid),
         'precision': float(prec), 'recall': float(rec)
     }
 
