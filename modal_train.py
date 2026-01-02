@@ -20,7 +20,7 @@ volume = modal.Volume.from_name('wordgesture-data', create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version='3.11')
-    .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow', 'matplotlib', 'fastdtw')
+    .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow', 'matplotlib', 'fastdtw', 'joblib')
 )
 
 WANDB_KEY = 'd68f9b4406a518b2095a579d37b0355bc18ad1a8'
@@ -380,29 +380,35 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     real_g, fake_g = np.array(real_g), np.array(fake_g)
     log(f'  Done generating.')
 
-    # L2 Wasserstein
+    # L2 Wasserstein (vectorized with cdist)
     log(f'[2/9] Computing L2 Wasserstein distance...')
-    dist = np.array([[np.sqrt(np.sum((real_g[i,:,:2] - fake_g[j,:,:2])**2)) for j in range(n)] for i in range(n)])
+    from scipy.spatial.distance import cdist
+    real_flat_xy = real_g[:, :, :2].reshape(n, -1)
+    fake_flat_xy = fake_g[:, :, :2].reshape(n, -1)
+    dist = cdist(real_flat_xy, fake_flat_xy, metric='euclidean')
     r, c = linear_sum_assignment(dist)
     l2_xy = dist[r, c].mean()
     log(f'  L2 Wasserstein: {l2_xy:.3f}')
 
-    # DTW using fastdtw (O(n) approximation instead of O(n²))
-    log(f'[3/9] Computing DTW distance ({n}x{n} pairs)...')
+    # DTW using fastdtw with parallel computation
+    log(f'[3/9] Computing DTW distance ({n}x{n} pairs, parallelized)...')
     from fastdtw import fastdtw
     from scipy.spatial.distance import euclidean
+    from joblib import Parallel, delayed
 
-    def compute_dtw(a, b):
-        """Fast DTW with Euclidean distance."""
-        distance, _ = fastdtw(a[:, :2], b[:, :2], dist=euclidean)
-        return distance
+    def compute_dtw_row(i, real_g, fake_g):
+        """Compute DTW for one row (all pairs with real_g[i])."""
+        row = np.zeros(len(fake_g))
+        for j in range(len(fake_g)):
+            distance, _ = fastdtw(real_g[i, :, :2], fake_g[j, :, :2], dist=euclidean)
+            row[j] = distance
+        return row
 
-    dtw_dist = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            dtw_dist[i, j] = compute_dtw(real_g[i], fake_g[j])
-        if (i + 1) % 50 == 0:
-            log(f'  DTW row {i+1}/{n}')
+    # Parallel DTW computation using all CPU cores
+    dtw_rows = Parallel(n_jobs=-1, verbose=1)(
+        delayed(compute_dtw_row)(i, real_g, fake_g) for i in range(n)
+    )
+    dtw_dist = np.array(dtw_rows)
     r2, c2 = linear_sum_assignment(dtw_dist)
     dtw_xy = dtw_dist[r2, c2].mean()
     log(f'  DTW Wasserstein: {dtw_xy:.3f}')
@@ -478,40 +484,24 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     log(f'  FID score: {fid:.4f}')
 
     # Precision/Recall using Improved Precision and Recall Metric (Kynkäänniemi et al., 2019)
-    # https://arxiv.org/abs/1904.06991
-    # Algorithm: Estimate manifold with k-NN hyperspheres, k=3 recommended
-    # Precision: fraction of fake samples within real manifold
-    # Recall: fraction of real samples within fake manifold
+    # Vectorized implementation using cdist
     log(f'[9/9] Computing precision/recall (k=3)...')
-    k = 3  # Paper recommends k=3 as robust choice
+    k = 3
 
-    def compute_knn_radius(data, k):
-        """Compute k-th nearest neighbor distance for each sample."""
-        n_samples = len(data)
-        radii = []
-        for i in range(n_samples):
-            dists = [np.sqrt(np.sum((data[i,:,:2] - data[j,:,:2])**2))
-                     for j in range(n_samples) if i != j]
-            dists.sort()
-            radii.append(dists[k-1])  # k-th nearest neighbor distance
-        return radii
+    # Compute pairwise distances using cdist (vectorized)
+    real_dists = cdist(real_flat_xy, real_flat_xy, metric='euclidean')
+    fake_dists = cdist(fake_flat_xy, fake_flat_xy, metric='euclidean')
+    real_fake_dists = cdist(real_flat_xy, fake_flat_xy, metric='euclidean')
 
-    def manifold_membership(sample, manifold_data, manifold_radii):
-        """Check if sample falls within any hypersphere of the manifold."""
-        for j, radius in enumerate(manifold_radii):
-            dist = np.sqrt(np.sum((sample[:,:2] - manifold_data[j,:,:2])**2))
-            if dist <= radius:
-                return True
-        return False
-
-    # Compute k-NN radii for both real and fake manifolds
-    real_radii = compute_knn_radius(real_g, k)
-    fake_radii = compute_knn_radius(fake_g, k)
+    # k-NN radii: k-th smallest distance (excluding self which is 0)
+    real_radii = np.sort(real_dists, axis=1)[:, k]  # k-th neighbor (index k since self is 0)
+    fake_radii = np.sort(fake_dists, axis=1)[:, k]
 
     # Precision: fraction of fake samples within real manifold
-    prec = sum(1 for i in range(n) if manifold_membership(fake_g[i], real_g, real_radii)) / n
+    # For each fake sample, check if distance to any real sample <= that real's radius
+    prec = np.mean([np.any(real_fake_dists[:, j] <= real_radii) for j in range(n)])
     # Recall: fraction of real samples within fake manifold
-    rec = sum(1 for i in range(n) if manifold_membership(real_g[i], fake_g, fake_radii)) / n
+    rec = np.mean([np.any(real_fake_dists[i, :] <= fake_radii) for i in range(n)])
     log(f'  Precision: {prec:.3f}, Recall: {rec:.3f}')
 
     # Log to wandb
