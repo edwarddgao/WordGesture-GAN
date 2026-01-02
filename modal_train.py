@@ -20,7 +20,7 @@ volume = modal.Volume.from_name('wordgesture-data', create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version='3.11')
-    .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow', 'matplotlib')
+    .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow', 'matplotlib', 'fastdtw')
 )
 
 WANDB_KEY = 'd68f9b4406a518b2095a579d37b0355bc18ad1a8'
@@ -387,26 +387,21 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     l2_xy = dist[r, c].mean()
     log(f'  L2 Wasserstein: {l2_xy:.3f}')
 
-    # DTW - use squared Euclidean cost, take sqrt at end (like L2 distance)
-    log(f'[3/9] Computing DTW distance ({n}x{n} pairs, this takes time)...')
-    def dtw(a, b):
-        """DTW with squared cost, sqrt at end (comparable to L2 distance)."""
-        n_pts, m = len(a), len(b)
-        d = np.full((n_pts+1, m+1), np.inf)
-        d[0,0] = 0
-        for i in range(1, n_pts+1):
-            for j in range(1, m+1):
-                # Squared Euclidean distance as cost
-                cost = np.sum((a[i-1,:2] - b[j-1,:2])**2)
-                d[i,j] = cost + min(d[i-1,j], d[i,j-1], d[i-1,j-1])
-        # Return sqrt of accumulated squared cost
-        return np.sqrt(d[n_pts, m])
+    # DTW using fastdtw (O(n) approximation instead of O(n²))
+    log(f'[3/9] Computing DTW distance ({n}x{n} pairs)...')
+    from fastdtw import fastdtw
+    from scipy.spatial.distance import euclidean
+
+    def compute_dtw(a, b):
+        """Fast DTW with Euclidean distance."""
+        distance, _ = fastdtw(a[:, :2], b[:, :2], dist=euclidean)
+        return distance
 
     dtw_dist = np.zeros((n, n))
     for i in range(n):
         for j in range(n):
-            dtw_dist[i, j] = dtw(real_g[i], fake_g[j])
-        if (i + 1) % 20 == 0:
+            dtw_dist[i, j] = compute_dtw(real_g[i], fake_g[j])
+        if (i + 1) % 50 == 0:
             log(f'  DTW row {i+1}/{n}')
     r2, c2 = linear_sum_assignment(dtw_dist)
     dtw_xy = dtw_dist[r2, c2].mean()
