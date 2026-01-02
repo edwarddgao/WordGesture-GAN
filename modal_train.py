@@ -304,7 +304,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
-def evaluate(n_samples: int = 200, checkpoint_epoch: int = None):
+def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: float = 0.05):
     """Evaluate trained model with all paper metrics.
 
     Uses Improved Precision and Recall Metric (Kynkäänniemi et al., 2019)
@@ -313,6 +313,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None):
     Args:
         n_samples: Number of samples for evaluation (default 200)
         checkpoint_epoch: Specific epoch checkpoint to use (default: latest)
+        truncation: Latent code truncation (z * truncation), default 0.05 to match paper
     """
     import sys
     sys.path.insert(0, '/data')
@@ -358,13 +359,14 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None):
 
     # Generate (use fewer samples to speed up DTW)
     n = min(n_samples, len(test_ds))
-    print(f'[1/6] Generating {n} samples...')
+    print(f'[1/6] Generating {n} samples (truncation={truncation})...')
     real_g, fake_g = [], []
     with torch.no_grad():
         for i in range(n):
             item = test_ds[i]
             proto = item['prototype'].unsqueeze(0).to(device)
-            z = torch.randn(1, 32, device=device)
+            # Apply truncation trick: z * truncation reduces diversity, increases quality
+            z = torch.randn(1, 32, device=device) * truncation
             fake = generator(proto, z).cpu().numpy()[0]
             real_g.append(item['gesture'].numpy())
             fake_g.append(fake)
