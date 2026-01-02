@@ -304,11 +304,12 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
-def evaluate(n_samples: int = 50):
+def evaluate(n_samples: int = 50, checkpoint_epoch: int = None):
     """Evaluate trained model with all paper metrics.
 
     Args:
-        n_samples: Number of samples for evaluation (default 200 for speed)
+        n_samples: Number of samples for evaluation (default 50 for speed)
+        checkpoint_epoch: Specific epoch checkpoint to use (default: latest)
     """
     import sys
     sys.path.insert(0, '/data')
@@ -326,7 +327,10 @@ def evaluate(n_samples: int = 50):
     from src.config import TrainingConfig
 
     device = 'cuda'
-    checkpoint_path = Path('/data/checkpoints/latest.pt')
+    if checkpoint_epoch is not None:
+        checkpoint_path = Path(f'/data/checkpoints/epoch_{checkpoint_epoch}.pt')
+    else:
+        checkpoint_path = Path('/data/checkpoints/latest.pt')
 
     if not checkpoint_path.exists():
         return {'error': 'No checkpoint found. Run train() first.'}
@@ -373,37 +377,20 @@ def evaluate(n_samples: int = 50):
     l2_xy = dist[r, c].mean()
     print(f'  L2 Wasserstein: {l2_xy:.3f}')
 
-    # DTW (slowest part) - use (x,y) only, normalize by path length
+    # DTW - use squared Euclidean cost, take sqrt at end (like L2 distance)
     print(f'[3/6] Computing DTW distance ({n}x{n} pairs, this takes time)...')
     def dtw(a, b):
-        """DTW normalized by warping path length."""
+        """DTW with squared cost, sqrt at end (comparable to L2 distance)."""
         n_pts, m = len(a), len(b)
         d = np.full((n_pts+1, m+1), np.inf)
         d[0,0] = 0
         for i in range(1, n_pts+1):
             for j in range(1, m+1):
-                cost = np.sqrt(np.sum((a[i-1,:2] - b[j-1,:2])**2))
+                # Squared Euclidean distance as cost
+                cost = np.sum((a[i-1,:2] - b[j-1,:2])**2)
                 d[i,j] = cost + min(d[i-1,j], d[i,j-1], d[i-1,j-1])
-
-        # Backtrack to get path length
-        i, j = n_pts, m
-        path_len = 0
-        while i > 0 or j > 0:
-            path_len += 1
-            if i == 0:
-                j -= 1
-            elif j == 0:
-                i -= 1
-            else:
-                prev = min(d[i-1,j], d[i,j-1], d[i-1,j-1])
-                if prev == d[i-1,j-1]:
-                    i, j = i-1, j-1
-                elif prev == d[i-1,j]:
-                    i -= 1
-                else:
-                    j -= 1
-
-        return d[n_pts, m] / path_len if path_len > 0 else 0
+        # Return sqrt of accumulated squared cost
+        return np.sqrt(d[n_pts, m])
 
     dtw_dist = np.zeros((n, n))
     for i in range(n):
@@ -490,11 +477,12 @@ async def main():
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--eval-only', action='store_true')
     parser.add_argument('--no-resume', action='store_true')
+    parser.add_argument('--checkpoint-epoch', type=int, default=None, help='Specific epoch checkpoint to evaluate')
     args = parser.parse_args()
 
     async with app.run():
         if args.eval_only:
-            result = await evaluate.remote.aio()
+            result = await evaluate.remote.aio(checkpoint_epoch=args.checkpoint_epoch)
         else:
             result = await train.remote.aio(num_epochs=args.epochs, resume=not args.no_resume)
             if result.get('status') == 'complete':
