@@ -304,11 +304,11 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
-def evaluate(n_samples: int = 50, checkpoint_epoch: int = None):
+def evaluate(n_samples: int = 100, checkpoint_epoch: int = None):
     """Evaluate trained model with all paper metrics.
 
     Args:
-        n_samples: Number of samples for evaluation (default 50 for speed)
+        n_samples: Number of samples for evaluation (default 100)
         checkpoint_epoch: Specific epoch checkpoint to use (default: latest)
     """
     import sys
@@ -429,9 +429,9 @@ def evaluate(n_samples: int = 50, checkpoint_epoch: int = None):
     vcorr = np.mean(vcorrs)
     print(f'  Velocity correlation: {vcorr:.3f}')
 
-    # Precision/Recall (k=3)
+    # Precision/Recall (k=5 to match paper)
     print(f'[6/6] Computing precision/recall...')
-    def knn_r(data, k=3):
+    def knn_r(data, k=5):
         return [sorted([np.sqrt(np.sum((data[i,:,:2]-data[j,:,:2])**2)) for j in range(len(data)) if i!=j])[k-1] for i in range(len(data))]
     rr, fr = knn_r(real_g), knn_r(fake_g)
     prec = sum(1 for i in range(n) if any(np.sqrt(np.sum((fake_g[i,:,:2]-real_g[j,:,:2])**2)) <= rr[j] for j in range(n))) / n
