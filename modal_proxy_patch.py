@@ -45,10 +45,11 @@ def apply_grpclib_patch(proxy_url: str):
         )
 
         # Connect through proxy (sync to get raw socket)
+        # Use longer timeout for Modal GPU allocation which can take minutes
         raw_sock = sync_proxy.connect(
             dest_host=self._host,
             dest_port=self._port,
-            timeout=30
+            timeout=120
         )
 
         # Make non-blocking for asyncio

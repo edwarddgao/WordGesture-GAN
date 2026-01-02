@@ -561,6 +561,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
 
 async def main():
     import argparse
+    import time
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--eval-only', action='store_true')
@@ -571,17 +572,23 @@ async def main():
     # Enable streaming logs from Modal containers
     modal.enable_output()
     print('[local] Starting Modal app...')
+    start_time = time.time()
 
     async with app.run():
-        print('[local] Modal app running, dispatching task...')
+        print(f'[local] Modal app running ({time.time() - start_time:.1f}s), dispatching task...')
         if args.eval_only:
+            print(f'[local] Calling evaluate.remote.aio()...')
             result = await evaluate.remote.aio(checkpoint_epoch=args.checkpoint_epoch)
+            print(f'[local] evaluate completed ({time.time() - start_time:.1f}s)')
         else:
+            print(f'[local] Calling train.remote.aio()...')
             result = await train.remote.aio(num_epochs=args.epochs, resume=not args.no_resume)
+            print(f'[local] train completed ({time.time() - start_time:.1f}s)')
             if result.get('status') == 'complete':
                 print('\nRunning evaluation...')
                 result['eval'] = await evaluate.remote.aio()
-    print(f'\nResult: {result}')
+    print(f'\n[local] Total time: {time.time() - start_time:.1f}s')
+    print(f'Result: {result}')
 
 
 if __name__ == '__main__':
