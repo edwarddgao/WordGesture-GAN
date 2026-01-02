@@ -448,18 +448,23 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     vcorr = np.mean(vcorrs)
     log(f'  Velocity correlation: {vcorr:.3f}')
 
-    # Acceleration correlation (2nd derivative)
-    # Compare directly (i to i) since each fake is generated for same prototype as real
+    # Acceleration correlation (2nd derivative using Savitzky-Golay filter)
+    # Use savgol_filter like jerk for smoother derivatives
     log(f'[6/9] Computing acceleration correlation...')
     acorrs = []
     for i in range(n):
-        # Acceleration = 2nd derivative (diff of velocity)
-        vr = np.diff(real_g[i,:,:2], axis=0)
-        vf = np.diff(fake_g[i,:,:2], axis=0)  # Compare directly, not c[i]
-        ar = np.diff(vr, axis=0).flatten()
-        af = np.diff(vf, axis=0).flatten()
-        if len(ar) == len(af) and len(ar) > 0:
-            cr = np.corrcoef(ar, af)[0,1]
+        # Acceleration = 2nd derivative using savgol_filter (smoother than double diff)
+        xr, yr = real_g[i, :, 0], real_g[i, :, 1]
+        xf, yf = fake_g[i, :, 0], fake_g[i, :, 1]
+        if len(xr) >= 5:
+            # 2nd derivative with window=5, poly=3
+            ax_r = savgol_filter(xr, 5, 3, deriv=2)
+            ay_r = savgol_filter(yr, 5, 3, deriv=2)
+            ax_f = savgol_filter(xf, 5, 3, deriv=2)
+            ay_f = savgol_filter(yf, 5, 3, deriv=2)
+            ar = np.concatenate([ax_r, ay_r])
+            af = np.concatenate([ax_f, ay_f])
+            cr = np.corrcoef(ar, af)[0, 1]
             if not np.isnan(cr):
                 acorrs.append(cr)
     acorr = np.mean(acorrs) if acorrs else 0.0
