@@ -158,9 +158,16 @@ def normalize_gesture(
 
     points = np.array(points, dtype=np.float32)
 
-    # Convert timestamps to cumulative time from start (in seconds)
+    # Convert timestamps to cumulative time from start, normalized to [0, 1]
+    # This matches the prototype format (linspace 0 to 1) and allows the
+    # generator to learn timing within its [-1, 1] output range
     start_time = points[0, 2]
-    points[:, 2] = (points[:, 2] - start_time) / 1000.0  # Convert to seconds
+    end_time = points[-1, 2]
+    duration_ms = end_time - start_time
+    if duration_ms > 0:
+        points[:, 2] = (points[:, 2] - start_time) / duration_ms  # Normalize to [0, 1]
+    else:
+        points[:, 2] = np.linspace(0, 1, len(points))
 
     # Resample to seq_length points
     if len(points) == seq_length:
