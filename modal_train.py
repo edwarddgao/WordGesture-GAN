@@ -304,11 +304,14 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
-def evaluate(n_samples: int = 100, checkpoint_epoch: int = None):
+def evaluate(n_samples: int = 200, checkpoint_epoch: int = None):
     """Evaluate trained model with all paper metrics.
 
+    Uses Improved Precision and Recall Metric (Kynkäänniemi et al., 2019)
+    with k=3 for manifold estimation.
+
     Args:
-        n_samples: Number of samples for evaluation (default 100)
+        n_samples: Number of samples for evaluation (default 200)
         checkpoint_epoch: Specific epoch checkpoint to use (default: latest)
     """
     import sys
@@ -429,13 +432,41 @@ def evaluate(n_samples: int = 100, checkpoint_epoch: int = None):
     vcorr = np.mean(vcorrs)
     print(f'  Velocity correlation: {vcorr:.3f}')
 
-    # Precision/Recall (k=5 to match paper)
-    print(f'[6/6] Computing precision/recall...')
-    def knn_r(data, k=5):
-        return [sorted([np.sqrt(np.sum((data[i,:,:2]-data[j,:,:2])**2)) for j in range(len(data)) if i!=j])[k-1] for i in range(len(data))]
-    rr, fr = knn_r(real_g), knn_r(fake_g)
-    prec = sum(1 for i in range(n) if any(np.sqrt(np.sum((fake_g[i,:,:2]-real_g[j,:,:2])**2)) <= rr[j] for j in range(n))) / n
-    rec = sum(1 for i in range(n) if any(np.sqrt(np.sum((real_g[i,:,:2]-fake_g[j,:,:2])**2)) <= fr[j] for j in range(n))) / n
+    # Precision/Recall using Improved Precision and Recall Metric (Kynkäänniemi et al., 2019)
+    # https://arxiv.org/abs/1904.06991
+    # Algorithm: Estimate manifold with k-NN hyperspheres, k=3 recommended
+    # Precision: fraction of fake samples within real manifold
+    # Recall: fraction of real samples within fake manifold
+    print(f'[6/6] Computing precision/recall (k=3)...')
+    k = 3  # Paper recommends k=3 as robust choice
+
+    def compute_knn_radius(data, k):
+        """Compute k-th nearest neighbor distance for each sample."""
+        n_samples = len(data)
+        radii = []
+        for i in range(n_samples):
+            dists = [np.sqrt(np.sum((data[i,:,:2] - data[j,:,:2])**2))
+                     for j in range(n_samples) if i != j]
+            dists.sort()
+            radii.append(dists[k-1])  # k-th nearest neighbor distance
+        return radii
+
+    def manifold_membership(sample, manifold_data, manifold_radii):
+        """Check if sample falls within any hypersphere of the manifold."""
+        for j, radius in enumerate(manifold_radii):
+            dist = np.sqrt(np.sum((sample[:,:2] - manifold_data[j,:,:2])**2))
+            if dist <= radius:
+                return True
+        return False
+
+    # Compute k-NN radii for both real and fake manifolds
+    real_radii = compute_knn_radius(real_g, k)
+    fake_radii = compute_knn_radius(fake_g, k)
+
+    # Precision: fraction of fake samples within real manifold
+    prec = sum(1 for i in range(n) if manifold_membership(fake_g[i], real_g, real_radii)) / n
+    # Recall: fraction of real samples within fake manifold
+    rec = sum(1 for i in range(n) if manifold_membership(real_g[i], fake_g, fake_radii)) / n
     print(f'  Precision: {prec:.3f}, Recall: {rec:.3f}')
 
     # Log to wandb
