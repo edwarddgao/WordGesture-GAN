@@ -318,6 +318,10 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     import sys
     sys.path.insert(0, '/data')
 
+    def log(msg):
+        """Print with immediate flush for Modal streaming."""
+        print(msg, flush=True)
+
     import torch
     import numpy as np
     from pathlib import Path
@@ -340,8 +344,8 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     if not checkpoint_path.exists():
         return {'error': 'No checkpoint found. Run train() first.'}
 
-    print(f'GPU: {torch.cuda.get_device_name(0)}')
-    print(f'Evaluating with {n_samples} samples...')
+    log(f'[remote] GPU: {torch.cuda.get_device_name(0)}')
+    log(f'[remote] Evaluating with {n_samples} samples...')
 
     # Load model
     model_config = ModelConfig(seq_length=128, latent_dim=32)
@@ -350,7 +354,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     generator.load_state_dict(ckpt['generator'])
     generator.eval()
     epoch = ckpt['epoch'] + 1
-    print(f'Loaded checkpoint from epoch {epoch}')
+    log(f'[remote] Loaded checkpoint from epoch {epoch}')
 
     # Load test data
     keyboard = QWERTYKeyboard()
@@ -360,7 +364,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
 
     # Generate (use fewer samples to speed up DTW)
     n = min(n_samples, len(test_ds))
-    print(f'[1/9] Generating {n} samples (truncation={truncation})...')
+    log(f'[1/9] Generating {n} samples (truncation={truncation})...')
     real_g, fake_g = [], []
     with torch.no_grad():
         for i in range(n):
@@ -372,19 +376,19 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
             real_g.append(item['gesture'].numpy())
             fake_g.append(fake)
             if (i + 1) % 50 == 0:
-                print(f'  Generated {i+1}/{n}')
+                log(f'  Generated {i+1}/{n}')
     real_g, fake_g = np.array(real_g), np.array(fake_g)
-    print(f'  Done generating.')
+    log(f'  Done generating.')
 
     # L2 Wasserstein
-    print(f'[2/9] Computing L2 Wasserstein distance...')
+    log(f'[2/9] Computing L2 Wasserstein distance...')
     dist = np.array([[np.sqrt(np.sum((real_g[i,:,:2] - fake_g[j,:,:2])**2)) for j in range(n)] for i in range(n)])
     r, c = linear_sum_assignment(dist)
     l2_xy = dist[r, c].mean()
-    print(f'  L2 Wasserstein: {l2_xy:.3f}')
+    log(f'  L2 Wasserstein: {l2_xy:.3f}')
 
     # DTW - use squared Euclidean cost, take sqrt at end (like L2 distance)
-    print(f'[3/9] Computing DTW distance ({n}x{n} pairs, this takes time)...')
+    log(f'[3/9] Computing DTW distance ({n}x{n} pairs, this takes time)...')
     def dtw(a, b):
         """DTW with squared cost, sqrt at end (comparable to L2 distance)."""
         n_pts, m = len(a), len(b)
@@ -403,13 +407,13 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
         for j in range(n):
             dtw_dist[i, j] = dtw(real_g[i], fake_g[j])
         if (i + 1) % 20 == 0:
-            print(f'  DTW row {i+1}/{n}')
+            log(f'  DTW row {i+1}/{n}')
     r2, c2 = linear_sum_assignment(dtw_dist)
     dtw_xy = dtw_dist[r2, c2].mean()
-    print(f'  DTW Wasserstein: {dtw_xy:.3f}')
+    log(f'  DTW Wasserstein: {dtw_xy:.3f}')
 
     # Jerk (third derivative magnitude, no time normalization)
-    print(f'[4/9] Computing jerk...')
+    log(f'[4/9] Computing jerk...')
     def compute_gesture_jerk(g):
         """Compute jerk as third derivative magnitude."""
         x, y = g[:, 0], g[:, 1]
@@ -420,10 +424,10 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
         return np.mean(np.sqrt(d3x**2 + d3y**2))
     jerk_real = np.mean([compute_gesture_jerk(g) for g in real_g])
     jerk_fake = np.mean([compute_gesture_jerk(g) for g in fake_g])
-    print(f'  Jerk: {jerk_fake:.6f} (real: {jerk_real:.6f})')
+    log(f'  Jerk: {jerk_fake:.6f} (real: {jerk_real:.6f})')
 
     # Velocity correlation
-    print(f'[5/9] Computing velocity correlation...')
+    log(f'[5/9] Computing velocity correlation...')
     vcorrs = []
     for i in range(n):
         vr = np.diff(real_g[i,:,:2], axis=0).flatten()
@@ -433,10 +437,10 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
             if not np.isnan(cr):
                 vcorrs.append(cr)
     vcorr = np.mean(vcorrs)
-    print(f'  Velocity correlation: {vcorr:.3f}')
+    log(f'  Velocity correlation: {vcorr:.3f}')
 
     # Acceleration correlation (2nd derivative)
-    print(f'[6/9] Computing acceleration correlation...')
+    log(f'[6/9] Computing acceleration correlation...')
     acorrs = []
     for i in range(n):
         # Acceleration = 2nd derivative (diff of velocity)
@@ -449,20 +453,20 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
             if not np.isnan(cr):
                 acorrs.append(cr)
     acorr = np.mean(acorrs) if acorrs else 0.0
-    print(f'  Acceleration correlation: {acorr:.3f}')
+    log(f'  Acceleration correlation: {acorr:.3f}')
 
     # Duration RMSE (compare predicted vs real gesture duration)
-    print(f'[7/9] Computing duration RMSE...')
+    log(f'[7/9] Computing duration RMSE...')
     # Duration is the timestamp of the last point (column 2 is cumulative time)
     real_durations = [g[-1, 2] for g in real_g]  # Last timestamp
     fake_durations = [g[-1, 2] for g in fake_g]
     # Match by L2 assignment (same as before)
     duration_errors = [(real_durations[c[i]] - fake_durations[i])**2 for i in range(n)]
     duration_rmse = np.sqrt(np.mean(duration_errors))
-    print(f'  Duration RMSE: {duration_rmse:.4f}s')
+    log(f'  Duration RMSE: {duration_rmse:.4f}s')
 
     # FID Score (Frechet Inception Distance adapted for gestures)
-    print(f'[8/9] Computing FID score...')
+    log(f'[8/9] Computing FID score...')
     # Flatten gestures to compute statistics (simple approach without autoencoder)
     # Paper uses autoencoder features, we approximate with flattened (x,y) coordinates
     real_flat = real_g[:,:,:2].reshape(n, -1)  # (n, 256)
@@ -476,14 +480,14 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     if np.iscomplexobj(covmean):
         covmean = covmean.real
     fid = np.sum(diff**2) + np.trace(cov_real + cov_fake - 2*covmean)
-    print(f'  FID score: {fid:.4f}')
+    log(f'  FID score: {fid:.4f}')
 
     # Precision/Recall using Improved Precision and Recall Metric (Kynkäänniemi et al., 2019)
     # https://arxiv.org/abs/1904.06991
     # Algorithm: Estimate manifold with k-NN hyperspheres, k=3 recommended
     # Precision: fraction of fake samples within real manifold
     # Recall: fraction of real samples within fake manifold
-    print(f'[9/9] Computing precision/recall (k=3)...')
+    log(f'[9/9] Computing precision/recall (k=3)...')
     k = 3  # Paper recommends k=3 as robust choice
 
     def compute_knn_radius(data, k):
@@ -513,7 +517,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     prec = sum(1 for i in range(n) if manifold_membership(fake_g[i], real_g, real_radii)) / n
     # Recall: fraction of real samples within fake manifold
     rec = sum(1 for i in range(n) if manifold_membership(real_g[i], fake_g, fake_radii)) / n
-    print(f'  Precision: {prec:.3f}, Recall: {rec:.3f}')
+    log(f'  Precision: {prec:.3f}, Recall: {rec:.3f}')
 
     # Log to wandb
     import wandb
@@ -533,19 +537,19 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     })
     wandb.finish()
 
-    print('\n' + '='*65)
-    print(f'{"RESULTS (epoch "+str(epoch)+")":<30} {"Paper":<12} {"Ours":<12}')
-    print('='*65)
-    print(f'{"L2 Wasserstein (x,y)":<30} {4.409:<12.3f} {l2_xy:<12.3f}')
-    print(f'{"DTW Wasserstein (x,y)":<30} {2.146:<12.3f} {dtw_xy:<12.3f}')
-    print(f'{"Jerk (generated)":<30} {0.0058:<12.4f} {jerk_fake:<12.4f}')
-    print(f'{"Velocity Correlation":<30} {0.40:<12.2f} {vcorr:<12.2f}')
-    print(f'{"Acceleration Correlation":<30} {0.26:<12.2f} {acorr:<12.2f}')
-    print(f'{"Duration RMSE (s)":<30} {1.1803:<12.4f} {duration_rmse:<12.4f}')
-    print(f'{"FID Score":<30} {0.270:<12.3f} {fid:<12.3f}')
-    print(f'{"Precision":<30} {0.973:<12.3f} {prec:<12.3f}')
-    print(f'{"Recall":<30} {0.258:<12.3f} {rec:<12.3f}')
-    print('='*65)
+    log('\n' + '='*65)
+    log(f'{"RESULTS (epoch "+str(epoch)+")":<30} {"Paper":<12} {"Ours":<12}')
+    log('='*65)
+    log(f'{"L2 Wasserstein (x,y)":<30} {4.409:<12.3f} {l2_xy:<12.3f}')
+    log(f'{"DTW Wasserstein (x,y)":<30} {2.146:<12.3f} {dtw_xy:<12.3f}')
+    log(f'{"Jerk (generated)":<30} {0.0058:<12.4f} {jerk_fake:<12.4f}')
+    log(f'{"Velocity Correlation":<30} {0.40:<12.2f} {vcorr:<12.2f}')
+    log(f'{"Acceleration Correlation":<30} {0.26:<12.2f} {acorr:<12.2f}')
+    log(f'{"Duration RMSE (s)":<30} {1.1803:<12.4f} {duration_rmse:<12.4f}')
+    log(f'{"FID Score":<30} {0.270:<12.3f} {fid:<12.3f}')
+    log(f'{"Precision":<30} {0.973:<12.3f} {prec:<12.3f}')
+    log(f'{"Recall":<30} {0.258:<12.3f} {rec:<12.3f}')
+    log('='*65)
 
     return {
         'epoch': int(epoch), 'l2_xy': float(l2_xy), 'dtw_xy': float(dtw_xy),
@@ -564,7 +568,12 @@ async def main():
     parser.add_argument('--checkpoint-epoch', type=int, default=None, help='Specific epoch checkpoint to evaluate')
     args = parser.parse_args()
 
+    # Enable streaming logs from Modal containers
+    modal.enable_output()
+    print('[local] Starting Modal app...')
+
     async with app.run():
+        print('[local] Modal app running, dispatching task...')
         if args.eval_only:
             result = await evaluate.remote.aio(checkpoint_epoch=args.checkpoint_epoch)
         else:
