@@ -18,6 +18,9 @@ import asyncio
 app = modal.App('wordgesture-gan')
 volume = modal.Volume.from_name('wordgesture-data', create_if_missing=True)
 
+# Mount local src directory to ensure latest code is used
+src_mount = modal.Mount.from_local_dir('./src', remote_path='/app/src')
+
 image = (
     modal.Image.debian_slim(python_version='3.11')
     .pip_install('torch>=2.0.0', 'numpy>=1.24.0', 'scipy>=1.10.0', 'wandb', 'pillow', 'matplotlib', 'fastdtw', 'joblib')
@@ -26,11 +29,11 @@ image = (
 WANDB_KEY = 'd68f9b4406a518b2095a579d37b0355bc18ad1a8'
 
 
-@app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=7200)
+@app.function(gpu='T4', image=image, volumes={'/data': volume}, mounts=[src_mount], timeout=7200)
 def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10):
     """Train WordGesture-GAN with checkpointing to Modal Volume."""
     import sys
-    sys.path.insert(0, '/data')
+    sys.path.insert(0, '/app')  # Use mounted src directory
 
     import torch
     import numpy as np
@@ -303,7 +306,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     return {'status': 'complete', 'final_epoch': num_epochs}
 
 
-@app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=3600)
+@app.function(gpu='T4', image=image, volumes={'/data': volume}, mounts=[src_mount], timeout=3600)
 def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: float = 0.05):
     """Evaluate trained model with all paper metrics.
 
@@ -316,7 +319,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
         truncation: Latent code truncation (z * truncation), default 0.05 to match paper
     """
     import sys
-    sys.path.insert(0, '/data')
+    sys.path.insert(0, '/app')  # Use mounted src directory
 
     def log(msg):
         """Print with immediate flush for Modal streaming."""
