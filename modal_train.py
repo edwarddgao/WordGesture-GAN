@@ -356,11 +356,11 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     epoch = ckpt['epoch'] + 1
     log(f'[remote] Loaded checkpoint from epoch {epoch}')
 
-    # Load test data
+    # Load train and test data
     keyboard = QWERTYKeyboard()
     training_config = TrainingConfig()
     gestures, protos = load_dataset_from_zip('/data/swipelogs.zip', keyboard, model_config, training_config)
-    _, test_ds = create_train_test_split(gestures, protos, train_ratio=0.8, seed=42)
+    train_ds, test_ds = create_train_test_split(gestures, protos, train_ratio=0.8, seed=42)
 
     # Generate (use fewer samples to speed up DTW)
     n = min(n_samples, len(test_ds))
@@ -495,17 +495,20 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     from src.models import AutoEncoder
     from torch.utils.data import TensorDataset, DataLoader as TorchDataLoader
 
-    # Train autoencoder on real gestures (50 epochs as per paper)
-    log(f'  Training autoencoder on {n} real gestures...')
+    # Train autoencoder on FULL training set (not just eval samples) for better features
+    log(f'  Loading full training set for autoencoder ({len(train_ds)} samples)...')
+    train_gestures = np.array([train_ds[i]['gesture'].numpy() for i in range(len(train_ds))])
+    train_tensor = torch.tensor(train_gestures, dtype=torch.float32)
+
     autoencoder = AutoEncoder(model_config, hidden_dim=64).to(device)
     ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.001)
     ae_criterion = torch.nn.L1Loss()
 
-    # Create dataloader for real gestures
-    real_tensor = torch.tensor(real_g, dtype=torch.float32)
-    ae_dataset = TensorDataset(real_tensor)
-    ae_loader = TorchDataLoader(ae_dataset, batch_size=32, shuffle=True)
+    # Create dataloader for training gestures
+    ae_dataset = TensorDataset(train_tensor)
+    ae_loader = TorchDataLoader(ae_dataset, batch_size=64, shuffle=True)
 
+    log(f'  Training autoencoder on {len(train_ds)} gestures (50 epochs)...')
     autoencoder.train()
     for ae_epoch in range(50):
         total_loss = 0.0
@@ -520,8 +523,9 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
         if (ae_epoch + 1) % 10 == 0:
             log(f'    AE epoch {ae_epoch+1}/50, loss: {total_loss/len(ae_loader):.4f}')
 
-    # Extract features
+    # Extract features from eval samples
     autoencoder.eval()
+    real_tensor = torch.tensor(real_g, dtype=torch.float32)
     with torch.no_grad():
         real_features = autoencoder.encode(real_tensor.to(device)).cpu().numpy()
         fake_tensor = torch.tensor(fake_g, dtype=torch.float32).to(device)

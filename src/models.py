@@ -148,8 +148,8 @@ class Generator(nn.Module):
         lstm_out, _ = self.lstm(x)
 
         # Output layer predicts residual (delta from prototype)
-        # Increased scale from 0.5 to 0.8 to allow more acceleration variation
-        delta = torch.tanh(self.output_layer(lstm_out)) * 0.8
+        # Full scale (1.0) allows maximum variation for acceleration dynamics
+        delta = torch.tanh(self.output_layer(lstm_out))
 
         # Residual connection: prototype + delta, clamp to valid range
         output = torch.clamp(prototype + delta, -1.0, 1.0)
