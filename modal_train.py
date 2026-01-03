@@ -604,6 +604,306 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     }
 
 
+@app.function(gpu='T4', image=image, volumes={'/data': volume}, timeout=7200)
+def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: int = 5000,
+                        checkpoint_epoch: int = None, truncation: float = 0.05):
+    """Evaluate SHARK2 decoder Word Error Rate (Section 5.10, Table 7 from paper).
+
+    The SHARK2 decoder is a multi-channel recognition system that integrates:
+    - Location channel: distance from gesture to word template (key positions)
+    - Shape channel: shape similarity after normalizing for position/scale
+    - Language model: unigram word probabilities
+
+    Paper results (Table 7):
+    - 200 User-drawn gestures: 32.8% WER
+    - 200 User-drawn + 10000 simulated: 28.6% WER
+    - 10000 Simulated only: 28.6% WER
+    - 10000 User-drawn: 27.8% WER
+
+    Args:
+        n_train_user: Number of user-drawn gestures for training decoder parameters
+        n_simulated: Number of simulated gestures to add to training set
+        n_test: Number of test gestures for evaluation (default 5000 for speed)
+        checkpoint_epoch: Specific checkpoint epoch for generator (default: latest)
+        truncation: Latent truncation for generator
+    """
+    def log(msg):
+        print(msg, flush=True)
+
+    import torch
+    import numpy as np
+    from pathlib import Path
+    from collections import defaultdict
+    import random
+    from joblib import Parallel, delayed
+
+    from src.config import ModelConfig, TrainingConfig
+    from src.keyboard import QWERTYKeyboard
+    from src.data import load_dataset_from_zip, normalize_gesture
+    from src.models import Generator
+
+    device = 'cuda'
+    log(f'[SHARK2] GPU: {torch.cuda.get_device_name(0)}')
+    log(f'[SHARK2] Training setup: {n_train_user} user + {n_simulated} simulated gestures')
+    log(f'[SHARK2] Test set: {n_test} gestures')
+
+    # Load data
+    model_config = ModelConfig(seq_length=128, latent_dim=32)
+    training_config = TrainingConfig()
+    keyboard = QWERTYKeyboard()
+
+    log('[1/6] Loading gesture dataset...')
+    gestures_by_word, prototypes_by_word = load_dataset_from_zip(
+        '/data/swipelogs.zip', keyboard, model_config, training_config
+    )
+
+    # Get all words with gestures
+    all_words = list(gestures_by_word.keys())
+    log(f'  Found {len(all_words)} words, {sum(len(g) for g in gestures_by_word.values())} total gestures')
+
+    # Create vocabulary (lexicon) for decoder
+    lexicon = list(all_words)  # Keep as list for indexing
+    word_to_idx = {w: i for i, w in enumerate(lexicon)}
+    n_words = len(lexicon)
+
+    # Build unigram language model (uniform for now, or load frequencies)
+    # Paper used 30k unigram from COCA corpus - we'll approximate with uniform
+    log('[2/6] Building language model...')
+    word_log_prob = np.full(n_words, np.log(1.0 / n_words))  # Uniform prior
+
+    # Precompute word prototypes (templates) as numpy arrays
+    log('[3/6] Precomputing word templates...')
+    # Stack all templates: (n_words, seq_len, 2) for xy only
+    all_templates_xy = np.stack([keyboard.get_word_prototype(w, model_config.seq_length)[:, :2]
+                                  for w in lexicon], axis=0)
+
+    # Precompute normalized shapes for all templates
+    def normalize_shape_batch(templates):
+        """Normalize shapes for batch of templates: (n, seq_len, 2) -> (n, seq_len, 2)."""
+        # Center at origin
+        centered = templates - templates.mean(axis=1, keepdims=True)
+        # Path length for each
+        diffs = np.diff(centered, axis=1)
+        path_lengths = np.sum(np.sqrt(np.sum(diffs**2, axis=2)), axis=1, keepdims=True)
+        path_lengths = np.maximum(path_lengths, 1e-6)  # Avoid division by zero
+        # Scale
+        return centered / path_lengths[:, :, np.newaxis]
+
+    all_templates_shape = normalize_shape_batch(all_templates_xy)
+    log(f'  Precomputed {n_words} word templates')
+
+    # Vectorized SHARK2 decoder
+    def decode_gestures_batch(gestures_xy, sigma_loc, sigma_shape, sigma_lm):
+        """Decode multiple gestures using vectorized operations.
+
+        Args:
+            gestures_xy: (n_gestures, seq_len, 2) array of gesture x,y coordinates
+            sigma_loc, sigma_shape, sigma_lm: SHARK2 parameters
+
+        Returns:
+            List of predicted word indices
+        """
+        n_gestures = len(gestures_xy)
+
+        # Normalize gesture shapes
+        gestures_shape = normalize_shape_batch(gestures_xy)
+
+        predictions = []
+        for i in range(n_gestures):
+            g_xy = gestures_xy[i]  # (seq_len, 2)
+            g_shape = gestures_shape[i]  # (seq_len, 2)
+
+            # Location channel: L2 distance to all templates
+            # (n_words, seq_len, 2) - (seq_len, 2) -> (n_words,)
+            loc_dists = np.sqrt(np.mean((all_templates_xy - g_xy)**2, axis=(1, 2)))
+            loc_scores = -loc_dists**2 / (2 * sigma_loc**2)
+
+            # Shape channel: L2 distance to all normalized templates
+            shape_dists = np.sqrt(np.mean((all_templates_shape - g_shape)**2, axis=(1, 2)))
+            shape_scores = -shape_dists**2 / (2 * sigma_shape**2)
+
+            # Total score
+            scores = loc_scores + shape_scores + sigma_lm * word_log_prob
+
+            # Best word
+            best_idx = np.argmax(scores)
+            predictions.append(best_idx)
+
+        return predictions
+
+    # Prepare train and test sets
+    log('[4/6] Preparing train/test split...')
+
+    # Flatten all gestures with their words
+    all_gesture_word_pairs = []
+    for word, gesture_list in gestures_by_word.items():
+        for gesture in gesture_list:
+            all_gesture_word_pairs.append((gesture, word))
+
+    random.seed(42)
+    random.shuffle(all_gesture_word_pairs)
+
+    # Reserve test set first (cap at available gestures)
+    n_test = min(n_test, len(all_gesture_word_pairs) - n_train_user - 100)
+    test_pairs = all_gesture_word_pairs[:n_test]
+    remaining_pairs = all_gesture_word_pairs[n_test:]
+
+    # Sample training user gestures
+    train_user_pairs = remaining_pairs[:n_train_user]
+
+    log(f'  Train user gestures: {len(train_user_pairs)}')
+    log(f'  Test gestures: {len(test_pairs)}')
+
+    # Generate simulated gestures if needed
+    train_simulated_pairs = []
+    if n_simulated > 0:
+        log(f'[4.5/6] Generating {n_simulated} simulated gestures...')
+
+        # Load generator
+        if checkpoint_epoch is not None:
+            checkpoint_path = Path(f'/data/checkpoints/epoch_{checkpoint_epoch}.pt')
+        else:
+            checkpoint_path = Path('/data/checkpoints/latest.pt')
+
+        if not checkpoint_path.exists():
+            log(f'  ERROR: No checkpoint found at {checkpoint_path}')
+            return {'error': 'No checkpoint found'}
+
+        generator = Generator(model_config).to(device)
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        generator.load_state_dict(ckpt['generator'])
+        generator.eval()
+        log(f'  Loaded generator from epoch {ckpt["epoch"] + 1}')
+
+        # Generate gestures in batches for speed
+        batch_size = 64
+        words_list = lexicon
+        with torch.no_grad():
+            for batch_start in range(0, n_simulated, batch_size):
+                batch_end = min(batch_start + batch_size, n_simulated)
+                batch_words = [random.choice(words_list) for _ in range(batch_end - batch_start)]
+
+                # Batch generate
+                protos = torch.stack([torch.FloatTensor(
+                    keyboard.get_word_prototype(w, model_config.seq_length)
+                ) for w in batch_words]).to(device)
+                z = torch.randn(len(batch_words), model_config.latent_dim, device=device) * truncation
+                fakes = generator(protos, z).cpu().numpy()
+
+                for j, word in enumerate(batch_words):
+                    train_simulated_pairs.append((fakes[j], word))
+
+                if (batch_end) % 2000 == 0:
+                    log(f'    Generated {batch_end}/{n_simulated}')
+
+        log(f'  Generated {len(train_simulated_pairs)} simulated gestures')
+
+    # Combine training data
+    train_pairs = train_user_pairs + train_simulated_pairs
+    log(f'  Total training gestures: {len(train_pairs)}')
+
+    # Train SHARK2 parameters using grid search
+    log('[5/6] Training SHARK2 parameters...')
+
+    def compute_wer_fast(pairs, sigma_loc, sigma_shape, sigma_lm):
+        """Compute word error rate using vectorized decoder."""
+        gestures_xy = np.array([g[:, :2] for g, _ in pairs])
+        true_words = [w for _, w in pairs]
+        true_indices = [word_to_idx[w] for w in true_words]
+
+        pred_indices = decode_gestures_batch(gestures_xy, sigma_loc, sigma_shape, sigma_lm)
+        errors = sum(1 for p, t in zip(pred_indices, true_indices) if p != t)
+        return errors / len(pairs)
+
+    # Grid search for optimal parameters
+    # Use subset of training data for faster parameter search
+    train_subset = train_pairs[:min(200, len(train_pairs))]
+
+    best_params = None
+    best_wer = 1.0
+
+    # Parameter ranges based on typical gesture distances
+    sigma_loc_range = [0.1, 0.2, 0.3, 0.5]
+    sigma_shape_range = [0.05, 0.1, 0.2, 0.3]
+    sigma_lm_range = [0.0, 0.1, 0.5, 1.0]
+
+    log('  Grid search over parameters...')
+    for sigma_loc in sigma_loc_range:
+        for sigma_shape in sigma_shape_range:
+            for sigma_lm in sigma_lm_range:
+                wer = compute_wer_fast(train_subset, sigma_loc, sigma_shape, sigma_lm)
+                if wer < best_wer:
+                    best_wer = wer
+                    best_params = (sigma_loc, sigma_shape, sigma_lm)
+                    log(f'    New best: loc={sigma_loc}, shape={sigma_shape}, lm={sigma_lm}, WER={wer*100:.1f}%')
+
+    sigma_loc, sigma_shape, sigma_lm = best_params
+    log(f'  Best params: sigma_loc={sigma_loc}, sigma_shape={sigma_shape}, sigma_lm={sigma_lm}')
+    log(f'  Train WER (subset): {best_wer * 100:.1f}%')
+
+    # Evaluate on test set in batches
+    log(f'[6/6] Evaluating on {len(test_pairs)} test gestures...')
+
+    test_gestures_xy = np.array([g[:, :2] for g, _ in test_pairs])
+    test_true_indices = [word_to_idx[w] for _, w in test_pairs]
+
+    # Process in batches for progress reporting
+    batch_size = 500
+    test_errors = 0
+    for batch_start in range(0, len(test_pairs), batch_size):
+        batch_end = min(batch_start + batch_size, len(test_pairs))
+        batch_gestures = test_gestures_xy[batch_start:batch_end]
+        batch_true = test_true_indices[batch_start:batch_end]
+
+        batch_pred = decode_gestures_batch(batch_gestures, sigma_loc, sigma_shape, sigma_lm)
+        batch_errors = sum(1 for p, t in zip(batch_pred, batch_true) if p != t)
+        test_errors += batch_errors
+
+        log(f'  Evaluated {batch_end}/{len(test_pairs)}, current WER: {test_errors / batch_end * 100:.1f}%')
+
+    test_wer = test_errors / len(test_pairs)
+
+    log('\n' + '='*65)
+    log(f'SHARK2 DECODER RESULTS')
+    log('='*65)
+    log(f'Training Setup: {n_train_user} user + {n_simulated} simulated gestures')
+    log(f'Test Set: {len(test_pairs)} gestures')
+    log(f'Parameters: sigma_loc={sigma_loc}, sigma_shape={sigma_shape}, sigma_lm={sigma_lm}')
+    log(f'Word Error Rate: {test_wer * 100:.1f}%')
+    log('='*65)
+    log('\nPaper Reference (Table 7):')
+    log(f'  200 User-drawn: 32.8% WER')
+    log(f'  200 User + 10000 Simulated: 28.6% WER')
+    log(f'  10000 Simulated only: 28.6% WER')
+    log(f'  10000 User-drawn: 27.8% WER')
+    log('='*65)
+
+    # Log to wandb
+    import wandb
+    os.environ['WANDB_API_KEY'] = WANDB_KEY
+    wandb.init(project='wordgesture-gan', name=f'shark2-{n_train_user}u-{n_simulated}s', reinit=True)
+    wandb.log({
+        'shark2/wer': test_wer,
+        'shark2/n_train_user': n_train_user,
+        'shark2/n_simulated': n_simulated,
+        'shark2/n_test': len(test_pairs),
+        'shark2/sigma_loc': sigma_loc,
+        'shark2/sigma_shape': sigma_shape,
+        'shark2/sigma_lm': sigma_lm,
+    })
+    wandb.finish()
+
+    return {
+        'wer': float(test_wer),
+        'n_train_user': n_train_user,
+        'n_simulated': n_simulated,
+        'n_test': len(test_pairs),
+        'sigma_loc': float(sigma_loc),
+        'sigma_shape': float(sigma_shape),
+        'sigma_lm': float(sigma_lm),
+    }
+
+
 async def main():
     import argparse
     import time
@@ -612,6 +912,9 @@ async def main():
     parser.add_argument('--eval-only', action='store_true')
     parser.add_argument('--no-resume', action='store_true')
     parser.add_argument('--checkpoint-epoch', type=int, default=None, help='Specific epoch checkpoint to evaluate')
+    parser.add_argument('--shark2', action='store_true', help='Run SHARK2 decoder WER evaluation')
+    parser.add_argument('--shark2-train-user', type=int, default=200, help='Number of user gestures for SHARK2 training')
+    parser.add_argument('--shark2-simulated', type=int, default=0, help='Number of simulated gestures for SHARK2 training')
     args = parser.parse_args()
 
     # Enable streaming logs from Modal containers
@@ -621,7 +924,15 @@ async def main():
 
     async with app.run():
         print(f'[local] Modal app running ({time.time() - start_time:.1f}s), dispatching task...')
-        if args.eval_only:
+        if args.shark2:
+            print(f'[local] Calling evaluate_shark2_wer.remote.aio()...')
+            result = await evaluate_shark2_wer.remote.aio(
+                n_train_user=args.shark2_train_user,
+                n_simulated=args.shark2_simulated,
+                checkpoint_epoch=args.checkpoint_epoch
+            )
+            print(f'[local] SHARK2 evaluation completed ({time.time() - start_time:.1f}s)')
+        elif args.eval_only:
             print(f'[local] Calling evaluate.remote.aio()...')
             result = await evaluate.remote.aio(checkpoint_epoch=args.checkpoint_epoch)
             print(f'[local] evaluate completed ({time.time() - start_time:.1f}s)')
