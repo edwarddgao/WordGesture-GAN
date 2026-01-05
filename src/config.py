@@ -56,6 +56,36 @@ class TrainingConfig:
 
 
 @dataclass
+class EvaluationConfig:
+    """Evaluation configuration."""
+    # Sample size
+    n_samples: int = 2000  # Number of samples for evaluation (increased for stable FID)
+
+    # Generation
+    truncation: float = 0.05  # Latent truncation for quality/diversity tradeoff
+
+    # FID score
+    fid_autoencoder_epochs: int = 100  # Epochs to train autoencoder for FID (increased)
+    fid_hidden_dim: int = 32  # Hidden dimension for FID autoencoder (match GAN's VAE)
+
+    # Precision/Recall
+    precision_recall_k: int = 3  # k for k-NN manifold estimation
+
+    # Signal processing
+    savgol_window: int = 5  # Savitzky-Golay filter window
+    savgol_poly_order: int = 3  # Savitzky-Golay polynomial order
+
+
+@dataclass
+class ModalConfig:
+    """Configuration for Modal remote execution."""
+    checkpoint_dir: str = '/data/checkpoints'
+    data_path: str = '/data/swipelogs.zip'
+    wandb_project: str = 'wordgesture-gan'
+    random_seed: int = 42
+
+
+@dataclass
 class KeyboardConfig:
     """Virtual keyboard layout configuration."""
     # Standard QWERTY layout dimensions (normalized to [0, 1])
@@ -74,4 +104,6 @@ class KeyboardConfig:
 # Default configurations
 DEFAULT_MODEL_CONFIG = ModelConfig()
 DEFAULT_TRAINING_CONFIG = TrainingConfig()
+DEFAULT_EVALUATION_CONFIG = EvaluationConfig()
+DEFAULT_MODAL_CONFIG = ModalConfig()
 DEFAULT_KEYBOARD_CONFIG = KeyboardConfig()
