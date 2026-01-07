@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Callable
 import json
 from datetime import datetime
 
@@ -334,7 +334,8 @@ class WordGestureGANTrainer:
         train_loader: DataLoader,
         num_epochs: Optional[int] = None,
         checkpoint_dir: str = 'checkpoints',
-        resume_from: Optional[str] = None
+        resume_from: Optional[str] = None,
+        callbacks: Optional[Dict[str, Callable]] = None
     ):
         """
         Full training loop.
@@ -344,6 +345,9 @@ class WordGestureGANTrainer:
             num_epochs: Number of epochs (default from config)
             checkpoint_dir: Directory to save checkpoints
             resume_from: Path to checkpoint to resume from
+            callbacks: Optional dict of callbacks:
+                - 'on_epoch_end': fn(epoch, losses) called after each epoch
+                - 'on_checkpoint': fn() called after checkpoint save
         """
         if num_epochs is None:
             num_epochs = self.training_config.num_epochs
@@ -373,15 +377,64 @@ class WordGestureGANTrainer:
                 **epoch_losses
             })
 
+            # Callback: on_epoch_end
+            if callbacks and 'on_epoch_end' in callbacks:
+                callbacks['on_epoch_end'](epoch, epoch_losses)
+
             # Save checkpoint
             if (epoch + 1) % self.training_config.save_every == 0:
                 self.save_checkpoint(
                     os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch + 1}.pt')
                 )
+                # Callback: on_checkpoint
+                if callbacks and 'on_checkpoint' in callbacks:
+                    callbacks['on_checkpoint']()
 
         # Save final checkpoint
         self.save_checkpoint(os.path.join(checkpoint_dir, 'checkpoint_final.pt'))
+        if callbacks and 'on_checkpoint' in callbacks:
+            callbacks['on_checkpoint']()
         print("Training complete!")
+
+    def get_modal_checkpoint_dict(self) -> dict:
+        """
+        Get checkpoint dict in modal_train.py-compatible format.
+
+        This format uses shorter keys and is compatible with the
+        checkpoints saved by modal_train.py.
+
+        Returns:
+            Checkpoint dictionary
+        """
+        return {
+            'epoch': self.current_epoch,
+            'generator': self.generator.state_dict(),
+            'discriminator_1': self.discriminator_1.state_dict(),
+            'discriminator_2': self.discriminator_2.state_dict(),
+            'encoder': self.encoder.state_dict(),
+            'optimizer_G': self.optimizer_G.state_dict(),
+            'optimizer_D1': self.optimizer_D1.state_dict(),
+            'optimizer_D2': self.optimizer_D2.state_dict(),
+            'optimizer_E': self.optimizer_E.state_dict(),
+        }
+
+    def load_modal_checkpoint(self, checkpoint: dict):
+        """
+        Load checkpoint in modal_train.py format.
+
+        Args:
+            checkpoint: Checkpoint dict with modal_train.py format keys
+        """
+        self.current_epoch = checkpoint['epoch'] + 1  # Resume from next epoch
+        self.generator.load_state_dict(checkpoint['generator'])
+        self.discriminator_1.load_state_dict(checkpoint['discriminator_1'])
+        self.discriminator_2.load_state_dict(checkpoint['discriminator_2'])
+        self.encoder.load_state_dict(checkpoint['encoder'])
+        self.optimizer_G.load_state_dict(checkpoint['optimizer_G'])
+        self.optimizer_D1.load_state_dict(checkpoint['optimizer_D1'])
+        self.optimizer_D2.load_state_dict(checkpoint['optimizer_D2'])
+        self.optimizer_E.load_state_dict(checkpoint['optimizer_E'])
+        print(f"Loaded modal checkpoint from epoch {checkpoint['epoch'] + 1}")
 
     def save_checkpoint(self, path: str):
         """Save training checkpoint."""

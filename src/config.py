@@ -64,9 +64,9 @@ class EvaluationConfig:
     # Generation
     truncation: float = 0.05  # Latent truncation for quality/diversity tradeoff
 
-    # FID score
-    fid_autoencoder_epochs: int = 100  # Epochs to train autoencoder for FID (increased)
-    fid_hidden_dim: int = 32  # Hidden dimension for FID autoencoder (match GAN's VAE)
+    # FID score (paper Section 4.3)
+    fid_autoencoder_epochs: int = 100  # Epochs to train autoencoder for FID
+    fid_hidden_dim: int = 32  # Paper: "32 dimensional space"
 
     # Precision/Recall
     precision_recall_k: int = 3  # k for k-NN manifold estimation

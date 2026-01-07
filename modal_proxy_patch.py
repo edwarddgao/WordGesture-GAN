@@ -12,9 +12,8 @@ from aiohttp_socks import ProxyConnector
 
 def _create_proxy_ssl_context():
     """Create SSL context that works with proxy CA certificates."""
+    # create_default_context() automatically loads system CA certificates (cross-platform)
     ctx = ssl.create_default_context()
-    # Load system CA bundle which includes proxy certificates
-    ctx.load_verify_locations(cafile='/etc/ssl/certs/ca-certificates.crt')
     # Set HTTP/2 ALPN protocols
     ctx.set_alpn_protocols(['h2'])
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -92,9 +91,8 @@ def apply_aiohttp_patch(proxy_url: str):
         import ssl
         from aiohttp import ClientSession, ClientTimeout
 
-        # Use system CA certificates which include proxy certificates
+        # create_default_context() automatically loads system CA certificates (cross-platform)
         ssl_context = ssl.create_default_context()
-        ssl_context.load_verify_locations(cafile='/etc/ssl/certs/ca-certificates.crt')
 
         connector = ProxyConnector.from_url(proxy_url, ssl=ssl_context)
         return ClientSession(connector=connector, timeout=ClientTimeout(total=timeout))

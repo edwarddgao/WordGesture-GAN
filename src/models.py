@@ -334,48 +334,92 @@ class AutoEncoder(nn.Module):
     """
     Auto-encoder for computing FID score.
 
-    Separate from the GAN model, used only for evaluation.
+    Architecture from paper Section 4.3:
+    "Our encoder consists of 4 layers of 192-96-48-32 neurons,
+    followed by a mean pooling and a linear layer."
+
+    Processes each timestep through MLP, then applies mean pooling
+    across the sequence dimension.
     """
 
     def __init__(
         self,
         config: ModelConfig = DEFAULT_MODEL_CONFIG,
-        hidden_dim: int = 64
+        hidden_dim: int = 32  # Paper uses 32-dim embedding
     ):
         super().__init__()
         self.config = config
+        self.hidden_dim = hidden_dim
 
-        input_dim = config.seq_length * config.input_dim  # 384
-
-        # Encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 192),
+        # Per-timestep encoder: (x,y,t) -> 192 -> 96 -> 48 -> 32
+        self.timestep_encoder = nn.Sequential(
+            nn.Linear(config.input_dim, 192),  # 3 -> 192
             nn.LeakyReLU(0.2),
             nn.Linear(192, 96),
             nn.LeakyReLU(0.2),
-            nn.Linear(96, hidden_dim),
+            nn.Linear(96, 48),
+            nn.LeakyReLU(0.2),
+            nn.Linear(48, hidden_dim),  # 48 -> 32
         )
 
-        # Decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, 96),
+        # After mean pooling, optional linear layer (paper mentions "a linear layer")
+        self.post_pool = nn.Linear(hidden_dim, hidden_dim)
+
+        # Decoder: reverse the process
+        self.pre_expand = nn.Linear(hidden_dim, hidden_dim)
+
+        self.timestep_decoder = nn.Sequential(
+            nn.Linear(hidden_dim, 48),
+            nn.LeakyReLU(0.2),
+            nn.Linear(48, 96),
             nn.LeakyReLU(0.2),
             nn.Linear(96, 192),
             nn.LeakyReLU(0.2),
-            nn.Linear(192, input_dim),
+            nn.Linear(192, config.input_dim),
             nn.Tanh()
         )
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode gesture to latent space."""
-        batch_size = x.size(0)
-        x_flat = x.view(batch_size, -1)
-        return self.encoder(x_flat)
+        """
+        Encode gesture to latent space.
+
+        Args:
+            x: Gesture tensor of shape (batch, seq_length, 3)
+
+        Returns:
+            Latent features of shape (batch, hidden_dim)
+        """
+        batch_size, seq_length, _ = x.shape
+
+        # Process each timestep: (batch, seq, 3) -> (batch, seq, hidden_dim)
+        timestep_features = self.timestep_encoder(x)
+
+        # Mean pooling across sequence: (batch, seq, hidden_dim) -> (batch, hidden_dim)
+        pooled = timestep_features.mean(dim=1)
+
+        # Final linear layer
+        return self.post_pool(pooled)
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
-        """Decode latent code to gesture."""
-        x_flat = self.decoder(z)
-        return x_flat.view(-1, self.config.seq_length, self.config.input_dim)
+        """
+        Decode latent code to gesture.
+
+        Args:
+            z: Latent tensor of shape (batch, hidden_dim)
+
+        Returns:
+            Reconstructed gesture of shape (batch, seq_length, 3)
+        """
+        batch_size = z.size(0)
+
+        # Expand to sequence
+        z_expanded = self.pre_expand(z)
+
+        # Broadcast to all timesteps: (batch, hidden_dim) -> (batch, seq, hidden_dim)
+        z_seq = z_expanded.unsqueeze(1).expand(-1, self.config.seq_length, -1)
+
+        # Decode each timestep
+        return self.timestep_decoder(z_seq)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Reconstruct gesture."""

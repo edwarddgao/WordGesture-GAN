@@ -127,6 +127,71 @@ class QWERTYKeyboard:
 
         return prototype.astype(np.float32)
 
+    def get_key_centers_for_word(self, word: str) -> np.ndarray:
+        """
+        Get the (x, y) coordinates of key centers for a word.
+
+        Args:
+            word: The target word
+
+        Returns:
+            Array of shape (n_keys, 2) with key center coordinates.
+        """
+        word = word.lower()
+        centers = []
+        for letter in word:
+            center = self.get_key_center(letter)
+            if center is not None:
+                centers.append(center)
+        return np.array(centers) if centers else np.zeros((0, 2))
+
+    def get_key_indices(self, word: str, num_points: int = 128) -> np.ndarray:
+        """
+        Get the indices in a prototype sequence where key centers are located.
+
+        Uses the same distribution logic as get_word_prototype to ensure
+        indices match the prototype point positions.
+
+        Args:
+            word: The target word
+            num_points: Total number of points in the prototype
+
+        Returns:
+            Array of indices where key centers appear in the prototype.
+        """
+        word = word.lower()
+
+        # Count valid letters
+        valid_letters = [l for l in word if self.get_key_center(l) is not None]
+        k = len(valid_letters)
+
+        if k == 0:
+            return np.array([], dtype=int)
+        if k == 1:
+            return np.array([0], dtype=int)
+
+        # Same distribution logic as get_word_prototype
+        points_per_segment = (num_points - k) // (k - 1)
+        remaining_points = (num_points - k) % (k - 1)
+
+        indices = []
+        current_idx = 0
+
+        for i in range(k - 1):
+            # Key center is at current position
+            indices.append(current_idx)
+
+            # Number of intermediate points for this segment
+            n_between = points_per_segment + (1 if i < remaining_points else 0)
+
+            # Move to next key: 1 (for current key) + n_between (intermediate points)
+            current_idx += 1 + n_between
+
+        # Final key
+        indices.append(min(current_idx, num_points - 1))
+
+        return np.array(indices, dtype=int)
+
     def visualize_keyboard(self) -> None:
         """Print keyboard layout with key centers (for debugging)."""
         print("QWERTY Keyboard Layout (normalized coordinates):")
