@@ -148,7 +148,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 # ============================================================================
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, secrets=[wandb_secret], timeout=3600)
-def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: float = 0.05):
+def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: float = 1.0):
     """Evaluate trained model with all paper metrics."""
     import torch
     import numpy as np
@@ -422,7 +422,7 @@ async def run_minimum_jerk_sandbox(n_samples: int = 200):
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, secrets=[wandb_secret], timeout=7200)
 def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: int = 30000,
-                        checkpoint_epoch: int = None, truncation: float = 0.05):
+                        checkpoint_epoch: int = None, truncation: float = 1.0):
     """Evaluate SHARK2 decoder Word Error Rate (Section 5.10, Table 7 from paper)."""
     import torch
     import numpy as np
@@ -587,6 +587,8 @@ async def main():
     parser.add_argument('--shark2-train-user', type=int, default=200, help='User gestures for SHARK2 training')
     parser.add_argument('--shark2-simulated', type=int, default=0, help='Simulated gestures for SHARK2')
     parser.add_argument('--minimum-jerk', action='store_true', help='Evaluate Minimum Jerk baseline')
+    parser.add_argument('--truncation', type=float, default=None, help='Truncation for latent sampling')
+    parser.add_argument('--n-samples', type=int, default=200, help='Number of samples for evaluation')
     args = parser.parse_args()
 
     async with app.run():
@@ -604,7 +606,12 @@ async def main():
             )
         elif args.eval_only:
             print('Running evaluation...')
-            result = await evaluate.remote.aio(checkpoint_epoch=args.checkpoint_epoch)
+            truncation = args.truncation if args.truncation is not None else 1.0
+            result = await evaluate.remote.aio(
+                n_samples=args.n_samples,
+                checkpoint_epoch=args.checkpoint_epoch,
+                truncation=truncation
+            )
         else:
             print(f'Starting training for {args.epochs} epochs...')
             result = await train.remote.aio(

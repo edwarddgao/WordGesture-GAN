@@ -62,14 +62,14 @@ class EvaluationConfig:
     n_samples: int = 2000  # Number of samples for evaluation (increased for stable FID)
 
     # Generation
-    truncation: float = 0.05  # Latent truncation for quality/diversity tradeoff
+    truncation: float = 1.0  # No truncation for evaluation (full diversity)
 
     # FID score (paper Section 4.3)
     fid_autoencoder_epochs: int = 100  # Epochs to train autoencoder for FID
     fid_hidden_dim: int = 32  # Paper: "32 dimensional space"
 
     # Precision/Recall
-    precision_recall_k: int = 3  # k for k-NN manifold estimation
+    precision_recall_k: int = 4  # k for k-NN manifold estimation
 
     # Signal processing
     savgol_window: int = 5  # Savitzky-Golay filter window
