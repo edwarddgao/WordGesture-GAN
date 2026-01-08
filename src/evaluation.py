@@ -722,7 +722,9 @@ def evaluate_all_metrics(
     results['velocity_corr'] = np.mean(vcorrs) if vcorrs else 0.0
 
     # Acceleration correlation (using savgol for smoother derivatives)
-    acorrs = []
+    # Compute both component-based (concat x,y) and magnitude-based correlation
+    acorrs_concat = []
+    acorrs_magnitude = []
     for i in range(n):
         xr, yr = real_gestures[i, :, 0], real_gestures[i, :, 1]
         xf, yf = fake_gestures[i, :, 0], fake_gestures[i, :, 1]
@@ -731,12 +733,23 @@ def evaluate_all_metrics(
             ay_r = savgol_filter(yr, eval_config.savgol_window, eval_config.savgol_poly_order, deriv=2)
             ax_f = savgol_filter(xf, eval_config.savgol_window, eval_config.savgol_poly_order, deriv=2)
             ay_f = savgol_filter(yf, eval_config.savgol_window, eval_config.savgol_poly_order, deriv=2)
-            ar = np.concatenate([ax_r, ay_r])
-            af = np.concatenate([ax_f, ay_f])
-            cr = np.corrcoef(ar, af)[0, 1]
-            if not np.isnan(cr):
-                acorrs.append(cr)
-    results['acceleration_corr'] = np.mean(acorrs) if acorrs else 0.0
+
+            # Component-based: concatenate x and y accelerations (256 values)
+            ar_concat = np.concatenate([ax_r, ay_r])
+            af_concat = np.concatenate([ax_f, ay_f])
+            cr_concat = np.corrcoef(ar_concat, af_concat)[0, 1]
+            if not np.isnan(cr_concat):
+                acorrs_concat.append(cr_concat)
+
+            # Magnitude-based: sqrt(ax^2 + ay^2) (128 values)
+            ar_mag = np.sqrt(ax_r**2 + ay_r**2)
+            af_mag = np.sqrt(ax_f**2 + ay_f**2)
+            cr_mag = np.corrcoef(ar_mag, af_mag)[0, 1]
+            if not np.isnan(cr_mag):
+                acorrs_magnitude.append(cr_mag)
+
+    results['acceleration_corr'] = np.mean(acorrs_concat) if acorrs_concat else 0.0
+    results['acceleration_corr_magnitude'] = np.mean(acorrs_magnitude) if acorrs_magnitude else 0.0
 
     # Duration RMSE
     rmse_norm, rmse_ms = compute_duration_rmse(real_gestures, fake_gestures)

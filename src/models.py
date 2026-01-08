@@ -126,8 +126,9 @@ class Generator(nn.Module):
         """
         Generate gesture from prototype and latent code.
 
-        Uses residual connection: output = prototype + delta
-        This helps with temporal alignment since prototype has correct timing.
+        Direct output architecture (matching paper Section 3.1.2, Figure 3).
+        This allows the model to learn full gesture dynamics including
+        realistic acceleration patterns.
 
         Args:
             prototype: Word prototype of shape (batch, seq_length, 3)
@@ -147,12 +148,9 @@ class Generator(nn.Module):
         # Pass through BiLSTM
         lstm_out, _ = self.lstm(x)
 
-        # Output layer predicts residual (delta from prototype)
-        # Full scale (1.0) allows maximum variation for acceleration dynamics
-        delta = torch.tanh(self.output_layer(lstm_out))
-
-        # Residual connection: prototype + delta, clamp to valid range
-        output = torch.clamp(prototype + delta, -1.0, 1.0)
+        # Direct output (paper architecture - no residual connection)
+        # This allows learning full acceleration dynamics
+        output = torch.tanh(self.output_layer(lstm_out))
 
         return output
 

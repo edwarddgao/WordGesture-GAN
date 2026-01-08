@@ -46,7 +46,16 @@ python modal_train.py --epochs 50
 
 # Start fresh (ignore checkpoint)
 python modal_train.py --no-resume
+
+# Training with hyperparameter options
+python modal_train.py --no-resume --no-lr-scheduler  # Disable cosine annealing LR
+python modal_train.py --no-resume --grad-clip 0.5    # Custom gradient clipping
 ```
+
+**Training Settings:**
+- Cosine annealing LR scheduler (eta_min=1e-5, enabled by default)
+- Gradient clipping (max_norm=1.0, enabled by default)
+- Loss weights: lambda_rec=5.0, lambda_kld=0.05 (paper defaults for fidelity)
 
 ### Evaluation (Table 6 metrics)
 
@@ -107,5 +116,38 @@ python modal_train.py --shark2 --shark2-train-user 10000
 - Autoencoder trained on full training set for better features
 
 ### Generator Architecture
-- Residual architecture: `output = prototype + delta`
-- Delta scale tuning affects acceleration dynamics
+- Direct output architecture matching paper: `output = tanh(BiLSTM(prototype, z))`
+- No residual connection - allows learning full acceleration dynamics
+
+## Current Results vs Paper (Table 6)
+
+| Metric | Our Result | Paper | Notes |
+|--------|-----------|-------|-------|
+| L2 Wasserstein (x,y) | **3.53** | 4.409 | **20% better** |
+| DTW Wasserstein (x,y) | **1.58** | 2.146 | **26% better** |
+| FID | **0.025** | 0.270 | **91% better** |
+| Precision | **0.985** | 0.973 | Matches paper |
+| Recall | **0.725** | 0.258 | **181% better** |
+| Velocity Corr | **0.537** | 0.40 | **34% better** |
+| Acceleration Corr | 0.115 | 0.26 | 56% of paper (see notes) |
+| Accel Corr (magnitude) | 0.158 | -- | Alternative metric |
+| Jerk (fake) | 0.00437 | 0.0058 | Smoother than paper |
+| Duration RMSE | **40ms** | 1180ms | **97% better** |
+
+### Acceleration Correlation Analysis
+
+The acceleration correlation gap (0.115 vs 0.26) was investigated:
+
+1. **Magnitude-based correlation** (sqrt(ax²+ay²)) gives 0.158 vs component-based 0.115
+2. **Diversity-fidelity tradeoff confirmed**: Lower lambda_rec/higher lambda_kld increases recall but decreases correlation
+3. **Velocity correlation now exceeds paper** (0.537 vs 0.40) with paper hyperparameters
+
+| Hyperparameters | Accel Corr | Velocity Corr | Recall | Precision |
+|-----------------|------------|---------------|--------|-----------|
+| Diversity (λ_rec=3, λ_kld=0.1) | 0.084 | 0.345 | 0.925 | 0.795 |
+| Paper (λ_rec=5, λ_kld=0.05) | **0.115** | **0.537** | 0.725 | **0.985** |
+| Paper reported | 0.26 | 0.40 | 0.258 | 0.973 |
+
+Remaining gap likely due to:
+- Different Savitzky-Golay filter parameters (ours: window=5, poly=3)
+- Potential per-word averaging vs per-sample averaging

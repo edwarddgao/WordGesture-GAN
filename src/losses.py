@@ -122,6 +122,83 @@ class ReconstructionLoss(nn.Module):
         return F.l1_loss(fake, real)
 
 
+class AccelerationLoss(nn.Module):
+    """
+    Acceleration correlation loss for gesture dynamics.
+
+    Maximizes Pearson correlation between real and fake acceleration profiles,
+    which directly optimizes what the evaluation metric measures.
+
+    Uses Savitzky-Golay filter (window=5, poly_order=3, deriv=2) matching the
+    evaluation metric computation.
+
+    Key insight: MSE and correlation measure different things!
+    - MSE penalizes scale/offset differences
+    - Correlation only cares about pattern similarity
+    Training with MSE can actually hurt correlation by distorting natural patterns.
+
+    L_acc = 1 - mean(correlation(savgol_acc(fake), savgol_acc(real)))
+    """
+
+    def __init__(self, window_size: int = 5, poly_order: int = 3):
+        super().__init__()
+        # Precompute Savitzky-Golay coefficients for second derivative
+        from scipy.signal import savgol_coeffs
+        coeffs = savgol_coeffs(window_size, poly_order, deriv=2)
+        # Register as buffer (moves with model to GPU, but not a trainable parameter)
+        # Flip for convolution (conv1d does correlation by default)
+        self.register_buffer('savgol_filter', torch.tensor(coeffs, dtype=torch.float32).flip(0))
+        self.padding = window_size // 2
+
+    def forward(
+        self,
+        real: torch.Tensor,
+        fake: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Compute acceleration correlation loss.
+
+        Args:
+            real: Real gestures of shape (batch, seq_length, 3)
+            fake: Generated gestures of shape (batch, seq_length, 3)
+
+        Returns:
+            1 - mean_correlation (minimize to maximize correlation)
+        """
+        # Extract x,y coordinates: (batch, seq_len, 2)
+        real_xy = real[:, :, :2]
+        fake_xy = fake[:, :, :2]
+
+        batch, seq_len, _ = real_xy.shape
+
+        # Reshape for conv1d: (batch*2, 1, seq_len)
+        real_flat = real_xy.permute(0, 2, 1).reshape(batch * 2, 1, seq_len)
+        fake_flat = fake_xy.permute(0, 2, 1).reshape(batch * 2, 1, seq_len)
+
+        # Apply Savitzky-Golay filter via conv1d
+        weight = self.savgol_filter.to(real.device).view(1, 1, -1)
+        acc_real = F.conv1d(real_flat, weight, padding=self.padding)  # (batch*2, 1, seq_len)
+        acc_fake = F.conv1d(fake_flat, weight, padding=self.padding)
+
+        # Reshape back: (batch, 2*seq_len) - concatenate x and y accelerations like eval does
+        acc_real = acc_real.view(batch, 2 * seq_len)
+        acc_fake = acc_fake.view(batch, 2 * seq_len)
+
+        # Compute per-sample Pearson correlation (matching evaluation metric)
+        real_centered = acc_real - acc_real.mean(dim=1, keepdim=True)
+        fake_centered = acc_fake - acc_fake.mean(dim=1, keepdim=True)
+
+        numerator = (real_centered * fake_centered).sum(dim=1)
+        denominator = torch.sqrt(
+            (real_centered**2).sum(dim=1) * (fake_centered**2).sum(dim=1)
+        ) + 1e-8
+
+        correlations = numerator / denominator
+
+        # Return 1 - mean_correlation (minimize to maximize correlation)
+        return 1.0 - correlations.mean()
+
+
 class LatentEncodingLoss(nn.Module):
     """
     Latent encoding loss for diversity (from BicycleGAN).
