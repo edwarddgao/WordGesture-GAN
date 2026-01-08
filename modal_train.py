@@ -399,6 +399,7 @@ n_samples = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 truncation = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
 savgol_window = int(sys.argv[3]) if len(sys.argv) > 3 else 5
 precision_k = int(sys.argv[4]) if len(sys.argv) > 4 else 3
+use_minimum_jerk_proto = bool(int(sys.argv[5])) if len(sys.argv) > 5 else False
 
 device = 'cuda'
 config = ModalConfig()
@@ -407,6 +408,7 @@ training_config = TrainingConfig()
 eval_config = EvaluationConfig(n_samples=n_samples, truncation=truncation, savgol_window=savgol_window, precision_recall_k=precision_k)
 
 log(f'GPU: {torch.cuda.get_device_name(0)}')
+log(f'use_minimum_jerk_proto={use_minimum_jerk_proto}')
 
 # Load checkpoint
 checkpoint_path = Path(f'{config.checkpoint_dir}/latest.pt')
@@ -426,7 +428,7 @@ log(f'  Loaded checkpoint from epoch {epoch}')
 # Load data
 log('[2/5] Loading data...')
 keyboard = QWERTYKeyboard()
-gestures, protos = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config)
+gestures, protos = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config, use_minimum_jerk_proto=use_minimum_jerk_proto)
 train_ds, test_ds = create_train_test_split(gestures, protos, train_ratio=0.8, seed=config.random_seed)
 log(f'  Train: {len(train_ds)}, Test: {len(test_ds)}')
 
@@ -481,12 +483,12 @@ log('Done.')
 '''
 
 
-async def run_eval_sandbox(n_samples: int = 200, truncation: float = 1.0, savgol_window: int = 5, precision_k: int = 3):
+async def run_eval_sandbox(n_samples: int = 200, truncation: float = 1.0, savgol_window: int = 5, precision_k: int = 3, use_minimum_jerk_proto: bool = False):
     """Run evaluation in a Sandbox with real-time stdout streaming."""
     import modal
 
     sb = modal.Sandbox.create(
-        "python", "-c", EVAL_SCRIPT, str(n_samples), str(truncation), str(savgol_window), str(precision_k),
+        "python", "-c", EVAL_SCRIPT, str(n_samples), str(truncation), str(savgol_window), str(precision_k), str(int(use_minimum_jerk_proto)),
         app=app,
         image=image,
         gpu='T4',
@@ -598,6 +600,7 @@ def train_epoch_with_grad_clip(trainer, dataloader, max_norm, model_config, trai
 # Parse args
 num_epochs = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 resume = bool(int(sys.argv[2])) if len(sys.argv) > 2 else True
+use_minimum_jerk_proto = bool(int(sys.argv[3])) if len(sys.argv) > 3 else False
 checkpoint_every = 10
 grad_clip_norm = 1.0
 
@@ -608,11 +611,11 @@ training_config = TrainingConfig(num_epochs=num_epochs, save_every=checkpoint_ev
 
 seed_everything(config.random_seed)
 log(f'GPU: {torch.cuda.get_device_name(0)}')
-log(f'Training for {num_epochs} epochs (resume={resume})')
+log(f'Training for {num_epochs} epochs (resume={resume}, minimum_jerk_proto={use_minimum_jerk_proto})')
 
 # Load data
 keyboard = QWERTYKeyboard()
-gestures, protos = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config)
+gestures, protos = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config, use_minimum_jerk_proto=use_minimum_jerk_proto)
 train_ds, test_ds = create_train_test_split(gestures, protos, train_ratio=training_config.train_ratio, seed=config.random_seed)
 train_loader, _ = create_data_loaders(train_ds, test_ds, batch_size=training_config.batch_size, num_workers=2)
 log(f'Data: {len(train_ds)} train, {len(test_ds)} test')
@@ -671,12 +674,12 @@ log('Training complete!')
 '''
 
 
-async def run_train_sandbox(num_epochs: int = 200, resume: bool = True):
+async def run_train_sandbox(num_epochs: int = 200, resume: bool = True, use_minimum_jerk_proto: bool = False):
     """Run training in a Sandbox with real-time stdout streaming."""
     import modal
 
     sb = modal.Sandbox.create(
-        "python", "-c", TRAIN_SCRIPT, str(num_epochs), str(int(resume)),
+        "python", "-c", TRAIN_SCRIPT, str(num_epochs), str(int(resume)), str(int(use_minimum_jerk_proto)),
         app=app,
         image=image,
         gpu='T4',
@@ -1046,6 +1049,7 @@ async def main():
     parser.add_argument('--n-samples', type=int, default=200, help='Number of samples for evaluation')
     parser.add_argument('--savgol-window', type=int, default=21, help='Savitzky-Golay filter window size')
     parser.add_argument('--precision-k', type=int, default=3, help='k for precision/recall k-NN (paper uses 3)')
+    parser.add_argument('--minimum-jerk-proto', action='store_true', help='Use minimum jerk prototypes (paper Section 6.3)')
     # Training hyperparameters (Experiment 1)
     parser.add_argument('--no-lr-scheduler', action='store_true', help='Disable LR scheduler')
     parser.add_argument('--grad-clip', type=float, default=1.0, help='Gradient clipping max norm (0 to disable)')
@@ -1066,18 +1070,19 @@ async def main():
             )
         elif args.eval_only:
             truncation = args.truncation if args.truncation is not None else 1.0
-            print(f'Running evaluation (truncation={truncation}, savgol_window={args.savgol_window}, precision_k={args.precision_k})...')
+            print(f'Running evaluation (truncation={truncation}, savgol_window={args.savgol_window}, precision_k={args.precision_k}, minimum_jerk_proto={args.minimum_jerk_proto})...')
             returncode = await run_eval_sandbox(
                 n_samples=args.n_samples,
                 truncation=truncation,
                 savgol_window=args.savgol_window,
-                precision_k=args.precision_k
+                precision_k=args.precision_k,
+                use_minimum_jerk_proto=args.minimum_jerk_proto
             )
             print(f'\nSandbox exited with code: {returncode}')
             return
         else:
-            print(f'Starting training for {args.epochs} epochs (streaming stdout via sandbox)...')
-            returncode = await run_train_sandbox(num_epochs=args.epochs, resume=not args.no_resume)
+            print(f'Starting training for {args.epochs} epochs (streaming stdout via sandbox, minimum_jerk_proto={args.minimum_jerk_proto})...')
+            returncode = await run_train_sandbox(num_epochs=args.epochs, resume=not args.no_resume, use_minimum_jerk_proto=args.minimum_jerk_proto)
             print(f'\nSandbox exited with code: {returncode}')
             return
         print(f'Result: {result}')

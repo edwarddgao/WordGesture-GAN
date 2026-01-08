@@ -7,6 +7,31 @@ from typing import Dict, List, Tuple, Optional
 from .config import KeyboardConfig, DEFAULT_KEYBOARD_CONFIG
 
 
+def _minimum_jerk_trajectory(start: np.ndarray, end: np.ndarray, n_points: int) -> np.ndarray:
+    """
+    Generate minimum jerk trajectory between two points.
+
+    Uses the quintic polynomial that minimizes jerk (3rd derivative of position):
+        x(t) = x0 + (x1 - x0) * (10*t^3 - 15*t^4 + 6*t^5)
+
+    Args:
+        start: Starting point (x, y)
+        end: Ending point (x, y)
+        n_points: Number of points in trajectory
+
+    Returns:
+        Array of shape (n_points, 2) with (x, y) coordinates
+    """
+    if n_points < 2:
+        return start.reshape(1, -1)
+
+    t = np.linspace(0, 1, n_points)
+    # Quintic polynomial for minimum jerk: s(t) = 10*t^3 - 15*t^4 + 6*t^5
+    s = 10 * t**3 - 15 * t**4 + 6 * t**5
+    trajectory = start + np.outer(s, (end - start))
+    return trajectory
+
+
 class QWERTYKeyboard:
     """
     QWERTY keyboard layout for generating word prototypes.
@@ -124,6 +149,112 @@ class QWERTYKeyboard:
 
         # Combine (x, y, t)
         prototype = np.hstack([prototype_points, times])
+
+        return prototype.astype(np.float32)
+
+    def get_word_prototype_minimum_jerk(self, word: str, num_points: int = 128) -> np.ndarray:
+        """
+        Generate a minimum jerk word prototype connecting letter centroids.
+
+        Unlike the straight-line prototype, this uses quintic polynomial
+        trajectories that minimize jerk (third derivative of position),
+        producing smoother curves between key positions.
+
+        Args:
+            word: The target word
+            num_points: Total number of points in the prototype (default 128)
+
+        Returns:
+            Array of shape (num_points, 3) with (x, y, t) coordinates.
+            Time values are uniformly distributed.
+        """
+        word = word.lower()
+
+        # Get key centers for valid letters
+        key_positions = []
+        for letter in word:
+            center = self.get_key_center(letter)
+            if center is not None:
+                key_positions.append(center)
+
+        if len(key_positions) < 2:
+            # Single letter or no valid letters - return simple prototype
+            if len(key_positions) == 1:
+                x, y = key_positions[0]
+                prototype = np.zeros((num_points, 3))
+                prototype[:, 0] = x
+                prototype[:, 1] = y
+                prototype[:, 2] = np.linspace(0, 1, num_points)
+                return prototype.astype(np.float32)
+            else:
+                return np.zeros((num_points, 3), dtype=np.float32)
+
+        key_positions = np.array(key_positions)
+        k = len(key_positions)  # Number of key centers
+
+        # Generate minimum jerk trajectory segments between consecutive keys
+        # Distribute points proportionally to segment length
+        segment_lengths = np.linalg.norm(np.diff(key_positions, axis=0), axis=1)
+        total_length = segment_lengths.sum()
+
+        if total_length < 1e-6:
+            # All keys at same position
+            prototype = np.zeros((num_points, 3))
+            prototype[:, 0] = key_positions[0, 0]
+            prototype[:, 1] = key_positions[0, 1]
+            prototype[:, 2] = np.linspace(0, 1, num_points)
+            return prototype.astype(np.float32)
+
+        # Distribute points to segments proportionally to length
+        # Ensure at least 2 points per segment
+        segment_points = np.maximum(2, np.round(segment_lengths / total_length * num_points).astype(int))
+        # Adjust to hit exact num_points
+        diff = num_points - segment_points.sum()
+        if diff > 0:
+            # Add points to longest segments
+            for _ in range(diff):
+                idx = np.argmax(segment_lengths / segment_points)
+                segment_points[idx] += 1
+        elif diff < 0:
+            # Remove points from longest segments (but keep min 2)
+            for _ in range(-diff):
+                valid = segment_points > 2
+                if not valid.any():
+                    break
+                idx = np.argmax(np.where(valid, segment_lengths / segment_points, -np.inf))
+                segment_points[idx] -= 1
+
+        # Generate trajectories
+        trajectory_points = []
+        for i in range(k - 1):
+            start = key_positions[i]
+            end = key_positions[i + 1]
+            n_pts = segment_points[i]
+
+            # Generate minimum jerk segment
+            segment = _minimum_jerk_trajectory(start, end, n_pts)
+
+            # Skip first point to avoid duplication at junction (except for first segment)
+            if i > 0:
+                segment = segment[1:]
+
+            trajectory_points.append(segment)
+
+        trajectory = np.vstack(trajectory_points)
+
+        # Ensure exactly num_points
+        if len(trajectory) > num_points:
+            # Uniformly sample to reduce
+            indices = np.linspace(0, len(trajectory) - 1, num_points, dtype=int)
+            trajectory = trajectory[indices]
+        elif len(trajectory) < num_points:
+            # Pad with last point
+            padding = np.tile(trajectory[-1], (num_points - len(trajectory), 1))
+            trajectory = np.vstack([trajectory, padding])
+
+        # Add uniform time dimension
+        times = np.linspace(0, 1, num_points).reshape(-1, 1)
+        prototype = np.hstack([trajectory, times])
 
         return prototype.astype(np.float32)
 

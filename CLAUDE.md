@@ -57,6 +57,18 @@ python modal_train.py --no-resume --grad-clip 0.5    # Custom gradient clipping
 - Gradient clipping (max_norm=1.0, enabled by default)
 - Loss weights: lambda_rec=5.0, lambda_kld=0.05 (paper defaults for fidelity)
 
+### Minimum Jerk Prototypes (Paper Section 6.3)
+
+```bash
+# Train with minimum jerk prototypes instead of straight lines
+python modal_train.py --minimum-jerk-proto --no-resume
+
+# Evaluate with minimum jerk prototypes
+python modal_train.py --eval-only --minimum-jerk-proto
+```
+
+Minimum jerk prototypes use quintic polynomials (`10t³ - 15t⁴ + 6t⁵`) between key centers, producing smoother trajectories than straight lines. Paper Section 6.3 suggested this could improve diversity.
+
 ### Evaluation (Table 6 metrics)
 
 ```bash
@@ -158,3 +170,17 @@ The paper uses k=3 for k-NN manifold estimation. Our implementation now defaults
 | 4 | 0.965 | 0.775 |
 
 Higher k inflates both metrics. Our higher recall (vs paper's 0.258) is a real improvement in diversity.
+
+### Minimum Jerk vs Straight-Line Prototypes
+
+| Metric | Straight-Line | Min Jerk | Change |
+|--------|--------------|----------|--------|
+| L2 Wasserstein | 3.52 | **2.998** | **-15%** |
+| DTW Wasserstein | 1.60 | 1.63 | similar |
+| Velocity Corr | 0.530 | **0.596** | **+12%** |
+| Accel Corr | 0.310 | **0.370** | **+19%** |
+| FID | 0.029 | 0.031 | similar |
+| Precision (k=3) | 0.910 | 0.910 | same |
+| Recall (k=3) | **0.635** | 0.605 | -5% |
+
+**Finding:** Minimum jerk prototypes improve shape fidelity and motion dynamics (L2 Wasserstein, velocity/acceleration correlation) but slightly reduce diversity (recall). This is the opposite of the paper's expectation in Section 6.3, possibly because our baseline already has very high recall (2.5x paper).

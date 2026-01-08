@@ -14,6 +14,7 @@ import random
 
 from .keyboard import QWERTYKeyboard
 from .config import TrainingConfig, ModelConfig, DEFAULT_TRAINING_CONFIG, DEFAULT_MODEL_CONFIG
+from typing import Literal
 
 
 class GestureDataset(Dataset):
@@ -219,7 +220,8 @@ def load_dataset_from_zip(
     keyboard: QWERTYKeyboard,
     model_config: ModelConfig = DEFAULT_MODEL_CONFIG,
     training_config: TrainingConfig = DEFAULT_TRAINING_CONFIG,
-    max_files: Optional[int] = None
+    max_files: Optional[int] = None,
+    use_minimum_jerk_proto: bool = False
 ) -> Tuple[Dict[str, List[np.ndarray]], Dict[str, np.ndarray]]:
     """
     Load gesture dataset from zip file.
@@ -230,6 +232,8 @@ def load_dataset_from_zip(
         model_config: Model configuration
         training_config: Training configuration
         max_files: Maximum number of log files to process (for debugging)
+        use_minimum_jerk_proto: If True, use minimum jerk trajectories for prototypes
+                               instead of straight lines (paper Section 6.3 suggestion)
 
     Returns:
         Tuple of (gestures_by_word, prototypes_by_word)
@@ -278,10 +282,11 @@ def load_dataset_from_zip(
 
     # Generate prototypes for each word
     prototypes_by_word = {}
+    proto_method = (keyboard.get_word_prototype_minimum_jerk
+                   if use_minimum_jerk_proto
+                   else keyboard.get_word_prototype)
     for word in gestures_by_word:
-        prototypes_by_word[word] = keyboard.get_word_prototype(
-            word, model_config.seq_length
-        )
+        prototypes_by_word[word] = proto_method(word, model_config.seq_length)
 
     return dict(gestures_by_word), prototypes_by_word
 
