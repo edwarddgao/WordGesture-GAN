@@ -397,12 +397,13 @@ def log(msg):
 
 n_samples = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 truncation = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
+savgol_window = int(sys.argv[3]) if len(sys.argv) > 3 else 5
 
 device = 'cuda'
 config = ModalConfig()
 model_config = ModelConfig()
 training_config = TrainingConfig()
-eval_config = EvaluationConfig(n_samples=n_samples, truncation=truncation)
+eval_config = EvaluationConfig(n_samples=n_samples, truncation=truncation, savgol_window=savgol_window)
 
 log(f'GPU: {torch.cuda.get_device_name(0)}')
 
@@ -430,7 +431,7 @@ log(f'  Train: {len(train_ds)}, Test: {len(test_ds)}')
 
 # Generate samples
 n = min(n_samples, len(test_ds))
-log(f'[3/5] Generating {n} samples (truncation={truncation})...')
+log(f'[3/5] Generating {n} samples (truncation={truncation}, savgol_window={savgol_window})...')
 
 real_g, fake_g = [], []
 with torch.no_grad():
@@ -479,12 +480,12 @@ log('Done.')
 '''
 
 
-async def run_eval_sandbox(n_samples: int = 200, truncation: float = 1.0):
+async def run_eval_sandbox(n_samples: int = 200, truncation: float = 1.0, savgol_window: int = 5):
     """Run evaluation in a Sandbox with real-time stdout streaming."""
     import modal
 
     sb = modal.Sandbox.create(
-        "python", "-c", EVAL_SCRIPT, str(n_samples), str(truncation),
+        "python", "-c", EVAL_SCRIPT, str(n_samples), str(truncation), str(savgol_window),
         app=app,
         image=image,
         gpu='T4',
@@ -1042,6 +1043,7 @@ async def main():
     parser.add_argument('--minimum-jerk', action='store_true', help='Evaluate Minimum Jerk baseline')
     parser.add_argument('--truncation', type=float, default=None, help='Truncation for latent sampling')
     parser.add_argument('--n-samples', type=int, default=200, help='Number of samples for evaluation')
+    parser.add_argument('--savgol-window', type=int, default=21, help='Savitzky-Golay filter window size')
     # Training hyperparameters (Experiment 1)
     parser.add_argument('--no-lr-scheduler', action='store_true', help='Disable LR scheduler')
     parser.add_argument('--grad-clip', type=float, default=1.0, help='Gradient clipping max norm (0 to disable)')
@@ -1061,9 +1063,13 @@ async def main():
                 checkpoint_epoch=args.checkpoint_epoch
             )
         elif args.eval_only:
-            print('Running evaluation (streaming stdout via sandbox)...')
             truncation = args.truncation if args.truncation is not None else 1.0
-            returncode = await run_eval_sandbox(n_samples=args.n_samples, truncation=truncation)
+            print(f'Running evaluation (truncation={truncation}, savgol_window={args.savgol_window})...')
+            returncode = await run_eval_sandbox(
+                n_samples=args.n_samples,
+                truncation=truncation,
+                savgol_window=args.savgol_window
+            )
             print(f'\nSandbox exited with code: {returncode}')
             return
         else:

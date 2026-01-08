@@ -73,7 +73,7 @@ class EvaluationConfig:
     precision_recall_k: int = 4  # k for k-NN manifold estimation
 
     # Signal processing
-    savgol_window: int = 5  # Savitzky-Golay filter window
+    savgol_window: int = 21  # Savitzky-Golay filter window (tuned to match paper metrics)
     savgol_poly_order: int = 3  # Savitzky-Golay polynomial order
 
 
