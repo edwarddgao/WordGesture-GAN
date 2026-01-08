@@ -124,15 +124,15 @@ python modal_train.py --shark2 --shark2-train-user 10000
 | Metric | Our Result | Paper | Notes |
 |--------|-----------|-------|-------|
 | L2 Wasserstein (x,y) | **3.52** | 4.409 | **20% better** |
-| DTW Wasserstein (x,y) | **1.59** | 2.146 | **26% better** |
-| FID | **0.043** | 0.270 | **84% better** |
-| Precision | **0.985** | 0.973 | Matches paper |
-| Recall | **0.755** | 0.258 | **192% better** |
-| Velocity Corr | **0.532** | 0.40 | **33% better** |
-| Acceleration Corr | **0.303** | 0.26 | **17% better** |
+| DTW Wasserstein (x,y) | **1.60** | 2.146 | **25% better** |
+| FID | **0.029** | 0.270 | **89% better** |
+| Precision (k=3) | 0.910 | 0.973 | Slightly lower |
+| Recall (k=3) | **0.635** | 0.258 | **146% better** |
+| Velocity Corr | **0.530** | 0.40 | **33% better** |
+| Acceleration Corr | **0.310** | 0.26 | **19% better** |
 | Duration RMSE | **39ms** | 1180ms | **97% better** |
 
-**All metrics now match or exceed the paper!**
+**Most metrics match or exceed the paper.** Our model achieves much higher recall (diversity) with slightly lower precision.
 
 ### Key Finding: Savitzky-Golay Window Size
 
@@ -147,3 +147,14 @@ The acceleration correlation metric is highly sensitive to the Savitzky-Golay fi
 | **21** | **0.303** | **+163%, exceeds paper** |
 
 The paper likely used a larger window (15-21) for computing the acceleration correlation metric. This affects jerk computation too - larger windows smooth more aggressively.
+
+### Precision/Recall k Parameter
+
+The paper uses k=3 for k-NN manifold estimation. Our implementation now defaults to k=3 to match.
+
+| k | Precision | Recall |
+|---|-----------|--------|
+| 3 | 0.910 | 0.635 |
+| 4 | 0.965 | 0.775 |
+
+Higher k inflates both metrics. Our higher recall (vs paper's 0.258) is a real improvement in diversity.

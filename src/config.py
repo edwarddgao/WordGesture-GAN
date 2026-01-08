@@ -70,7 +70,7 @@ class EvaluationConfig:
     fid_hidden_dim: int = 32  # Paper: "32 dimensional space"
 
     # Precision/Recall
-    precision_recall_k: int = 4  # k for k-NN manifold estimation
+    precision_recall_k: int = 3  # k for k-NN manifold estimation (paper uses k=3)
 
     # Signal processing
     savgol_window: int = 21  # Savitzky-Golay filter window (tuned to match paper metrics)
