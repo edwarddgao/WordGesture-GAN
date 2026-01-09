@@ -23,7 +23,7 @@ from .shark2 import (
 )
 
 # Evaluation
-from .evaluation import evaluate_all_metrics, compute_duration_rmse, FIDCalculator
+from .evaluation import evaluate_all_metrics, compute_duration_rmse
 
 # Trainer
 from .trainer import WordGestureGANTrainer
