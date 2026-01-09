@@ -42,9 +42,9 @@ class TrainingConfig:
 
     # Loss weights (from paper Section 4.2)
     lambda_feat: float = 1.0  # Feature matching loss weight
-    lambda_rec: float = 5.0  # Reconstruction loss weight (paper default for fidelity)
+    lambda_rec: float = 4.0  # Reconstruction loss weight (tuned between 3.0-5.0)
     lambda_lat: float = 0.5  # Latent encoding loss weight
-    lambda_kld: float = 0.05  # KL divergence loss weight (paper default)
+    lambda_kld: float = 0.02  # KL divergence loss weight (tuned between 0.01-0.05)
     lambda_acc: float = 0.0  # Disabled - architectural fix (no residual) should be sufficient
 
     # Dataset
