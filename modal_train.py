@@ -466,10 +466,9 @@ async def run_minimum_jerk_sandbox(n_samples: int = 200):
 
 @app.function(gpu='T4', image=image, volumes={'/data': volume}, secrets=[wandb_secret], timeout=7200)
 def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: int = 30000,
-                        checkpoint_epoch: int = None, truncation: float = 1.0):
+                        checkpoint_epoch: 'int | None' = None, truncation: float = 1.0):
     """Evaluate SHARK2 decoder Word Error Rate (Section 5.10, Table 7 from paper)."""
     import torch
-    import numpy as np
     import random
     import wandb
     from pathlib import Path
@@ -478,7 +477,7 @@ def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: i
     from src.keyboard import QWERTYKeyboard
     from src.data import load_dataset_from_zip
     from src.models import Generator
-    from src.shark2 import SHARK2Decoder, SHARK2Config, evaluate_decoder, load_word_frequencies
+    from src.shark2 import SHARK2Decoder, evaluate_decoder, load_word_frequencies
 
     device = 'cuda'
     config = ModalConfig()
