@@ -16,12 +16,6 @@ from .models import Generator, Discriminator, VariationalEncoder, AutoEncoder
 # Utils
 from .utils import seed_everything, log, train_epoch_with_grad_clip
 
-# SHARK2 decoder
-from .shark2 import (
-    SHARK2Decoder, SHARK2Config, DEFAULT_SHARK2_CONFIG,
-    evaluate_decoder, load_word_frequencies
-)
-
 # Evaluation
 from .evaluation import evaluate_all_metrics, compute_duration_rmse
 

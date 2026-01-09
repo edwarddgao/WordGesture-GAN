@@ -461,161 +461,6 @@ async def run_minimum_jerk_sandbox(n_samples: int = 200):
 
 
 # ============================================================================
-# SHARK2 Evaluation
-# ============================================================================
-
-@app.function(gpu='T4', image=image, volumes={'/data': volume}, secrets=[wandb_secret], timeout=7200)
-def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: int = 30000,
-                        checkpoint_epoch: 'int | None' = None, truncation: float = 1.0):
-    """Evaluate SHARK2 decoder Word Error Rate (Section 5.10, Table 7 from paper)."""
-    import torch
-    import random
-    import wandb
-    from pathlib import Path
-
-    from src.config import ModelConfig, TrainingConfig, ModalConfig
-    from src.keyboard import QWERTYKeyboard
-    from src.data import load_dataset_from_zip
-    from src.models import Generator
-    from src.shark2 import SHARK2Decoder, evaluate_decoder, load_word_frequencies
-
-    device = 'cuda'
-    config = ModalConfig()
-    model_config = ModelConfig()
-    training_config = TrainingConfig()
-
-    log(f'GPU: {torch.cuda.get_device_name(0)}')
-
-    # Load data
-    log('[1/6] Loading gesture dataset...')
-    keyboard = QWERTYKeyboard()
-    gestures_by_word, _ = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config)
-
-    lexicon = list(gestures_by_word.keys())
-    log(f'  Loaded {len(lexicon)} words')
-
-    # Initialize decoder with language model (COCA frequencies via wordfreq)
-    log('[2/6] Loading word frequencies (COCA corpus)...')
-    word_freqs = load_word_frequencies(lexicon)
-    log(f'  Loaded frequencies for {len(word_freqs)} words')
-
-    log('[3/6] Initializing SHARK2 decoder...')
-    decoder = SHARK2Decoder(lexicon, keyboard, model_config.seq_length, word_frequencies=word_freqs)
-    log(f'  Decoder ready with {decoder.n_words} words')
-
-    # Prepare train/test split
-    log('[4/7] Preparing train/test split...')
-    all_pairs = []
-    for word, gesture_list in gestures_by_word.items():
-        for gesture in gesture_list:
-            all_pairs.append((gesture, word))
-
-    random.seed(config.random_seed)
-    random.shuffle(all_pairs)
-
-    n_test = min(n_test, len(all_pairs) - n_train_user - 100)
-    test_pairs = all_pairs[:n_test]
-    remaining = all_pairs[n_test:]
-    train_user_pairs = remaining[:n_train_user]
-
-    log(f'  Train user gestures: {len(train_user_pairs)}')
-    log(f'  Test gestures: {len(test_pairs)}')
-
-    # Generate simulated gestures if needed
-    train_simulated_pairs = []
-    if n_simulated > 0:
-        log(f'[5/7] Generating {n_simulated} simulated gestures...')
-
-        if checkpoint_epoch is not None:
-            checkpoint_path = Path(f'{config.checkpoint_dir}/epoch_{checkpoint_epoch}.pt')
-        else:
-            checkpoint_path = Path(f'{config.checkpoint_dir}/latest.pt')
-
-        if not checkpoint_path.exists():
-            return {'error': f'No checkpoint found at {checkpoint_path}'}
-
-        generator = Generator(model_config).to(device)
-        ckpt = torch.load(checkpoint_path, map_location=device)
-        generator.load_state_dict(ckpt['generator'])
-        generator.eval()
-        log(f'  Loaded generator from epoch {ckpt["epoch"] + 1}')
-
-        batch_size = 64
-        with torch.no_grad():
-            for batch_start in range(0, n_simulated, batch_size):
-                batch_end = min(batch_start + batch_size, n_simulated)
-                batch_words = [random.choice(lexicon) for _ in range(batch_end - batch_start)]
-
-                protos = torch.stack([torch.FloatTensor(
-                    keyboard.get_word_prototype(w, model_config.seq_length)
-                ) for w in batch_words]).to(device)
-                z = torch.randn(len(batch_words), model_config.latent_dim, device=device) * truncation
-                fakes = generator(protos, z).cpu().numpy()
-
-                for j, word in enumerate(batch_words):
-                    train_simulated_pairs.append((fakes[j], word))
-
-        log(f'  Generated {len(train_simulated_pairs)} simulated gestures')
-    else:
-        log('[5/7] Skipping simulated gesture generation')
-
-    # Combine training data
-    train_pairs = train_user_pairs + train_simulated_pairs
-    log(f'  Total training gestures: {len(train_pairs)}')
-
-    # Optimize SHARK2 parameters
-    log('[6/7] Optimizing SHARK2 parameters...')
-    train_gestures = [g for g, _ in train_pairs]
-    train_labels = [w for _, w in train_pairs]
-    best_params = decoder.optimize_parameters(train_gestures, train_labels, max_samples=200, verbose=True)
-    sigma_loc, sigma_shape, sigma_lm = best_params
-    log(f'  Best: sigma_loc={sigma_loc}, sigma_shape={sigma_shape}, sigma_lm={sigma_lm}')
-
-    # Evaluate
-    log(f'[7/7] Evaluating on {len(test_pairs)} test gestures...')
-    test_gestures = [g for g, _ in test_pairs]
-    test_labels = [w for _, w in test_pairs]
-    eval_results = evaluate_decoder(decoder, test_gestures, test_labels, batch_size=500, verbose=True)
-    test_wer = eval_results['wer']
-
-    # Print results
-    log('=' * 65)
-    log(f'SHARK2 Word Error Rate: {test_wer * 100:.1f}%')
-    log(f'  Training: {n_train_user} user + {n_simulated} simulated gestures')
-    log(f'  Test: {len(test_pairs)} gestures')
-    log('')
-    log('Paper Table 7 Reference:')
-    log(f'  200 User-drawn: 32.8% WER')
-    log(f'  200 User + 10000 Simulated: 28.6% WER')
-    log(f'  10000 Simulated only: 28.6% WER')
-    log(f'  10000 User-drawn: 27.8% WER')
-    log('=' * 65)
-
-    # Log to wandb
-    wandb.init(project=config.wandb_project, name=f'shark2-{n_train_user}u-{n_simulated}s', reinit=True)
-    wandb.log({
-        'shark2/wer': test_wer,
-        'shark2/n_train_user': n_train_user,
-        'shark2/n_simulated': n_simulated,
-        'shark2/n_test': len(test_pairs),
-        'shark2/sigma_loc': sigma_loc,
-        'shark2/sigma_shape': sigma_shape,
-        'shark2/sigma_lm': sigma_lm,
-    })
-    wandb.finish()
-
-    return {
-        'wer': test_wer,
-        'n_train_user': n_train_user,
-        'n_simulated': n_simulated,
-        'n_test': len(test_pairs),
-        'sigma_loc': sigma_loc,
-        'sigma_shape': sigma_shape,
-        'sigma_lm': sigma_lm,
-    }
-
-
-# ============================================================================
 # CLI Entry Point
 # ============================================================================
 
@@ -626,9 +471,6 @@ async def main():
     parser.add_argument('--eval-only', action='store_true', help='Only run evaluation')
     parser.add_argument('--no-resume', action='store_true', help='Start fresh, ignore checkpoint')
     parser.add_argument('--checkpoint-epoch', type=int, help='Specific checkpoint epoch to use')
-    parser.add_argument('--shark2', action='store_true', help='Run SHARK2 WER evaluation')
-    parser.add_argument('--shark2-train-user', type=int, default=200, help='User gestures for SHARK2 training')
-    parser.add_argument('--shark2-simulated', type=int, default=0, help='Simulated gestures for SHARK2')
     parser.add_argument('--minimum-jerk', action='store_true', help='Evaluate Minimum Jerk baseline')
     parser.add_argument('--truncation', type=float, default=None, help='Truncation for latent sampling')
     parser.add_argument('--n-samples', type=int, default=200, help='Number of samples for evaluation')
@@ -643,13 +485,6 @@ async def main():
             returncode = await run_minimum_jerk_sandbox()
             print(f'\nSandbox exited with code: {returncode}')
             return
-        elif args.shark2:
-            print('Running SHARK2 WER evaluation...')
-            result = await evaluate_shark2_wer.remote.aio(
-                n_train_user=args.shark2_train_user,
-                n_simulated=args.shark2_simulated,
-                checkpoint_epoch=args.checkpoint_epoch
-            )
         elif args.eval_only:
             truncation = args.truncation if args.truncation is not None else 1.0
             print(f'Running evaluation (truncation={truncation}, savgol_window={args.savgol_window}, precision_k={args.precision_k}, minimum_jerk_proto={args.minimum_jerk_proto})...')
@@ -666,8 +501,6 @@ async def main():
             print(f'Starting training for {args.epochs} epochs (streaming stdout via sandbox, minimum_jerk_proto={args.minimum_jerk_proto})...')
             returncode = await run_train_sandbox(num_epochs=args.epochs, resume=not args.no_resume, use_minimum_jerk_proto=args.minimum_jerk_proto)
             print(f'\nSandbox exited with code: {returncode}')
-            return
-        print(f'Result: {result}')
 
 
 if __name__ == '__main__':
