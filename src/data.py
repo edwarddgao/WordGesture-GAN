@@ -4,7 +4,6 @@ Data loading and preprocessing for word-gesture dataset.
 
 import os
 import zipfile
-import json
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -158,9 +157,16 @@ def normalize_gesture(
 
     points = np.array(points, dtype=np.float32)
 
-    # Convert timestamps to cumulative time from start (in seconds)
+    # Convert timestamps to cumulative time from start, normalized to [0, 1]
+    # This matches the prototype format (linspace 0 to 1) and allows the
+    # generator to learn timing within its [-1, 1] output range
     start_time = points[0, 2]
-    points[:, 2] = (points[:, 2] - start_time) / 1000.0  # Convert to seconds
+    end_time = points[-1, 2]
+    duration_ms = end_time - start_time
+    if duration_ms > 0:
+        points[:, 2] = (points[:, 2] - start_time) / duration_ms  # Normalize to [0, 1]
+    else:
+        points[:, 2] = np.linspace(0, 1, len(points))
 
     # Resample to seq_length points
     if len(points) == seq_length:
@@ -212,7 +218,8 @@ def load_dataset_from_zip(
     keyboard: QWERTYKeyboard,
     model_config: ModelConfig = DEFAULT_MODEL_CONFIG,
     training_config: TrainingConfig = DEFAULT_TRAINING_CONFIG,
-    max_files: Optional[int] = None
+    max_files: Optional[int] = None,
+    use_minimum_jerk_proto: bool = False
 ) -> Tuple[Dict[str, List[np.ndarray]], Dict[str, np.ndarray]]:
     """
     Load gesture dataset from zip file.
@@ -223,6 +230,8 @@ def load_dataset_from_zip(
         model_config: Model configuration
         training_config: Training configuration
         max_files: Maximum number of log files to process (for debugging)
+        use_minimum_jerk_proto: If True, use minimum jerk trajectories for prototypes
+                               instead of straight lines (paper Section 6.3 suggestion)
 
     Returns:
         Tuple of (gestures_by_word, prototypes_by_word)
@@ -271,10 +280,11 @@ def load_dataset_from_zip(
 
     # Generate prototypes for each word
     prototypes_by_word = {}
+    proto_method = (keyboard.get_word_prototype_minimum_jerk
+                   if use_minimum_jerk_proto
+                   else keyboard.get_word_prototype)
     for word in gestures_by_word:
-        prototypes_by_word[word] = keyboard.get_word_prototype(
-            word, model_config.seq_length
-        )
+        prototypes_by_word[word] = proto_method(word, model_config.seq_length)
 
     return dict(gestures_by_word), prototypes_by_word
 

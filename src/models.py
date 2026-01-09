@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm
-from typing import Tuple, Optional
+from typing import Tuple
 
 from .config import ModelConfig, DEFAULT_MODEL_CONFIG
 
@@ -126,6 +126,10 @@ class Generator(nn.Module):
         """
         Generate gesture from prototype and latent code.
 
+        Direct output architecture (matching paper Section 3.1.2, Figure 3).
+        This allows the model to learn full gesture dynamics including
+        realistic acceleration patterns.
+
         Args:
             prototype: Word prototype of shape (batch, seq_length, 3)
             z: Latent code of shape (batch, latent_dim)
@@ -144,7 +148,8 @@ class Generator(nn.Module):
         # Pass through BiLSTM
         lstm_out, _ = self.lstm(x)
 
-        # Output layer with Tanh activation
+        # Direct output (paper architecture - no residual connection)
+        # This allows learning full acceleration dynamics
         output = torch.tanh(self.output_layer(lstm_out))
 
         return output
@@ -228,147 +233,96 @@ class Discriminator(nn.Module):
         return features
 
 
-class WordGestureGAN(nn.Module):
-    """
-    Complete WordGesture-GAN model.
-
-    Components:
-    - Generator: Produces gestures from word prototypes
-    - Discriminator: Distinguishes real from generated gestures
-    - VariationalEncoder: Encodes gestures into latent space
-
-    The model uses two-cycle training similar to BicycleGAN.
-    """
-
-    def __init__(self, config: ModelConfig = DEFAULT_MODEL_CONFIG):
-        super().__init__()
-        self.config = config
-
-        self.generator = Generator(config)
-        self.encoder = VariationalEncoder(config)
-
-        # Two discriminators for two-cycle training
-        self.discriminator_1 = Discriminator(config)
-        self.discriminator_2 = Discriminator(config)
-
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Encode gesture to latent space."""
-        return self.encoder(x)
-
-    def generate(
-        self,
-        prototype: torch.Tensor,
-        z: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        """
-        Generate gesture from prototype.
-
-        Args:
-            prototype: Word prototype
-            z: Optional latent code. If None, sample from N(0,1)
-
-        Returns:
-            Generated gesture
-        """
-        if z is None:
-            batch_size = prototype.size(0)
-            z = torch.randn(batch_size, self.config.latent_dim, device=prototype.device)
-
-        return self.generator(prototype, z)
-
-    def discriminate(
-        self,
-        x: torch.Tensor,
-        use_disc_1: bool = True
-    ) -> torch.Tensor:
-        """Discriminate gesture using specified discriminator."""
-        if use_disc_1:
-            return self.discriminator_1(x)
-        return self.discriminator_2(x)
-
-    def forward(
-        self,
-        prototype: torch.Tensor,
-        real_gesture: Optional[torch.Tensor] = None,
-        z: Optional[torch.Tensor] = None
-    ) -> dict:
-        """
-        Forward pass for training.
-
-        Returns dictionary with generated gesture and intermediate values.
-        """
-        batch_size = prototype.size(0)
-
-        # Sample or use provided latent code
-        if z is None:
-            z = torch.randn(batch_size, self.config.latent_dim, device=prototype.device)
-
-        # Generate gesture
-        generated = self.generator(prototype, z)
-
-        result = {
-            'generated': generated,
-            'z': z
-        }
-
-        # If real gesture provided, encode it
-        if real_gesture is not None:
-            z_enc, mu, log_var = self.encoder(real_gesture)
-            result.update({
-                'z_enc': z_enc,
-                'mu': mu,
-                'log_var': log_var
-            })
-
-        return result
-
-
 class AutoEncoder(nn.Module):
     """
     Auto-encoder for computing FID score.
 
-    Separate from the GAN model, used only for evaluation.
+    Architecture from paper Section 4.3:
+    "Our encoder consists of 4 layers of 192-96-48-32 neurons,
+    followed by a mean pooling and a linear layer."
+
+    Processes each timestep through MLP, then applies mean pooling
+    across the sequence dimension.
     """
 
     def __init__(
         self,
         config: ModelConfig = DEFAULT_MODEL_CONFIG,
-        hidden_dim: int = 64
+        hidden_dim: int = 32  # Paper uses 32-dim embedding
     ):
         super().__init__()
         self.config = config
+        self.hidden_dim = hidden_dim
 
-        input_dim = config.seq_length * config.input_dim  # 384
-
-        # Encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 192),
+        # Per-timestep encoder: (x,y,t) -> 192 -> 96 -> 48 -> 32
+        self.timestep_encoder = nn.Sequential(
+            nn.Linear(config.input_dim, 192),  # 3 -> 192
             nn.LeakyReLU(0.2),
             nn.Linear(192, 96),
             nn.LeakyReLU(0.2),
-            nn.Linear(96, hidden_dim),
+            nn.Linear(96, 48),
+            nn.LeakyReLU(0.2),
+            nn.Linear(48, hidden_dim),  # 48 -> 32
         )
 
-        # Decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, 96),
+        # After mean pooling, optional linear layer (paper mentions "a linear layer")
+        self.post_pool = nn.Linear(hidden_dim, hidden_dim)
+
+        # Decoder: reverse the process
+        self.pre_expand = nn.Linear(hidden_dim, hidden_dim)
+
+        self.timestep_decoder = nn.Sequential(
+            nn.Linear(hidden_dim, 48),
+            nn.LeakyReLU(0.2),
+            nn.Linear(48, 96),
             nn.LeakyReLU(0.2),
             nn.Linear(96, 192),
             nn.LeakyReLU(0.2),
-            nn.Linear(192, input_dim),
+            nn.Linear(192, config.input_dim),
             nn.Tanh()
         )
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode gesture to latent space."""
-        batch_size = x.size(0)
-        x_flat = x.view(batch_size, -1)
-        return self.encoder(x_flat)
+        """
+        Encode gesture to latent space.
+
+        Args:
+            x: Gesture tensor of shape (batch, seq_length, 3)
+
+        Returns:
+            Latent features of shape (batch, hidden_dim)
+        """
+        batch_size, seq_length, _ = x.shape
+
+        # Process each timestep: (batch, seq, 3) -> (batch, seq, hidden_dim)
+        timestep_features = self.timestep_encoder(x)
+
+        # Mean pooling across sequence: (batch, seq, hidden_dim) -> (batch, hidden_dim)
+        pooled = timestep_features.mean(dim=1)
+
+        # Final linear layer
+        return self.post_pool(pooled)
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
-        """Decode latent code to gesture."""
-        x_flat = self.decoder(z)
-        return x_flat.view(-1, self.config.seq_length, self.config.input_dim)
+        """
+        Decode latent code to gesture.
+
+        Args:
+            z: Latent tensor of shape (batch, hidden_dim)
+
+        Returns:
+            Reconstructed gesture of shape (batch, seq_length, 3)
+        """
+        batch_size = z.size(0)
+
+        # Expand to sequence
+        z_expanded = self.pre_expand(z)
+
+        # Broadcast to all timesteps: (batch, hidden_dim) -> (batch, seq, hidden_dim)
+        z_seq = z_expanded.unsqueeze(1).expand(-1, self.config.seq_length, -1)
+
+        # Decode each timestep
+        return self.timestep_decoder(z_seq)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Reconstruct gesture."""

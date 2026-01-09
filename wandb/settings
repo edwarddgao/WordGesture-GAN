@@ -1,0 +1,5 @@
+[default]
+entity = edwarddgao
+project = WordGesture-GAN
+base_url = https://api.wandb.ai
+
