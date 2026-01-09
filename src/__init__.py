@@ -24,3 +24,10 @@ from .trainer import WordGestureGANTrainer
 
 # Keyboard
 from .keyboard import QWERTYKeyboard
+
+# Visualization
+from .visualization import (
+    plot_gestures_on_keyboard,
+    create_comparison_figure,
+    create_overlay_figure,
+)
