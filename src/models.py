@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import spectral_norm
-from typing import Tuple, Optional
+from typing import Tuple
 
 from .config import ModelConfig, DEFAULT_MODEL_CONFIG
 
@@ -231,101 +231,6 @@ class Discriminator(nn.Module):
             features.append(x_flat)
 
         return features
-
-
-class WordGestureGAN(nn.Module):
-    """
-    Complete WordGesture-GAN model.
-
-    Components:
-    - Generator: Produces gestures from word prototypes
-    - Discriminator: Distinguishes real from generated gestures
-    - VariationalEncoder: Encodes gestures into latent space
-
-    The model uses two-cycle training similar to BicycleGAN.
-    """
-
-    def __init__(self, config: ModelConfig = DEFAULT_MODEL_CONFIG):
-        super().__init__()
-        self.config = config
-
-        self.generator = Generator(config)
-        self.encoder = VariationalEncoder(config)
-
-        # Two discriminators for two-cycle training
-        self.discriminator_1 = Discriminator(config)
-        self.discriminator_2 = Discriminator(config)
-
-    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Encode gesture to latent space."""
-        return self.encoder(x)
-
-    def generate(
-        self,
-        prototype: torch.Tensor,
-        z: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        """
-        Generate gesture from prototype.
-
-        Args:
-            prototype: Word prototype
-            z: Optional latent code. If None, sample from N(0,1)
-
-        Returns:
-            Generated gesture
-        """
-        if z is None:
-            batch_size = prototype.size(0)
-            z = torch.randn(batch_size, self.config.latent_dim, device=prototype.device)
-
-        return self.generator(prototype, z)
-
-    def discriminate(
-        self,
-        x: torch.Tensor,
-        use_disc_1: bool = True
-    ) -> torch.Tensor:
-        """Discriminate gesture using specified discriminator."""
-        if use_disc_1:
-            return self.discriminator_1(x)
-        return self.discriminator_2(x)
-
-    def forward(
-        self,
-        prototype: torch.Tensor,
-        real_gesture: Optional[torch.Tensor] = None,
-        z: Optional[torch.Tensor] = None
-    ) -> dict:
-        """
-        Forward pass for training.
-
-        Returns dictionary with generated gesture and intermediate values.
-        """
-        batch_size = prototype.size(0)
-
-        # Sample or use provided latent code
-        if z is None:
-            z = torch.randn(batch_size, self.config.latent_dim, device=prototype.device)
-
-        # Generate gesture
-        generated = self.generator(prototype, z)
-
-        result = {
-            'generated': generated,
-            'z': z
-        }
-
-        # If real gesture provided, encode it
-        if real_gesture is not None:
-            z_enc, mu, log_var = self.encoder(real_gesture)
-            result.update({
-                'z_enc': z_enc,
-                'mu': mu,
-                'log_var': log_var
-            })
-
-        return result
 
 
 class AutoEncoder(nn.Module):

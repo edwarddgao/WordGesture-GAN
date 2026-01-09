@@ -14,7 +14,6 @@ import random
 
 from .keyboard import QWERTYKeyboard
 from .config import TrainingConfig, ModelConfig, DEFAULT_TRAINING_CONFIG, DEFAULT_MODEL_CONFIG
-from typing import Literal
 
 
 class GestureDataset(Dataset):

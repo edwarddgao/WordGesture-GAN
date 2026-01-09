@@ -13,7 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Dict, List, Tuple, Optional
+from typing import Callable, Dict, List, Tuple, Optional
 from scipy.spatial.distance import cdist
 from scipy.optimize import linear_sum_assignment
 from scipy.signal import savgol_filter
@@ -75,7 +75,7 @@ def compute_dtw_distance(gesture1: np.ndarray, gesture2: np.ndarray) -> float:
 def compute_wasserstein_distance_per_word(
     real_gestures: List[np.ndarray],
     fake_gestures: List[np.ndarray],
-    distance_func: callable = compute_l2_distance
+    distance_func: Callable[[np.ndarray, np.ndarray], float] = compute_l2_distance
 ) -> float:
     """
     Compute Wasserstein distance for gestures of a single word.
@@ -461,8 +461,9 @@ def compute_velocity_correlation(
                 corr, _ = pearsonr(vel_real, vel_fake)
                 if not np.isnan(corr):
                     correlations.append(corr)
-            except Exception:
-                pass
+            except ValueError:
+                # pearsonr raises ValueError for constant inputs
+                continue
 
     if len(correlations) == 0:
         return 0.0, 0.0
@@ -496,8 +497,9 @@ def compute_acceleration_correlation(
                 corr, _ = pearsonr(acc_real, acc_fake)
                 if not np.isnan(corr):
                     correlations.append(corr)
-            except Exception:
-                pass
+            except ValueError:
+                # pearsonr raises ValueError for constant inputs
+                continue
 
     if len(correlations) == 0:
         return 0.0, 0.0
