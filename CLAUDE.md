@@ -47,9 +47,6 @@ python modal_train.py --epochs 50
 # Start fresh (ignore checkpoint)
 python modal_train.py --no-resume
 
-# Training with hyperparameter options
-python modal_train.py --no-resume --no-lr-scheduler  # Disable cosine annealing LR
-python modal_train.py --no-resume --grad-clip 0.5    # Custom gradient clipping
 ```
 
 **Training Settings:**
@@ -89,30 +86,6 @@ python modal_train.py --eval-only --checkpoint-epoch 100
 - Duration RMSE
 - FID score (autoencoder-based)
 - Precision/Recall (k=3 nearest neighbors)
-
-### SHARK2 Decoder WER (Table 7)
-
-```bash
-# 200 user gestures only
-python modal_train.py --shark2 --shark2-train-user 200
-
-# 200 user + 10000 simulated gestures
-python modal_train.py --shark2 --shark2-train-user 200 --shark2-simulated 10000
-
-# 10000 simulated only
-python modal_train.py --shark2 --shark2-train-user 0 --shark2-simulated 10000
-
-# 10000 user gestures
-python modal_train.py --shark2 --shark2-train-user 10000
-```
-
-**Paper Table 7 Reference:**
-| Training Setup | Paper WER |
-|---------------|-----------|
-| 200 User-drawn | 32.8% |
-| 200 User + 10K Simulated | 28.6% |
-| 10K Simulated only | 28.6% |
-| 10K User-drawn | 27.8% |
 
 ## Key Implementation Details
 
