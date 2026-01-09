@@ -4,7 +4,6 @@ Data loading and preprocessing for word-gesture dataset.
 
 import os
 import zipfile
-import json
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader

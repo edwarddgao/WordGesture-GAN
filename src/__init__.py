@@ -19,7 +19,7 @@ from .utils import seed_everything, log, train_epoch_with_grad_clip
 # SHARK2 decoder
 from .shark2 import (
     SHARK2Decoder, SHARK2Config, DEFAULT_SHARK2_CONFIG,
-    compute_wer, evaluate_decoder, load_word_frequencies
+    evaluate_decoder, load_word_frequencies
 )
 
 # Evaluation

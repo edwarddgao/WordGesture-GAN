@@ -392,25 +392,6 @@ class SHARK2Decoder:
         return best_params
 
 
-def compute_wer(predictions: List[str], ground_truth: List[str]) -> float:
-    """
-    Compute Word Error Rate.
-
-    WER = (number of errors) / (total words)
-
-    Args:
-        predictions: List of predicted words
-        ground_truth: List of ground truth words
-
-    Returns:
-        Word error rate in range [0, 1]
-    """
-    if not ground_truth:
-        return 0.0
-    errors = sum(1 for p, t in zip(predictions, ground_truth) if p != t)
-    return errors / len(ground_truth)
-
-
 def evaluate_decoder(
     decoder: SHARK2Decoder,
     gestures: List[np.ndarray],

@@ -20,40 +20,6 @@ from .models import AutoEncoder
 from .config import ModelConfig, EvaluationConfig, DEFAULT_MODEL_CONFIG, DEFAULT_EVALUATION_CONFIG
 
 
-def compute_dtw_distance(gesture1: np.ndarray, gesture2: np.ndarray) -> float:
-    """
-    Compute Dynamic Time Warping distance between two gestures.
-
-    Uses the full (x, y, t) representation.
-
-    Args:
-        gesture1: Gesture array of shape (seq_length, 3)
-        gesture2: Gesture array of shape (seq_length, 3)
-
-    Returns:
-        DTW distance
-    """
-    n, m = len(gesture1), len(gesture2)
-
-    # Compute pairwise distances
-    cost_matrix = cdist(gesture1, gesture2, metric='euclidean')
-
-    # Dynamic programming for DTW
-    dtw_matrix = np.full((n + 1, m + 1), np.inf)
-    dtw_matrix[0, 0] = 0
-
-    for i in range(1, n + 1):
-        for j in range(1, m + 1):
-            cost = cost_matrix[i - 1, j - 1]
-            dtw_matrix[i, j] = cost + min(
-                dtw_matrix[i - 1, j],      # insertion
-                dtw_matrix[i, j - 1],      # deletion
-                dtw_matrix[i - 1, j - 1]   # match
-            )
-
-    return dtw_matrix[n, m]
-
-
 def scipy_matrix_sqrt(matrix: np.ndarray) -> np.ndarray:
     """Compute matrix square root using eigendecomposition."""
     from scipy.linalg import sqrtm
@@ -135,32 +101,24 @@ def evaluate_all_metrics(
     row_ind, col_ind = linear_sum_assignment(dist_matrix)
     results['l2_wasserstein'] = dist_matrix[row_ind, col_ind].mean()
 
-    # DTW Wasserstein (using fastdtw if available, else simple DTW)
-    try:
-        from fastdtw import fastdtw
-        from scipy.spatial.distance import euclidean
-        from joblib import Parallel, delayed
+    # DTW Wasserstein (using fastdtw with parallel computation)
+    from fastdtw import fastdtw
+    from scipy.spatial.distance import euclidean
+    from joblib import Parallel, delayed
 
-        def compute_dtw_row(i):
-            row = np.zeros(n)
-            for j in range(n):
-                distance, _ = fastdtw(real_gestures[i, :, :2], fake_gestures[j, :, :2], dist=euclidean)
-                row[j] = distance
-            return row
+    def compute_dtw_row(i):
+        row = np.zeros(n)
+        for j in range(n):
+            distance, _ = fastdtw(real_gestures[i, :, :2], fake_gestures[j, :, :2], dist=euclidean)
+            row[j] = distance
+        return row
 
-        dtw_rows = Parallel(n_jobs=-1, verbose=0)(delayed(compute_dtw_row)(i) for i in range(n))
-        dtw_dist = np.array(dtw_rows)
-        row_ind2, col_ind2 = linear_sum_assignment(dtw_dist)
-        dtw_raw = dtw_dist[row_ind2, col_ind2].mean()
-        # Normalize by sqrt(seq_length) to match paper scale
-        results['dtw_wasserstein'] = dtw_raw / np.sqrt(model_config.seq_length)
-    except ImportError:
-        # Fallback to simple per-sample DTW
-        dtw_dists = []
-        for i in range(min(n, 50)):  # Limit for speed
-            d = compute_dtw_distance(real_gestures[i, :, :2], fake_gestures[i, :, :2])
-            dtw_dists.append(d)
-        results['dtw_wasserstein'] = np.mean(dtw_dists) / np.sqrt(model_config.seq_length)
+    dtw_rows = Parallel(n_jobs=-1, verbose=0)(delayed(compute_dtw_row)(i) for i in range(n))
+    dtw_dist = np.array(dtw_rows)
+    row_ind2, col_ind2 = linear_sum_assignment(dtw_dist)
+    dtw_raw = dtw_dist[row_ind2, col_ind2].mean()
+    # Normalize by sqrt(seq_length) to match paper scale
+    results['dtw_wasserstein'] = dtw_raw / np.sqrt(model_config.seq_length)
 
     # Jerk (using Savitzky-Golay filter)
     def compute_gesture_jerk(g):

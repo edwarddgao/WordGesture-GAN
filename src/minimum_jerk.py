@@ -67,58 +67,6 @@ def minimum_jerk_trajectory(
     return trajectory
 
 
-def minimum_jerk_trajectory_with_velocity(
-    start: np.ndarray,
-    end: np.ndarray,
-    v_start: np.ndarray,
-    v_end: np.ndarray,
-    n_points: int
-) -> np.ndarray:
-    """
-    Generate minimum jerk trajectory with specified endpoint velocities.
-
-    Uses quintic polynomial with boundary conditions:
-        x(0) = x0, x(1) = x1
-        x'(0) = v0, x'(1) = v1
-        x''(0) = x''(1) = 0
-
-    Args:
-        start: Starting point (x, y)
-        end: Ending point (x, y)
-        v_start: Starting velocity (vx, vy)
-        v_end: Ending velocity (vx, vy)
-        n_points: Number of points
-
-    Returns:
-        Array of shape (n_points, 2)
-    """
-    if n_points < 2:
-        return start.reshape(1, -1)
-
-    t = np.linspace(0, 1, n_points)
-
-    # Quintic polynomial coefficients for each dimension
-    trajectory = np.zeros((n_points, 2))
-
-    for dim in range(2):
-        x0, x1 = start[dim], end[dim]
-        v0, v1 = v_start[dim], v_end[dim]
-
-        # Solve for polynomial coefficients
-        # x(t) = a0 + a1*t + a2*t^2 + a3*t^3 + a4*t^4 + a5*t^5
-        a0 = x0
-        a1 = v0
-        a2 = 0  # Zero acceleration at start
-        a3 = 10*(x1 - x0) - 6*v0 - 4*v1
-        a4 = -15*(x1 - x0) + 8*v0 + 7*v1
-        a5 = 6*(x1 - x0) - 3*v0 - 3*v1
-
-        trajectory[:, dim] = (a0 + a1*t + a2*t**2 + a3*t**3 +
-                             a4*t**4 + a5*t**5)
-
-    return trajectory
-
-
 class MinimumJerkModel:
     """
     Minimum Jerk gesture generator based on Quinn & Zhai (2018).

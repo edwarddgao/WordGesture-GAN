@@ -635,9 +635,6 @@ async def main():
     parser.add_argument('--savgol-window', type=int, default=21, help='Savitzky-Golay filter window size')
     parser.add_argument('--precision-k', type=int, default=3, help='k for precision/recall k-NN (paper uses 3)')
     parser.add_argument('--minimum-jerk-proto', action='store_true', help='Use minimum jerk prototypes (paper Section 6.3)')
-    # Training hyperparameters (Experiment 1)
-    parser.add_argument('--no-lr-scheduler', action='store_true', help='Disable LR scheduler')
-    parser.add_argument('--grad-clip', type=float, default=1.0, help='Gradient clipping max norm (0 to disable)')
     args = parser.parse_args()
 
     async with app.run():

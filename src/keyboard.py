@@ -322,38 +322,3 @@ class QWERTYKeyboard:
         indices.append(min(current_idx, num_points - 1))
 
         return np.array(indices, dtype=int)
-
-    def visualize_keyboard(self) -> None:
-        """Print keyboard layout with key centers (for debugging)."""
-        print("QWERTY Keyboard Layout (normalized coordinates):")
-        print("-" * 50)
-        for row in self.config.rows:
-            row_str = ""
-            for key in row:
-                x, y = self.key_centers[key]
-                row_str += f"{key}({x:.2f},{y:.2f}) "
-            print(row_str)
-        print("-" * 50)
-
-
-def create_word_prototypes_batch(
-    words: List[str],
-    keyboard: QWERTYKeyboard,
-    num_points: int = 128
-) -> np.ndarray:
-    """
-    Create word prototypes for a batch of words.
-
-    Args:
-        words: List of words
-        keyboard: QWERTYKeyboard instance
-        num_points: Number of points per prototype
-
-    Returns:
-        Array of shape (batch_size, num_points, 3)
-    """
-    prototypes = []
-    for word in words:
-        prototype = keyboard.get_word_prototype(word, num_points)
-        prototypes.append(prototype)
-    return np.stack(prototypes, axis=0)
