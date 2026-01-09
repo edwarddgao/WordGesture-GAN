@@ -10,6 +10,9 @@ Usage:
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 if not os.environ.get('MODAL_IS_REMOTE'):
     import modal_proxy_patch
 import modal
