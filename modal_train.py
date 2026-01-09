@@ -30,113 +30,10 @@ wandb_secret = modal.Secret.from_name('wandb-secret')
 
 
 # ============================================================================
-# Helper Functions
+# Helper Functions (imported from src.utils)
 # ============================================================================
 
-def _seed_everything(seed: int):
-    """Set random seed for reproducibility."""
-    import random
-    import numpy as np
-    import torch
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-
-
-def _log(msg: str):
-    """Print with immediate flush for Modal streaming."""
-    print(msg, flush=True)
-
-
-def _train_epoch_with_grad_clip(trainer, dataloader, max_norm, model_config, training_config, device):
-    """Train one epoch with gradient clipping.
-
-    This is a modified version of WordGestureGANTrainer.train_epoch that adds
-    gradient clipping after backward() and before optimizer.step().
-    """
-    import torch
-    from src.losses import WassersteinLoss
-
-    trainer.generator.train()
-    trainer.encoder.train()
-    trainer.discriminator_1.train()
-    trainer.discriminator_2.train()
-
-    epoch_losses = {
-        'd1_loss': 0.0,
-        'd2_loss': 0.0,
-        'cycle1_total': 0.0,
-        'cycle2_total': 0.0,
-    }
-    num_batches = 0
-
-    for batch_idx, batch in enumerate(dataloader):
-        real_gesture = batch['gesture'].to(device)
-        prototype = batch['prototype'].to(device)
-
-        # ----- Discriminator Training -----
-        for _ in range(training_config.n_critic):
-            # Cycle 1: Generate with random z
-            with torch.no_grad():
-                z_rand = torch.randn(real_gesture.size(0), model_config.latent_dim, device=device)
-                fake_gesture_1 = trainer.generator(prototype, z_rand)
-
-            trainer.optimizer_D1.zero_grad()
-            real_scores = trainer.discriminator_1(real_gesture)
-            fake_scores = trainer.discriminator_1(fake_gesture_1.detach())
-            d1_loss = WassersteinLoss.discriminator_loss(real_scores, fake_scores)
-            d1_loss.backward()
-            torch.nn.utils.clip_grad_norm_(trainer.discriminator_1.parameters(), max_norm)
-            trainer.optimizer_D1.step()
-
-            # Cycle 2: Generate with encoded z
-            with torch.no_grad():
-                z_enc, _, _ = trainer.encoder(real_gesture)
-                fake_gesture_2 = trainer.generator(prototype, z_enc)
-
-            trainer.optimizer_D2.zero_grad()
-            real_scores = trainer.discriminator_2(real_gesture)
-            fake_scores = trainer.discriminator_2(fake_gesture_2.detach())
-            d2_loss = WassersteinLoss.discriminator_loss(real_scores, fake_scores)
-            d2_loss.backward()
-            torch.nn.utils.clip_grad_norm_(trainer.discriminator_2.parameters(), max_norm)
-            trainer.optimizer_D2.step()
-
-        # ----- Generator Training -----
-        trainer.optimizer_G.zero_grad()
-        trainer.optimizer_E.zero_grad()
-
-        # Cycle 1: z -> X' -> z'
-        _, g_loss_1, loss_dict_1 = trainer.train_generator_step_cycle1(prototype, real_gesture)
-
-        # Cycle 2: X -> z -> X'
-        _, g_loss_2, loss_dict_2 = trainer.train_generator_step_cycle2(prototype, real_gesture)
-
-        # Combined generator loss
-        total_g_loss = g_loss_1 + g_loss_2
-        total_g_loss.backward()
-
-        # Gradient clipping for generator and encoder
-        torch.nn.utils.clip_grad_norm_(trainer.generator.parameters(), max_norm)
-        torch.nn.utils.clip_grad_norm_(trainer.encoder.parameters(), max_norm)
-
-        trainer.optimizer_G.step()
-        trainer.optimizer_E.step()
-
-        # Accumulate losses
-        epoch_losses['d1_loss'] += d1_loss.item()
-        epoch_losses['d2_loss'] += d2_loss.item()
-        epoch_losses['cycle1_total'] += loss_dict_1['cycle1_total']
-        epoch_losses['cycle2_total'] += loss_dict_2['cycle2_total']
-        num_batches += 1
-
-    # Average losses
-    for key in epoch_losses:
-        epoch_losses[key] /= num_batches
-
-    return epoch_losses
+from src.utils import seed_everything, log, train_epoch_with_grad_clip
 
 
 # ============================================================================
@@ -172,18 +69,18 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
     model_config = ModelConfig()
     training_config = TrainingConfig(num_epochs=num_epochs, save_every=checkpoint_every)
 
-    _seed_everything(config.random_seed)
-    _log(f'GPU: {torch.cuda.get_device_name(0)}')
-    _log(f'Training for {num_epochs} epochs, checkpoints every {checkpoint_every}')
-    _log(f'LR scheduler: {"cosine annealing" if use_lr_scheduler else "disabled"}')
-    _log(f'Gradient clipping: {f"max_norm={grad_clip_norm}" if grad_clip_norm > 0 else "disabled"}')
+    seed_everything(config.random_seed)
+    log(f'GPU: {torch.cuda.get_device_name(0)}')
+    log(f'Training for {num_epochs} epochs, checkpoints every {checkpoint_every}')
+    log(f'LR scheduler: {"cosine annealing" if use_lr_scheduler else "disabled"}')
+    log(f'Gradient clipping: {f"max_norm={grad_clip_norm}" if grad_clip_norm > 0 else "disabled"}')
 
     # Load data
     keyboard = QWERTYKeyboard()
     gestures, protos = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config)
     train_ds, test_ds = create_train_test_split(gestures, protos, train_ratio=training_config.train_ratio, seed=config.random_seed)
     train_loader, _ = create_data_loaders(train_ds, test_ds, batch_size=training_config.batch_size, num_workers=2)
-    _log(f'Data: {len(train_ds)} train, {len(test_ds)} test')
+    log(f'Data: {len(train_ds)} train, {len(test_ds)} test')
 
     # Create trainer
     trainer = WordGestureGANTrainer(model_config, training_config, device=device)
@@ -197,7 +94,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             'D1': CosineAnnealingLR(trainer.optimizer_D1, T_max=num_epochs, eta_min=1e-5),
             'D2': CosineAnnealingLR(trainer.optimizer_D2, T_max=num_epochs, eta_min=1e-5),
         }
-        _log(f'Created cosine annealing schedulers (T_max={num_epochs}, eta_min=1e-5)')
+        log(f'Created cosine annealing schedulers (T_max={num_epochs}, eta_min=1e-5)')
 
     # Resume from checkpoint
     checkpoint_dir = Path(config.checkpoint_dir)
@@ -206,11 +103,11 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
 
     start_epoch = 0
     if resume and checkpoint_path.exists():
-        _log(f'Loading checkpoint from {checkpoint_path}...')
+        log(f'Loading checkpoint from {checkpoint_path}...')
         ckpt = torch.load(checkpoint_path, map_location=device)
         trainer.load_modal_checkpoint(ckpt)
         start_epoch = ckpt['epoch'] + 1
-        _log(f'Resumed from epoch {start_epoch}')
+        log(f'Resumed from epoch {start_epoch}')
         # Fast-forward schedulers to current epoch
         if schedulers:
             for _ in range(start_epoch):
@@ -218,7 +115,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
                     sched.step()
 
     if start_epoch >= num_epochs:
-        _log(f'Already trained to epoch {start_epoch}, nothing to do.')
+        log(f'Already trained to epoch {start_epoch}, nothing to do.')
         return {'status': 'already_trained', 'epoch': start_epoch}
 
     # Initialize wandb
@@ -241,7 +138,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
         # Custom training epoch with gradient clipping
         if grad_clip_norm > 0:
             # Train with gradient clipping
-            epoch_losses = _train_epoch_with_grad_clip(
+            epoch_losses = train_epoch_with_grad_clip(
                 trainer, train_loader, grad_clip_norm, model_config, training_config, device
             )
         else:
@@ -264,7 +161,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             'rec': epoch_losses.get('cycle2_rec', 0),
             'lr': current_lr,
         })
-        _log(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_losses["d1_loss"]:.3f} D2:{epoch_losses["d2_loss"]:.3f} LR:{current_lr:.6f}')
+        log(f'Epoch {epoch+1}/{num_epochs} - D1:{epoch_losses["d1_loss"]:.3f} D2:{epoch_losses["d2_loss"]:.3f} LR:{current_lr:.6f}')
 
         # Save checkpoint
         if (epoch + 1) % checkpoint_every == 0 or epoch == num_epochs - 1:
@@ -272,7 +169,7 @@ def train(num_epochs: int = 200, resume: bool = True, checkpoint_every: int = 10
             torch.save(ckpt, checkpoint_dir / 'latest.pt')
             torch.save(ckpt, checkpoint_dir / f'epoch_{epoch+1}.pt')
             volume.commit()
-            _log(f'Checkpoint saved at epoch {epoch+1}')
+            log(f'Checkpoint saved at epoch {epoch+1}')
 
     wandb.finish()
     return {'status': 'complete', 'final_epoch': num_epochs}
@@ -311,7 +208,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     if not checkpoint_path.exists():
         return {'error': f'No checkpoint found at {checkpoint_path}'}
 
-    _log(f'GPU: {torch.cuda.get_device_name(0)}')
+    log(f'GPU: {torch.cuda.get_device_name(0)}')
 
     # Load generator
     generator = Generator(model_config).to(device)
@@ -319,7 +216,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     generator.load_state_dict(ckpt['generator'])
     generator.eval()
     epoch = ckpt['epoch'] + 1
-    _log(f'Loaded checkpoint from epoch {epoch}')
+    log(f'Loaded checkpoint from epoch {epoch}')
 
     # Load data
     keyboard = QWERTYKeyboard()
@@ -328,7 +225,7 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
 
     # Generate samples
     n = min(n_samples, len(test_ds))
-    _log(f'Generating {n} samples (truncation={truncation})...')
+    log(f'Generating {n} samples (truncation={truncation})...')
 
     real_g, fake_g = [], []
     with torch.no_grad():
@@ -345,28 +242,28 @@ def evaluate(n_samples: int = 200, checkpoint_epoch: int = None, truncation: flo
     train_g = np.array([train_ds[i]['gesture'].numpy() for i in range(len(train_ds))])
 
     # Run all metrics
-    _log('Computing metrics...')
+    log('Computing metrics...')
     results = evaluate_all_metrics(real_g, fake_g, train_g, model_config, eval_config, device)
 
     # Print results table (Paper values from Tables 1-6)
-    _log('=' * 75)
-    _log(f'{"Metric":<30} {"Ours":>15} {"Paper":>15} {"Notes":>12}')
-    _log('=' * 75)
-    _log(f'{"L2 Wasserstein (x,y)":<30} {results["l2_wasserstein"]:>15.3f} {"4.409":>15} {"lower=better":>12}')
-    _log(f'{"DTW Wasserstein (x,y)":<30} {results["dtw_wasserstein"]:>15.3f} {"2.146":>15} {"lower=better":>12}')
-    _log(f'{"Jerk":<30} {results["jerk_fake"]:>15.4f} {"0.0058":>15} {"~real":>12}')
-    _log(f'{"Velocity Correlation":<30} {results["velocity_corr"]:>15.3f} {"0.40":>15} {"higher=better":>12}')
-    _log(f'{"Acceleration Correlation":<30} {results["acceleration_corr"]:>15.3f} {"0.26":>15} {"higher=better":>12}')
-    _log(f'{"Accel Corr (magnitude)":<30} {results.get("acceleration_corr_magnitude", 0):>15.3f} {"--":>15} {"test metric":>12}')
-    _log(f'{"Duration RMSE (ms)":<30} {results["duration_rmse_ms"]:>15.1f} {"1180.3":>15} {"lower=better":>12}')
-    _log('-' * 75)
-    _log(f'{"AE Reconstruction (L1)":<30} {results["ae_reconstruction_loss"]:>15.4f} {"0.041":>15} {"lower=better":>12}')
-    _log(f'{"AE Test Loss (L1)":<30} {results["ae_test_loss"]:>15.4f} {"0.046":>15} {"lower=better":>12}')
-    _log(f'{"FID":<30} {results["fid"]:>15.4f} {"0.270":>15} {"lower=better":>12}')
-    _log('-' * 75)
-    _log(f'{"Precision (k=3)":<30} {results["precision"]:>15.3f} {"0.973":>15} {"higher=better":>12}')
-    _log(f'{"Recall (k=3)":<30} {results["recall"]:>15.3f} {"0.258":>15} {"higher=better":>12}')
-    _log('=' * 75)
+    log('=' * 75)
+    log(f'{"Metric":<30} {"Ours":>15} {"Paper":>15} {"Notes":>12}')
+    log('=' * 75)
+    log(f'{"L2 Wasserstein (x,y)":<30} {results["l2_wasserstein"]:>15.3f} {"4.409":>15} {"lower=better":>12}')
+    log(f'{"DTW Wasserstein (x,y)":<30} {results["dtw_wasserstein"]:>15.3f} {"2.146":>15} {"lower=better":>12}')
+    log(f'{"Jerk":<30} {results["jerk_fake"]:>15.4f} {"0.0058":>15} {"~real":>12}')
+    log(f'{"Velocity Correlation":<30} {results["velocity_corr"]:>15.3f} {"0.40":>15} {"higher=better":>12}')
+    log(f'{"Acceleration Correlation":<30} {results["acceleration_corr"]:>15.3f} {"0.26":>15} {"higher=better":>12}')
+    log(f'{"Accel Corr (magnitude)":<30} {results.get("acceleration_corr_magnitude", 0):>15.3f} {"--":>15} {"test metric":>12}')
+    log(f'{"Duration RMSE (ms)":<30} {results["duration_rmse_ms"]:>15.1f} {"1180.3":>15} {"lower=better":>12}')
+    log('-' * 75)
+    log(f'{"AE Reconstruction (L1)":<30} {results["ae_reconstruction_loss"]:>15.4f} {"0.041":>15} {"lower=better":>12}')
+    log(f'{"AE Test Loss (L1)":<30} {results["ae_test_loss"]:>15.4f} {"0.046":>15} {"lower=better":>12}')
+    log(f'{"FID":<30} {results["fid"]:>15.4f} {"0.270":>15} {"lower=better":>12}')
+    log('-' * 75)
+    log(f'{"Precision (k=3)":<30} {results["precision"]:>15.3f} {"0.973":>15} {"higher=better":>12}')
+    log(f'{"Recall (k=3)":<30} {results["recall"]:>15.3f} {"0.258":>15} {"higher=better":>12}')
+    log('=' * 75)
 
     # Log to wandb
     wandb.init(project=config.wandb_project, name=f'eval-epoch{epoch}', reinit=True)
@@ -391,9 +288,7 @@ from src.keyboard import QWERTYKeyboard
 from src.data import load_dataset_from_zip, create_train_test_split
 from src.models import Generator
 from src.evaluation import evaluate_all_metrics
-
-def log(msg):
-    print(msg, flush=True)
+from src.utils import log
 
 n_samples = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 truncation = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
@@ -522,80 +417,7 @@ from src.keyboard import QWERTYKeyboard
 from src.data import load_dataset_from_zip, create_train_test_split, create_data_loaders
 from src.trainer import WordGestureGANTrainer
 from src.losses import WassersteinLoss
-
-def log(msg):
-    print(msg, flush=True)
-
-def seed_everything(seed):
-    import random
-    import numpy as np
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
-
-def train_epoch_with_grad_clip(trainer, dataloader, max_norm, model_config, training_config, device):
-    """Train one epoch with gradient clipping."""
-    trainer.generator.train()
-    trainer.encoder.train()
-    trainer.discriminator_1.train()
-    trainer.discriminator_2.train()
-
-    epoch_losses = {'d1_loss': 0.0, 'd2_loss': 0.0, 'cycle1_total': 0.0, 'cycle2_total': 0.0}
-    num_batches = 0
-
-    for batch_idx, batch in enumerate(dataloader):
-        real_gesture = batch['gesture'].to(device)
-        prototype = batch['prototype'].to(device)
-
-        # Discriminator Training
-        for _ in range(training_config.n_critic):
-            with torch.no_grad():
-                z_rand = torch.randn(real_gesture.size(0), model_config.latent_dim, device=device)
-                fake_gesture_1 = trainer.generator(prototype, z_rand)
-
-            trainer.optimizer_D1.zero_grad()
-            real_scores = trainer.discriminator_1(real_gesture)
-            fake_scores = trainer.discriminator_1(fake_gesture_1.detach())
-            d1_loss = WassersteinLoss.discriminator_loss(real_scores, fake_scores)
-            d1_loss.backward()
-            torch.nn.utils.clip_grad_norm_(trainer.discriminator_1.parameters(), max_norm)
-            trainer.optimizer_D1.step()
-
-            with torch.no_grad():
-                z_enc, _, _ = trainer.encoder(real_gesture)
-                fake_gesture_2 = trainer.generator(prototype, z_enc)
-
-            trainer.optimizer_D2.zero_grad()
-            real_scores = trainer.discriminator_2(real_gesture)
-            fake_scores = trainer.discriminator_2(fake_gesture_2.detach())
-            d2_loss = WassersteinLoss.discriminator_loss(real_scores, fake_scores)
-            d2_loss.backward()
-            torch.nn.utils.clip_grad_norm_(trainer.discriminator_2.parameters(), max_norm)
-            trainer.optimizer_D2.step()
-
-        # Generator Training
-        trainer.optimizer_G.zero_grad()
-        trainer.optimizer_E.zero_grad()
-        _, g_loss_1, loss_dict_1 = trainer.train_generator_step_cycle1(prototype, real_gesture)
-        _, g_loss_2, loss_dict_2 = trainer.train_generator_step_cycle2(prototype, real_gesture)
-        total_g_loss = g_loss_1 + g_loss_2
-        total_g_loss.backward()
-        torch.nn.utils.clip_grad_norm_(trainer.generator.parameters(), max_norm)
-        torch.nn.utils.clip_grad_norm_(trainer.encoder.parameters(), max_norm)
-        trainer.optimizer_G.step()
-        trainer.optimizer_E.step()
-
-        epoch_losses['d1_loss'] += d1_loss.item()
-        epoch_losses['d2_loss'] += d2_loss.item()
-        epoch_losses['cycle1_total'] += loss_dict_1['cycle1_total']
-        epoch_losses['cycle2_total'] += loss_dict_2['cycle2_total']
-        num_batches += 1
-
-    for key in epoch_losses:
-        epoch_losses[key] /= num_batches
-    return epoch_losses
+from src.utils import seed_everything, log, train_epoch_with_grad_clip
 
 # Parse args
 num_epochs = int(sys.argv[1]) if len(sys.argv) > 1 else 200
@@ -716,9 +538,7 @@ from src.keyboard import QWERTYKeyboard
 from src.data import load_dataset_from_zip, create_train_test_split
 from src.minimum_jerk import MinimumJerkModel, MinimumJerkConfig
 from src.evaluation import evaluate_all_metrics
-
-def log(msg):
-    print(msg, flush=True)
+from src.utils import log
 
 n_samples = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 device = 'cuda'
@@ -899,27 +719,27 @@ def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: i
     model_config = ModelConfig()
     training_config = TrainingConfig()
 
-    _log(f'GPU: {torch.cuda.get_device_name(0)}')
+    log(f'GPU: {torch.cuda.get_device_name(0)}')
 
     # Load data
-    _log('[1/6] Loading gesture dataset...')
+    log('[1/6] Loading gesture dataset...')
     keyboard = QWERTYKeyboard()
     gestures_by_word, _ = load_dataset_from_zip(config.data_path, keyboard, model_config, training_config)
 
     lexicon = list(gestures_by_word.keys())
-    _log(f'  Loaded {len(lexicon)} words')
+    log(f'  Loaded {len(lexicon)} words')
 
     # Initialize decoder with language model (COCA frequencies via wordfreq)
-    _log('[2/6] Loading word frequencies (COCA corpus)...')
+    log('[2/6] Loading word frequencies (COCA corpus)...')
     word_freqs = load_word_frequencies(lexicon)
-    _log(f'  Loaded frequencies for {len(word_freqs)} words')
+    log(f'  Loaded frequencies for {len(word_freqs)} words')
 
-    _log('[3/6] Initializing SHARK2 decoder...')
+    log('[3/6] Initializing SHARK2 decoder...')
     decoder = SHARK2Decoder(lexicon, keyboard, model_config.seq_length, word_frequencies=word_freqs)
-    _log(f'  Decoder ready with {decoder.n_words} words')
+    log(f'  Decoder ready with {decoder.n_words} words')
 
     # Prepare train/test split
-    _log('[4/7] Preparing train/test split...')
+    log('[4/7] Preparing train/test split...')
     all_pairs = []
     for word, gesture_list in gestures_by_word.items():
         for gesture in gesture_list:
@@ -933,13 +753,13 @@ def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: i
     remaining = all_pairs[n_test:]
     train_user_pairs = remaining[:n_train_user]
 
-    _log(f'  Train user gestures: {len(train_user_pairs)}')
-    _log(f'  Test gestures: {len(test_pairs)}')
+    log(f'  Train user gestures: {len(train_user_pairs)}')
+    log(f'  Test gestures: {len(test_pairs)}')
 
     # Generate simulated gestures if needed
     train_simulated_pairs = []
     if n_simulated > 0:
-        _log(f'[5/7] Generating {n_simulated} simulated gestures...')
+        log(f'[5/7] Generating {n_simulated} simulated gestures...')
 
         if checkpoint_epoch is not None:
             checkpoint_path = Path(f'{config.checkpoint_dir}/epoch_{checkpoint_epoch}.pt')
@@ -953,7 +773,7 @@ def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: i
         ckpt = torch.load(checkpoint_path, map_location=device)
         generator.load_state_dict(ckpt['generator'])
         generator.eval()
-        _log(f'  Loaded generator from epoch {ckpt["epoch"] + 1}')
+        log(f'  Loaded generator from epoch {ckpt["epoch"] + 1}')
 
         batch_size = 64
         with torch.no_grad():
@@ -970,41 +790,41 @@ def evaluate_shark2_wer(n_train_user: int = 200, n_simulated: int = 0, n_test: i
                 for j, word in enumerate(batch_words):
                     train_simulated_pairs.append((fakes[j], word))
 
-        _log(f'  Generated {len(train_simulated_pairs)} simulated gestures')
+        log(f'  Generated {len(train_simulated_pairs)} simulated gestures')
     else:
-        _log('[5/7] Skipping simulated gesture generation')
+        log('[5/7] Skipping simulated gesture generation')
 
     # Combine training data
     train_pairs = train_user_pairs + train_simulated_pairs
-    _log(f'  Total training gestures: {len(train_pairs)}')
+    log(f'  Total training gestures: {len(train_pairs)}')
 
     # Optimize SHARK2 parameters
-    _log('[6/7] Optimizing SHARK2 parameters...')
+    log('[6/7] Optimizing SHARK2 parameters...')
     train_gestures = [g for g, _ in train_pairs]
     train_labels = [w for _, w in train_pairs]
     best_params = decoder.optimize_parameters(train_gestures, train_labels, max_samples=200, verbose=True)
     sigma_loc, sigma_shape, sigma_lm = best_params
-    _log(f'  Best: sigma_loc={sigma_loc}, sigma_shape={sigma_shape}, sigma_lm={sigma_lm}')
+    log(f'  Best: sigma_loc={sigma_loc}, sigma_shape={sigma_shape}, sigma_lm={sigma_lm}')
 
     # Evaluate
-    _log(f'[7/7] Evaluating on {len(test_pairs)} test gestures...')
+    log(f'[7/7] Evaluating on {len(test_pairs)} test gestures...')
     test_gestures = [g for g, _ in test_pairs]
     test_labels = [w for _, w in test_pairs]
     eval_results = evaluate_decoder(decoder, test_gestures, test_labels, batch_size=500, verbose=True)
     test_wer = eval_results['wer']
 
     # Print results
-    _log('=' * 65)
-    _log(f'SHARK2 Word Error Rate: {test_wer * 100:.1f}%')
-    _log(f'  Training: {n_train_user} user + {n_simulated} simulated gestures')
-    _log(f'  Test: {len(test_pairs)} gestures')
-    _log('')
-    _log('Paper Table 7 Reference:')
-    _log(f'  200 User-drawn: 32.8% WER')
-    _log(f'  200 User + 10000 Simulated: 28.6% WER')
-    _log(f'  10000 Simulated only: 28.6% WER')
-    _log(f'  10000 User-drawn: 27.8% WER')
-    _log('=' * 65)
+    log('=' * 65)
+    log(f'SHARK2 Word Error Rate: {test_wer * 100:.1f}%')
+    log(f'  Training: {n_train_user} user + {n_simulated} simulated gestures')
+    log(f'  Test: {len(test_pairs)} gestures')
+    log('')
+    log('Paper Table 7 Reference:')
+    log(f'  200 User-drawn: 32.8% WER')
+    log(f'  200 User + 10000 Simulated: 28.6% WER')
+    log(f'  10000 Simulated only: 28.6% WER')
+    log(f'  10000 User-drawn: 27.8% WER')
+    log('=' * 65)
 
     # Log to wandb
     wandb.init(project=config.wandb_project, name=f'shark2-{n_train_user}u-{n_simulated}s', reinit=True)

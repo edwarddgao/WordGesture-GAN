@@ -11,7 +11,10 @@ from .config import (
 )
 
 # Models
-from .models import Generator, Discriminator, VariationalEncoder, AutoEncoder, WordGestureGAN
+from .models import Generator, Discriminator, VariationalEncoder, AutoEncoder
+
+# Utils
+from .utils import seed_everything, log, train_epoch_with_grad_clip
 
 # SHARK2 decoder
 from .shark2 import (
