@@ -8,14 +8,11 @@ Based on the BicycleGAN training procedure:
 
 import os
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from typing import Dict, Optional, Tuple, Callable
-import json
-from datetime import datetime
 
-from .models import WordGestureGAN, Generator, Discriminator, VariationalEncoder
+from .models import Generator, Discriminator, VariationalEncoder
 from .losses import (
     WassersteinLoss,
     FeatureMatchingLoss,
