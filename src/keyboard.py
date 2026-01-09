@@ -73,6 +73,37 @@ class QWERTYKeyboard:
         """Get the center coordinates for a letter key."""
         return self.key_centers.get(letter.lower())
 
+    def _get_key_positions(self, word: str) -> list:
+        """Extract valid key positions for a word."""
+        positions = []
+        for letter in word.lower():
+            center = self.get_key_center(letter)
+            if center is not None:
+                positions.append(center)
+        return positions
+
+    def _make_single_point_prototype(self, x: float, y: float, num_points: int) -> np.ndarray:
+        """Create prototype for single-letter or same-position words."""
+        prototype = np.zeros((num_points, 3), dtype=np.float32)
+        prototype[:, 0] = x
+        prototype[:, 1] = y
+        prototype[:, 2] = np.linspace(0, 1, num_points)
+        return prototype
+
+    def _finalize_prototype(self, trajectory: np.ndarray, num_points: int) -> np.ndarray:
+        """Pad/trim trajectory to exact length and add time dimension."""
+        # Ensure exactly num_points
+        if len(trajectory) > num_points:
+            indices = np.linspace(0, len(trajectory) - 1, num_points, dtype=int)
+            trajectory = trajectory[indices]
+        elif len(trajectory) < num_points:
+            padding = np.tile(trajectory[-1], (num_points - len(trajectory), 1))
+            trajectory = np.vstack([trajectory, padding])
+
+        # Add time dimension
+        times = np.linspace(0, 1, num_points).reshape(-1, 1)
+        return np.hstack([trajectory, times]).astype(np.float32)
+
     def get_word_prototype(self, word: str, num_points: int = 128) -> np.ndarray:
         """
         Generate a word prototype: straight lines connecting letter centroids.
@@ -85,72 +116,32 @@ class QWERTYKeyboard:
             Array of shape (num_points, 3) with (x, y, t) coordinates.
             Time values are uniformly distributed.
         """
-        word = word.lower()
-
-        # Get key centers for valid letters
-        key_positions = []
-        for letter in word:
-            center = self.get_key_center(letter)
-            if center is not None:
-                key_positions.append(center)
+        key_positions = self._get_key_positions(word)
 
         if len(key_positions) < 2:
-            # Single letter or no valid letters - return simple prototype
             if len(key_positions) == 1:
-                x, y = key_positions[0]
-                prototype = np.zeros((num_points, 3))
-                prototype[:, 0] = x
-                prototype[:, 1] = y
-                prototype[:, 2] = np.linspace(0, 1, num_points)
-                return prototype
-            else:
-                return np.zeros((num_points, 3))
+                return self._make_single_point_prototype(*key_positions[0], num_points)
+            return np.zeros((num_points, 3), dtype=np.float32)
 
         key_positions = np.array(key_positions)
-        k = len(key_positions)  # Number of key centers
+        k = len(key_positions)
 
         # Distribute points: (n-k)/(k-1) "between" points per segment
-        # Total: k key centers + (n-k) between points = n points
         points_per_segment = (num_points - k) // (k - 1)
         remaining_points = (num_points - k) % (k - 1)
 
-        prototype_points = []
-
+        trajectory = []
         for i in range(k - 1):
-            start = key_positions[i]
-            end = key_positions[i + 1]
-
-            # Number of intermediate points for this segment
+            start, end = key_positions[i], key_positions[i + 1]
             n_between = points_per_segment + (1 if i < remaining_points else 0)
 
-            # Add start point
-            prototype_points.append(start)
-
-            # Add intermediate points (uniformly distributed)
+            trajectory.append(start)
             for j in range(1, n_between + 1):
                 t = j / (n_between + 1)
-                point = start + t * (end - start)
-                prototype_points.append(point)
+                trajectory.append(start + t * (end - start))
 
-        # Add final point
-        prototype_points.append(key_positions[-1])
-
-        # Ensure exactly num_points
-        prototype_points = np.array(prototype_points[:num_points])
-
-        # Pad if necessary
-        if len(prototype_points) < num_points:
-            last_point = prototype_points[-1]
-            padding = np.tile(last_point, (num_points - len(prototype_points), 1))
-            prototype_points = np.vstack([prototype_points, padding])
-
-        # Add time dimension (uniformly distributed from 0 to 1)
-        times = np.linspace(0, 1, num_points).reshape(-1, 1)
-
-        # Combine (x, y, t)
-        prototype = np.hstack([prototype_points, times])
-
-        return prototype.astype(np.float32)
+        trajectory.append(key_positions[-1])
+        return self._finalize_prototype(np.array(trajectory), num_points)
 
     def get_word_prototype_minimum_jerk(self, word: str, num_points: int = 128) -> np.ndarray:
         """
@@ -168,55 +159,31 @@ class QWERTYKeyboard:
             Array of shape (num_points, 3) with (x, y, t) coordinates.
             Time values are uniformly distributed.
         """
-        word = word.lower()
-
-        # Get key centers for valid letters
-        key_positions = []
-        for letter in word:
-            center = self.get_key_center(letter)
-            if center is not None:
-                key_positions.append(center)
+        key_positions = self._get_key_positions(word)
 
         if len(key_positions) < 2:
-            # Single letter or no valid letters - return simple prototype
             if len(key_positions) == 1:
-                x, y = key_positions[0]
-                prototype = np.zeros((num_points, 3))
-                prototype[:, 0] = x
-                prototype[:, 1] = y
-                prototype[:, 2] = np.linspace(0, 1, num_points)
-                return prototype.astype(np.float32)
-            else:
-                return np.zeros((num_points, 3), dtype=np.float32)
+                return self._make_single_point_prototype(*key_positions[0], num_points)
+            return np.zeros((num_points, 3), dtype=np.float32)
 
         key_positions = np.array(key_positions)
-        k = len(key_positions)  # Number of key centers
+        k = len(key_positions)
 
-        # Generate minimum jerk trajectory segments between consecutive keys
         # Distribute points proportionally to segment length
         segment_lengths = np.linalg.norm(np.diff(key_positions, axis=0), axis=1)
         total_length = segment_lengths.sum()
 
         if total_length < 1e-6:
-            # All keys at same position
-            prototype = np.zeros((num_points, 3))
-            prototype[:, 0] = key_positions[0, 0]
-            prototype[:, 1] = key_positions[0, 1]
-            prototype[:, 2] = np.linspace(0, 1, num_points)
-            return prototype.astype(np.float32)
+            return self._make_single_point_prototype(key_positions[0, 0], key_positions[0, 1], num_points)
 
-        # Distribute points to segments proportionally to length
-        # Ensure at least 2 points per segment
+        # Distribute points to segments proportionally (min 2 per segment)
         segment_points = np.maximum(2, np.round(segment_lengths / total_length * num_points).astype(int))
-        # Adjust to hit exact num_points
         diff = num_points - segment_points.sum()
         if diff > 0:
-            # Add points to longest segments
             for _ in range(diff):
                 idx = np.argmax(segment_lengths / segment_points)
                 segment_points[idx] += 1
         elif diff < 0:
-            # Remove points from longest segments (but keep min 2)
             for _ in range(-diff):
                 valid = segment_points > 2
                 if not valid.any():
@@ -224,39 +191,15 @@ class QWERTYKeyboard:
                 idx = np.argmax(np.where(valid, segment_lengths / segment_points, -np.inf))
                 segment_points[idx] -= 1
 
-        # Generate trajectories
+        # Generate minimum jerk trajectory segments
         trajectory_points = []
         for i in range(k - 1):
-            start = key_positions[i]
-            end = key_positions[i + 1]
-            n_pts = segment_points[i]
-
-            # Generate minimum jerk segment
-            segment = _minimum_jerk_trajectory(start, end, n_pts)
-
-            # Skip first point to avoid duplication at junction (except for first segment)
+            segment = _minimum_jerk_trajectory(key_positions[i], key_positions[i + 1], segment_points[i])
             if i > 0:
-                segment = segment[1:]
-
+                segment = segment[1:]  # Skip first point to avoid junction duplication
             trajectory_points.append(segment)
 
-        trajectory = np.vstack(trajectory_points)
-
-        # Ensure exactly num_points
-        if len(trajectory) > num_points:
-            # Uniformly sample to reduce
-            indices = np.linspace(0, len(trajectory) - 1, num_points, dtype=int)
-            trajectory = trajectory[indices]
-        elif len(trajectory) < num_points:
-            # Pad with last point
-            padding = np.tile(trajectory[-1], (num_points - len(trajectory), 1))
-            trajectory = np.vstack([trajectory, padding])
-
-        # Add uniform time dimension
-        times = np.linspace(0, 1, num_points).reshape(-1, 1)
-        prototype = np.hstack([trajectory, times])
-
-        return prototype.astype(np.float32)
+        return self._finalize_prototype(np.vstack(trajectory_points), num_points)
 
     def get_key_centers_for_word(self, word: str) -> np.ndarray:
         """
@@ -268,13 +211,8 @@ class QWERTYKeyboard:
         Returns:
             Array of shape (n_keys, 2) with key center coordinates.
         """
-        word = word.lower()
-        centers = []
-        for letter in word:
-            center = self.get_key_center(letter)
-            if center is not None:
-                centers.append(center)
-        return np.array(centers) if centers else np.zeros((0, 2))
+        positions = self._get_key_positions(word)
+        return np.array(positions) if positions else np.zeros((0, 2))
 
     def get_key_indices(self, word: str, num_points: int = 128) -> np.ndarray:
         """
