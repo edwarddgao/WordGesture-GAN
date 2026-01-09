@@ -20,7 +20,6 @@ from .losses import (
     WassersteinLoss,
     FeatureMatchingLoss,
     ReconstructionLoss,
-    AccelerationLoss,
     LatentEncodingLoss,
     KLDivergenceLoss
 )
@@ -57,7 +56,6 @@ class WordGestureGANTrainer:
         # Loss functions
         self.feature_matching_loss = FeatureMatchingLoss()
         self.reconstruction_loss = ReconstructionLoss()
-        self.acceleration_loss = AccelerationLoss()
         self.latent_encoding_loss = LatentEncodingLoss()
         self.kl_divergence_loss = KLDivergenceLoss()
 
@@ -212,7 +210,6 @@ class WordGestureGANTrainer:
         loss_wgan = WassersteinLoss.generator_loss(fake_scores)
         loss_feat = self.feature_matching_loss(real_features, fake_features)
         loss_rec = self.reconstruction_loss(real_gesture, fake_gesture)
-        loss_acc = self.acceleration_loss(real_gesture, fake_gesture)
         loss_kld = self.kl_divergence_loss(mu, log_var)
 
         # Combined loss for cycle 2
@@ -220,7 +217,6 @@ class WordGestureGANTrainer:
             loss_wgan +
             self.training_config.lambda_feat * loss_feat +
             self.training_config.lambda_rec * loss_rec +
-            self.training_config.lambda_acc * loss_acc +
             self.training_config.lambda_kld * loss_kld
         )
 
@@ -228,7 +224,6 @@ class WordGestureGANTrainer:
             'cycle2_wgan': loss_wgan.item(),
             'cycle2_feat': loss_feat.item(),
             'cycle2_rec': loss_rec.item(),
-            'cycle2_acc': loss_acc.item(),
             'cycle2_kld': loss_kld.item(),
             'cycle2_total': total_loss.item()
         }
