@@ -3,7 +3,7 @@ Keyboard layout utilities for generating word prototypes.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple, Optional
 from .config import KeyboardConfig, DEFAULT_KEYBOARD_CONFIG
 
 
