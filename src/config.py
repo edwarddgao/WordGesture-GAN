@@ -19,7 +19,7 @@ class ModelConfig:
     latent_dim: int = 32  # Dimension of Gaussian latent code
 
     # Generator (BiLSTM)
-    gen_hidden_dim: int = 32  # Hidden dimension for BiLSTM layers
+    gen_hidden_dim: int = 48  # Hidden dimension for BiLSTM layers (increased for precision)
     gen_num_layers: int = 4  # Number of BiLSTM layers
 
     # Discriminator (MLP)
