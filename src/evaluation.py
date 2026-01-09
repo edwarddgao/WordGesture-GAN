@@ -768,7 +768,7 @@ def evaluate_all_metrics(
 
     # Custom training loop for FID
     autoencoder = AutoEncoder(model_config, eval_config.fid_hidden_dim).to(device)
-    ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.001)
+    ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=eval_config.fid_autoencoder_lr)
     ae_criterion = torch.nn.L1Loss()
 
     autoencoder.train()

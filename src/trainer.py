@@ -434,18 +434,21 @@ class WordGestureGANTrainer:
         print(f"Loaded modal checkpoint from epoch {checkpoint['epoch'] + 1}")
 
     def save_checkpoint(self, path: str):
-        """Save training checkpoint."""
+        """Save training checkpoint.
+
+        Uses the same format as get_modal_checkpoint_dict() for consistency.
+        """
         checkpoint = {
             'epoch': self.current_epoch,
             'global_step': self.global_step,
-            'generator_state_dict': self.generator.state_dict(),
-            'encoder_state_dict': self.encoder.state_dict(),
-            'discriminator_1_state_dict': self.discriminator_1.state_dict(),
-            'discriminator_2_state_dict': self.discriminator_2.state_dict(),
-            'optimizer_G_state_dict': self.optimizer_G.state_dict(),
-            'optimizer_E_state_dict': self.optimizer_E.state_dict(),
-            'optimizer_D1_state_dict': self.optimizer_D1.state_dict(),
-            'optimizer_D2_state_dict': self.optimizer_D2.state_dict(),
+            'generator': self.generator.state_dict(),
+            'encoder': self.encoder.state_dict(),
+            'discriminator_1': self.discriminator_1.state_dict(),
+            'discriminator_2': self.discriminator_2.state_dict(),
+            'optimizer_G': self.optimizer_G.state_dict(),
+            'optimizer_E': self.optimizer_E.state_dict(),
+            'optimizer_D1': self.optimizer_D1.state_dict(),
+            'optimizer_D2': self.optimizer_D2.state_dict(),
             'model_config': self.model_config,
             'training_config': self.training_config,
             'training_history': self.training_history
@@ -454,19 +457,27 @@ class WordGestureGANTrainer:
         print(f"Checkpoint saved to {path}")
 
     def load_checkpoint(self, path: str):
-        """Load training checkpoint."""
+        """Load training checkpoint.
+
+        Supports both old format (with _state_dict suffix) and new format for backwards compatibility.
+        """
         checkpoint = torch.load(path, map_location=self.device)
 
         self.current_epoch = checkpoint['epoch']
-        self.global_step = checkpoint['global_step']
-        self.generator.load_state_dict(checkpoint['generator_state_dict'])
-        self.encoder.load_state_dict(checkpoint['encoder_state_dict'])
-        self.discriminator_1.load_state_dict(checkpoint['discriminator_1_state_dict'])
-        self.discriminator_2.load_state_dict(checkpoint['discriminator_2_state_dict'])
-        self.optimizer_G.load_state_dict(checkpoint['optimizer_G_state_dict'])
-        self.optimizer_E.load_state_dict(checkpoint['optimizer_E_state_dict'])
-        self.optimizer_D1.load_state_dict(checkpoint['optimizer_D1_state_dict'])
-        self.optimizer_D2.load_state_dict(checkpoint['optimizer_D2_state_dict'])
+        self.global_step = checkpoint.get('global_step', 0)
+
+        # Support both old and new key formats
+        def get_state(key):
+            return checkpoint.get(key) or checkpoint.get(f'{key}_state_dict')
+
+        self.generator.load_state_dict(get_state('generator'))
+        self.encoder.load_state_dict(get_state('encoder'))
+        self.discriminator_1.load_state_dict(get_state('discriminator_1'))
+        self.discriminator_2.load_state_dict(get_state('discriminator_2'))
+        self.optimizer_G.load_state_dict(get_state('optimizer_G'))
+        self.optimizer_E.load_state_dict(get_state('optimizer_E'))
+        self.optimizer_D1.load_state_dict(get_state('optimizer_D1'))
+        self.optimizer_D2.load_state_dict(get_state('optimizer_D2'))
         self.training_history = checkpoint.get('training_history', [])
 
         print(f"Checkpoint loaded from {path}, resuming from epoch {self.current_epoch + 1}")

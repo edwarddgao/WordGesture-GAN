@@ -40,6 +40,12 @@ class TrainingConfig:
     # WGAN training: update discriminator n_critic times per generator update
     n_critic: int = 5
 
+    # LR scheduler
+    lr_scheduler_eta_min: float = 1e-5  # Minimum LR for cosine annealing
+
+    # Gradient clipping
+    grad_clip_norm: float = 1.0  # Max norm for gradient clipping (0 to disable)
+
     # Loss weights (from paper Section 4.2)
     lambda_feat: float = 1.0  # Feature matching loss weight
     lambda_rec: float = 4.0  # Reconstruction loss weight (tuned between 3.0-5.0)
@@ -66,6 +72,7 @@ class EvaluationConfig:
 
     # FID score (paper Section 4.3)
     fid_autoencoder_epochs: int = 100  # Epochs to train autoencoder for FID
+    fid_autoencoder_lr: float = 0.001  # Learning rate for FID autoencoder
     fid_hidden_dim: int = 32  # Paper: "32 dimensional space"
 
     # Precision/Recall
