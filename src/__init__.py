@@ -17,7 +17,7 @@ from .models import Generator, Discriminator, VariationalEncoder, AutoEncoder
 from .utils import seed_everything, log, train_epoch_with_grad_clip
 
 # Evaluation
-from .evaluation import evaluate_all_metrics, compute_duration_rmse
+from .evaluation import evaluate_all_metrics
 
 # Trainer
 from .trainer import WordGestureGANTrainer
@@ -31,3 +31,14 @@ from .visualization import (
     create_comparison_figure,
     create_overlay_figure,
 )
+
+# Contrastive Learning
+from .contrastive_model import (
+    ContrastiveConfig, ContrastiveEncoder, SupervisedContrastiveLoss,
+    DEFAULT_CONTRASTIVE_CONFIG, word_labels_to_tensor
+)
+from .contrastive_dataset import (
+    ContrastiveGestureDataset, ContrastiveBatchSampler,
+    create_contrastive_datasets, create_contrastive_data_loader
+)
+from .contrastive_trainer import ContrastiveTrainer

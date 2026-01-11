@@ -14,6 +14,115 @@ from .keyboard import QWERTYKeyboard
 from .config import TrainingConfig, ModelConfig, DEFAULT_TRAINING_CONFIG, DEFAULT_MODEL_CONFIG
 
 
+def infer_key_positions(
+    gestures_by_word: Dict[str, List[np.ndarray]],
+    min_samples: int = 10
+) -> Dict[str, Tuple[float, float]]:
+    """
+    Infer key positions from gesture start/end points.
+
+    For words starting/ending with each letter, collect the start/end positions
+    and compute the median as the inferred key position.
+
+    Args:
+        gestures_by_word: Dictionary of word -> list of gesture arrays
+        min_samples: Minimum samples needed to include a letter
+
+    Returns:
+        Dictionary mapping letter -> (x, y) position
+    """
+    start_positions = defaultdict(list)
+    end_positions = defaultdict(list)
+
+    for word, gestures in gestures_by_word.items():
+        if len(word) >= 2:
+            first_letter = word[0]
+            last_letter = word[-1]
+            for g in gestures:
+                start_positions[first_letter].append(g[0, :2])
+                end_positions[last_letter].append(g[-1, :2])
+
+    inferred = {}
+    for letter in 'qwertyuiopasdfghjklzxcvbnm':
+        positions = []
+        if letter in start_positions:
+            positions.extend(start_positions[letter])
+        if letter in end_positions:
+            positions.extend(end_positions[letter])
+
+        if len(positions) >= min_samples:
+            positions = np.array(positions)
+            inferred[letter] = (np.median(positions[:, 0]), np.median(positions[:, 1]))
+
+    return inferred
+
+
+def compute_canonical_transform(
+    inferred_positions: Dict[str, Tuple[float, float]],
+    keyboard: QWERTYKeyboard
+) -> Dict[str, float]:
+    """
+    Compute linear transformation from gesture space to canonical keyboard space.
+
+    Fits: canonical = scale * gesture + offset
+
+    Args:
+        inferred_positions: Key positions inferred from gesture data
+        keyboard: QWERTYKeyboard with canonical positions
+
+    Returns:
+        Dictionary with scale_x, offset_x, scale_y, offset_y
+    """
+    gesture_x, gesture_y = [], []
+    canonical_x, canonical_y = [], []
+
+    for letter, (gx, gy) in inferred_positions.items():
+        cx, cy = keyboard.get_key_center(letter)
+        gesture_x.append(gx)
+        gesture_y.append(gy)
+        canonical_x.append(cx)
+        canonical_y.append(cy)
+
+    gesture_x = np.array(gesture_x)
+    gesture_y = np.array(gesture_y)
+    canonical_x = np.array(canonical_x)
+    canonical_y = np.array(canonical_y)
+
+    # Linear regression: canonical = scale * gesture + offset
+    A_x = np.vstack([gesture_x, np.ones(len(gesture_x))]).T
+    scale_x, offset_x = np.linalg.lstsq(A_x, canonical_x, rcond=None)[0]
+
+    A_y = np.vstack([gesture_y, np.ones(len(gesture_y))]).T
+    scale_y, offset_y = np.linalg.lstsq(A_y, canonical_y, rcond=None)[0]
+
+    return {
+        'scale_x': scale_x,
+        'offset_x': offset_x,
+        'scale_y': scale_y,
+        'offset_y': offset_y,
+    }
+
+
+def apply_canonical_transform(
+    gesture: np.ndarray,
+    transform: Dict[str, float]
+) -> np.ndarray:
+    """
+    Transform gesture coordinates from dataset space to canonical keyboard space.
+
+    Args:
+        gesture: Array of shape (seq_length, 3) with (x, y, t)
+        transform: Dictionary with scale_x, offset_x, scale_y, offset_y
+
+    Returns:
+        Transformed gesture array
+    """
+    result = gesture.copy()
+    result[:, 0] = transform['scale_x'] * gesture[:, 0] + transform['offset_x']
+    result[:, 1] = transform['scale_y'] * gesture[:, 1] + transform['offset_y']
+    return result
+
+
 class GestureDataset(Dataset):
     """
     Dataset for word-gesture data.
@@ -222,6 +331,12 @@ def load_dataset_from_zip(
     """
     Load gesture dataset from zip file.
 
+    Gestures are automatically normalized to canonical keyboard space by:
+    1. Loading gestures in their original coordinate space
+    2. Inferring key positions from gesture start/end points
+    3. Computing a linear transformation to canonical space
+    4. Applying the transformation to all gestures
+
     Args:
         zip_path: Path to swipelogs.zip
         keyboard: QWERTYKeyboard instance for generating prototypes
@@ -266,6 +381,19 @@ def load_dataset_from_zip(
     print(f"Processed {processed_files} log files")
     print(f"Found {len(gestures_by_word)} unique words")
 
+    # Compute transformation from gesture space to canonical keyboard space
+    inferred_positions = infer_key_positions(gestures_by_word)
+    transform = compute_canonical_transform(inferred_positions, keyboard)
+    print(f"Computed canonical transform: scale=({transform['scale_x']:.4f}, {transform['scale_y']:.4f}), "
+          f"offset=({transform['offset_x']:.4f}, {transform['offset_y']:.4f})")
+
+    # Apply transformation to all gestures and clip to valid range
+    for word in gestures_by_word:
+        gestures_by_word[word] = [
+            np.clip(apply_canonical_transform(g, transform), [-1, -1, 0], [1, 1, 1])
+            for g in gestures_by_word[word]
+        ]
+
     # Cap samples per word to balance dataset
     max_samples = training_config.max_samples_per_word
     for word in gestures_by_word:
@@ -274,7 +402,7 @@ def load_dataset_from_zip(
                 gestures_by_word[word], max_samples
             )
 
-    # Generate prototypes for each word
+    # Generate prototypes for each word (already in canonical space)
     prototypes_by_word = {}
     for word in gestures_by_word:
         prototypes_by_word[word] = keyboard.get_word_prototype(word, model_config.seq_length)

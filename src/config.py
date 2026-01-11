@@ -24,6 +24,7 @@ class ModelConfig:
 
     # Discriminator (MLP)
     disc_hidden_dims: Tuple[int, ...] = (192, 96, 48, 24)
+    use_temporal_disc: bool = True  # Use Conv1D temporal discriminator instead of MLP
 
     # Encoder (MLP)
     enc_hidden_dims: Tuple[int, ...] = (192, 96, 48, 32)

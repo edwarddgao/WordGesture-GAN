@@ -9,6 +9,7 @@ from matplotlib.patches import Rectangle
 from typing import List, Optional, Tuple
 
 from .config import KeyboardConfig, DEFAULT_KEYBOARD_CONFIG
+from .keyboard import QWERTYKeyboard
 
 
 # Paper colors
@@ -21,36 +22,36 @@ def draw_keyboard(ax: plt.Axes, config: KeyboardConfig = DEFAULT_KEYBOARD_CONFIG
     """
     Draw QWERTY keyboard grid centered at origin.
 
-    Gestures are normalized to [-1, 1] with keyboard centered at 0.
-    y is inverted: y=-1 is top of keyboard, y=+1 is bottom.
+    Uses key centers from QWERTYKeyboard to ensure alignment with gesture data.
+    Y coordinates are flipped for display (same as gesture plotting).
     """
+    keyboard = QWERTYKeyboard(config)
     rows = config.rows
-    row_offsets = [0.0, 0.05, 0.15]  # Indent for each row
-
     n_rows = len(rows)
-    key_h = 1.8 / n_rows  # Total height ~1.8, leaving margin
+    key_h = 1.4 / n_rows  # Key height based on y span
 
-    for row_idx, (row, offset) in enumerate(zip(rows, row_offsets)):
+    for row_idx, row in enumerate(rows):
         num_keys = len(row)
-        # y: row 0 at top (y ~ +0.7), row 2 at bottom (y ~ -0.7)
-        y_center = 0.7 - row_idx * (1.4 / (n_rows - 1)) if n_rows > 1 else 0
+        # Get key width from first two keys in row
+        if num_keys >= 2:
+            x0 = keyboard.get_key_center(row[0])[0]
+            x1 = keyboard.get_key_center(row[1])[0]
+            key_w = (x1 - x0) * 0.95
+        else:
+            key_w = 0.15
 
-        # Calculate key width to fit row centered in [-0.9, 0.9]
-        row_span = 1.8 - offset  # Available width for this row
-        key_w = row_span / num_keys * 0.95
-
-        for key_idx, key in enumerate(row):
-            # Center the row, accounting for offset
-            row_start = -0.9 + offset / 2
-            x_center = row_start + (key_idx + 0.5) * (row_span / num_keys)
+        for key in row:
+            x, y = keyboard.get_key_center(key)
+            # Flip y for display (same transform as gesture plotting)
+            y_display = -y
 
             rect = Rectangle(
-                (x_center - key_w / 2, y_center - key_h / 2),
+                (x - key_w / 2, y_display - key_h / 2),
                 key_w, key_h,
                 fill=False, edgecolor='#BDC3C7', linewidth=0.5
             )
             ax.add_patch(rect)
-            ax.text(x_center, y_center, key.upper(),
+            ax.text(x, y_display, key.upper(),
                     ha='center', va='center', fontsize=6, color='#7F8C8D')
 
 
@@ -80,20 +81,12 @@ def plot_gesture(
     # Draw line
     ax.plot(x, y, color=color, alpha=alpha * 0.7, linewidth=line_width, zorder=2)
 
-    # Draw dots evenly spaced in time (if time dimension exists)
+    # Draw dots evenly spaced along trajectory (arc-length sampling)
+    # Since gestures are arc-length resampled, uniform indices = uniform spatial spacing
     if show_dots:
-        if gesture.shape[1] >= 3:
-            # Use time dimension - resample to get evenly spaced dots in time
-            t = gesture[:, 2]
-            n_dots = 32  # Number of dots to show
-            t_uniform = np.linspace(t.min(), t.max(), n_dots)
-            x_dots = np.interp(t_uniform, t, x)
-            y_dots = np.interp(t_uniform, t, y)
-        else:
-            # No time - sample uniformly along trajectory
-            indices = np.linspace(0, len(gesture) - 1, 32, dtype=int)
-            x_dots, y_dots = x[indices], y[indices]
-
+        n_dots = 32  # Number of dots to show
+        indices = np.linspace(0, len(gesture) - 1, n_dots, dtype=int)
+        x_dots, y_dots = x[indices], y[indices]
         ax.scatter(x_dots, y_dots, c=color, s=dot_size, alpha=alpha, zorder=3)
 
 

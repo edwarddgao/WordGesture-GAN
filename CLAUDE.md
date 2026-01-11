@@ -69,9 +69,10 @@ python modal_train.py --eval-only --checkpoint-epoch 100
 - L2 Wasserstein distance (x,y)
 - DTW Wasserstein distance (x,y)
 - Jerk (gesture smoothness)
-- Velocity correlation
-- Acceleration correlation
-- Duration RMSE
+- Velocity correlation (time-aware, d/dt)
+- Acceleration correlation (time-aware, d²/dt²)
+- Speed profile correlation
+- Time delta correlation
 - FID score (autoencoder-based)
 - Precision/Recall (k=3 nearest neighbors)
 
@@ -97,40 +98,50 @@ python modal_train.py --eval-only --checkpoint-epoch 100
 
 **Configuration: λ_rec=4.0, λ_kld=0.02, gen_hidden_dim=48**
 
-| Metric | Our Result | Paper | Notes |
-|--------|-----------|-------|-------|
-| L2 Wasserstein (x,y) | **2.99** | 4.409 | **32% better** |
-| DTW Wasserstein (x,y) | **1.63** | 2.146 | **24% better** |
-| FID | **0.020** | 0.270 | **93% better** |
-| Precision (k=3) | **0.950** | 0.973 | Near paper |
-| Recall (k=3) | **0.715** | 0.258 | **177% better** |
-| Velocity Corr | **0.614** | 0.40 | **54% better** |
-| Acceleration Corr | **0.389** | 0.26 | **50% better** |
-| Duration RMSE | **31ms** | 1180ms | **97% better** |
+| Metric | GAN | Min Jerk | Paper GAN | Notes |
+|--------|-----|----------|-----------|-------|
+| L2 Wasserstein (x,y) | **2.81** | 2.76 | 4.409 | **36% better** |
+| DTW Wasserstein (x,y) | **1.46** | 1.36 | 2.146 | **32% better** |
+| FID | **0.024** | 0.026 | 0.270 | **91% better** |
+| Precision (k=3) | **1.000** | 1.000 | 0.973 | Matches paper |
+| Recall (k=3) | **0.525** | 0.525 | 0.258 | **104% better** |
+| Velocity Corr | 0.177 | **0.716** | 0.40 | Min jerk better |
+| Acceleration Corr | 0.003 | **0.162** | 0.26 | Min jerk better |
+| Speed Profile Corr | 0.094 | **0.313** | -- | Min jerk better |
+| Time Delta Corr | 0.190 | **0.250** | -- | Min jerk better |
 
-**All metrics match or exceed the paper.** Our model achieves high precision (0.950) with 2.8x better recall (diversity) and significantly improved motion dynamics.
+**Spatial metrics (L2, DTW, FID, Precision/Recall) are excellent.** However, the GAN underperforms on temporal dynamics compared to minimum jerk baseline. The model learns spatial shape well but not when to speed up/slow down.
 
-### Key Finding: Savitzky-Golay Window Size
+### Time-Aware Dynamics Metrics
 
-The acceleration correlation metric is highly sensitive to the Savitzky-Golay filter window size:
+Velocity and acceleration correlations now use proper temporal derivatives:
+- `velocity = d(position) / d(time)` instead of `d(position) / d(index)`
+- This correctly measures whether the model learns human-like speed patterns
 
-| SG Window | Accel Corr | Notes |
-|-----------|------------|-------|
-| 5 | 0.115 | Original (too small) |
-| 9 | 0.134 | +17% |
-| 11 | 0.168 | +46% |
-| 15 | 0.217 | +89% |
-| **21** | **0.303** | **+163%, exceeds paper** |
-
-The paper likely used a larger window (15-21) for computing the acceleration correlation metric. This affects jerk computation too - larger windows smooth more aggressively.
+The minimum jerk baseline performs better on dynamics because it explicitly models the physics of human motor control (minimizing jerk produces natural velocity profiles).
 
 ### Precision/Recall k Parameter
 
-The paper uses k=3 for k-NN manifold estimation. Our implementation now defaults to k=3 to match.
+The paper uses k=3 for k-NN manifold estimation. Our implementation defaults to k=3 to match.
 
-| k | Precision | Recall |
-|---|-----------|--------|
-| 3 | 0.910 | 0.635 |
-| 4 | 0.965 | 0.775 |
+### Minimum Jerk Model (Quinn & Zhai 2018)
 
-Higher k inflates both metrics. Our higher recall (vs paper's 0.258) is a real improvement in diversity.
+The minimum jerk baseline follows the paper's approach of learning distributions from data:
+
+1. **Key Center Offsets**: Distribution of how far users deviate from key centers (x, y independently)
+2. **Midpoint Angles**: Distribution of perpendicular deviation for midpoints between consecutive keys
+
+The `MinimumJerkModel` class in `src/keyboard.py`:
+- `fit(gestures_by_word)`: Learns distributions from training data
+- `generate_trajectory(word)`: Generates trajectories using learned distributions
+
+```python
+from src.keyboard import QWERTYKeyboard, MinimumJerkModel
+
+keyboard = QWERTYKeyboard()
+model = MinimumJerkModel(keyboard)
+model.fit(training_gestures_by_word)  # Learn from data
+trajectory = model.generate_trajectory("hello", num_points=128)
+```
+
+Run evaluation with: `python eval_min_jerk.py`

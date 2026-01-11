@@ -148,9 +148,10 @@ wandb.summary['eval/precision'] = results['precision']
 wandb.summary['eval/recall'] = results['recall']
 wandb.summary['eval/velocity_corr'] = results['velocity_corr']
 wandb.summary['eval/acceleration_corr'] = results['acceleration_corr']
+wandb.summary['eval/speed_profile_corr'] = results['speed_profile_corr']
+wandb.summary['eval/time_delta_corr'] = results['time_delta_corr']
 wandb.summary['eval/jerk_fake'] = results['jerk_fake']
 wandb.summary['eval/jerk_real'] = results['jerk_real']
-wandb.summary['eval/duration_rmse_ms'] = results['duration_rmse_ms']
 wandb.summary['eval/ae_reconstruction_loss'] = results['ae_reconstruction_loss']
 wandb.summary['eval/ae_test_loss'] = results['ae_test_loss']
 wandb.summary['eval/epoch'] = epoch
@@ -177,10 +178,10 @@ log(f'{"L2 Wasserstein (x,y)":<30} {results["l2_wasserstein"]:>15.3f} {"4.409":>
 log(f'{"DTW Wasserstein (x,y)":<30} {results["dtw_wasserstein"]:>15.3f} {"2.146":>15} {"lower=better":>12}')
 log(f'{"Jerk (fake)":<30} {results["jerk_fake"]:>15.5f} {"0.0058":>15} {"~real":>12}')
 log(f'{"Jerk (real)":<30} {results["jerk_real"]:>15.5f} {"0.0066":>15} {"reference":>12}')
-log(f'{"Velocity Correlation":<30} {results["velocity_corr"]:>15.3f} {"0.40":>15} {"higher=better":>12}')
-log(f'{"Acceleration Correlation":<30} {results["acceleration_corr"]:>15.3f} {"0.26":>15} {"higher=better":>12}')
-log(f'{"Accel Corr (magnitude)":<30} {results.get("acceleration_corr_magnitude", 0):>15.3f} {"--":>15} {"test metric":>12}')
-log(f'{"Duration RMSE (ms)":<30} {results["duration_rmse_ms"]:>15.1f} {"1180.3":>15} {"lower=better":>12}')
+log(f'{"Velocity Corr":<30} {results["velocity_corr"]:>15.3f} {"0.40":>15} {"higher=better":>12}')
+log(f'{"Acceleration Corr":<30} {results["acceleration_corr"]:>15.3f} {"0.26":>15} {"higher=better":>12}')
+log(f'{"Speed Profile Corr":<30} {results["speed_profile_corr"]:>15.3f} {"--":>15} {"higher=better":>12}')
+log(f'{"Time Delta Corr":<30} {results["time_delta_corr"]:>15.3f} {"--":>15} {"higher=better":>12}')
 log('-' * 75)
 log(f'{"AE Reconstruction (L1)":<30} {results["ae_reconstruction_loss"]:>15.4f} {"0.041":>15} {"lower=better":>12}')
 log(f'{"AE Test Loss (L1)":<30} {results["ae_test_loss"]:>15.4f} {"0.046":>15} {"lower=better":>12}')
@@ -294,7 +295,8 @@ if start_epoch >= num_epochs:
     sys.exit(0)
 
 # Initialize W&B
-run_name = f'linear_{training_config.lambda_rec}_{training_config.lambda_kld}_{model_config.gen_hidden_dim}'
+disc_type = 'temporal' if model_config.use_temporal_disc else 'mlp'
+run_name = f'{disc_type}_{training_config.lambda_rec}_{training_config.lambda_kld}_{model_config.gen_hidden_dim}'
 wandb.init(
     project=config.wandb_project,
     name=run_name,

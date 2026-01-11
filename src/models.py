@@ -232,6 +232,116 @@ class Discriminator(nn.Module):
         return features
 
 
+class TemporalDiscriminator(nn.Module):
+    """
+    Discriminator with Conv1D layers for temporal pattern detection.
+
+    The MLP discriminator flattens the sequence, destroying temporal structure.
+    This discriminator uses Conv1D to detect local velocity/acceleration patterns
+    that indicate fake gestures (e.g., wrong timing at corners, inconsistent speed).
+
+    Architecture:
+    - Conv1D layers extract local temporal patterns (velocity, acceleration)
+    - Adaptive pooling reduces to fixed-size representation
+    - MLP head for final discrimination
+    - Spectral normalization for WGAN stability
+    """
+
+    def __init__(self, config: ModelConfig = DEFAULT_MODEL_CONFIG):
+        super().__init__()
+        self.config = config
+
+        # Temporal feature extraction with Conv1D
+        # Input: (batch, 3, seq_length) - channels are (x, y, t)
+        # kernel_size=5 captures velocity patterns over 5 consecutive points
+        self.temporal_conv = nn.Sequential(
+            # Layer 1: Detect local patterns (velocity)
+            spectral_norm(nn.Conv1d(3, 64, kernel_size=5, padding=2)),
+            nn.LeakyReLU(0.2, inplace=True),
+            # Layer 2: Combine patterns (acceleration)
+            spectral_norm(nn.Conv1d(64, 64, kernel_size=5, padding=2)),
+            nn.LeakyReLU(0.2, inplace=True),
+            # Layer 3: Higher-level temporal features
+            spectral_norm(nn.Conv1d(64, 32, kernel_size=3, padding=1)),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+
+        # Adaptive pooling to fixed size (8 temporal bins)
+        self.pool = nn.AdaptiveAvgPool1d(8)
+
+        # MLP head for final discrimination
+        conv_features = 32 * 8  # 256 features after pooling
+        self.mlp = nn.Sequential(
+            spectral_norm(nn.Linear(conv_features, 128)),
+            nn.LeakyReLU(0.2, inplace=True),
+            spectral_norm(nn.Linear(128, 64)),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.output_layer = spectral_norm(nn.Linear(64, 1))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Discriminate gesture with temporal awareness.
+
+        Args:
+            x: Gesture tensor of shape (batch, seq_length, 3)
+
+        Returns:
+            Discriminator output of shape (batch, 1)
+        """
+        batch_size = x.size(0)
+
+        # Transpose for Conv1d: (batch, seq_length, 3) -> (batch, 3, seq_length)
+        x_t = x.permute(0, 2, 1)
+
+        # Extract temporal features
+        temporal_feat = self.temporal_conv(x_t)  # (batch, 32, seq_length)
+
+        # Pool to fixed size
+        pooled = self.pool(temporal_feat)  # (batch, 32, 8)
+
+        # Flatten and discriminate
+        flat = pooled.view(batch_size, -1)  # (batch, 256)
+        h = self.mlp(flat)  # (batch, 64)
+        return self.output_layer(h)
+
+    def get_all_features(self, x: torch.Tensor) -> list:
+        """
+        Get features from all hidden layers (for feature matching loss).
+
+        Args:
+            x: Gesture tensor of shape (batch, seq_length, 3)
+
+        Returns:
+            List of feature tensors from each hidden layer
+        """
+        batch_size = x.size(0)
+        features = []
+
+        # Transpose for Conv1d
+        x_t = x.permute(0, 2, 1)
+
+        # Conv layers
+        h = x_t
+        for layer in self.temporal_conv:
+            h = layer(h)
+            if isinstance(layer, nn.LeakyReLU):
+                features.append(h.view(batch_size, -1))
+
+        # Pool and flatten
+        pooled = self.pool(h)
+        flat = pooled.view(batch_size, -1)
+
+        # MLP layers
+        h = flat
+        for layer in self.mlp:
+            h = layer(h)
+            if isinstance(layer, nn.LeakyReLU):
+                features.append(h)
+
+        return features
+
+
 class AutoEncoder(nn.Module):
     """
     Auto-encoder for computing FID score.

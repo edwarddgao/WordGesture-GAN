@@ -10,7 +10,7 @@ import torch
 import torch.optim as optim
 from typing import Dict, Tuple
 
-from .models import Generator, Discriminator, VariationalEncoder
+from .models import Generator, Discriminator, TemporalDiscriminator, VariationalEncoder
 from .losses import (
     WassersteinLoss,
     FeatureMatchingLoss,
@@ -45,8 +45,10 @@ class WordGestureGANTrainer:
         self.encoder = VariationalEncoder(model_config).to(self.device)
 
         # Two discriminators for two cycles
-        self.discriminator_1 = Discriminator(model_config).to(self.device)
-        self.discriminator_2 = Discriminator(model_config).to(self.device)
+        # Use TemporalDiscriminator (Conv1D) for better temporal pattern detection
+        DiscClass = TemporalDiscriminator if model_config.use_temporal_disc else Discriminator
+        self.discriminator_1 = DiscClass(model_config).to(self.device)
+        self.discriminator_2 = DiscClass(model_config).to(self.device)
 
         # Loss functions
         self.feature_matching_loss = FeatureMatchingLoss()
