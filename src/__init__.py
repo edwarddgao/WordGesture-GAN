@@ -2,3 +2,8 @@
 # Implementation based on CHI'23 paper by Chu et al.
 
 __version__ = "1.0.0"
+
+# Re-export from subpackages for backward compatibility
+from .shared import *
+from .gan import *
+from .contrastive import *

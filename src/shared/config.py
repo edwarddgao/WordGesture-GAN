@@ -19,11 +19,15 @@ class ModelConfig:
     latent_dim: int = 32  # Dimension of Gaussian latent code
 
     # Generator (BiLSTM)
-    gen_hidden_dim: int = 32  # Hidden dimension for BiLSTM layers
+    gen_hidden_dim: int = 48  # Hidden dimension for BiLSTM layers (increased for precision)
     gen_num_layers: int = 4  # Number of BiLSTM layers
 
     # Discriminator (MLP)
     disc_hidden_dims: Tuple[int, ...] = (192, 96, 48, 24)
+    use_temporal_disc: bool = True  # Use Conv1D temporal discriminator instead of MLP
+
+    # Prototype input
+    prototype_has_time: bool = False  # If False, generator only sees (x,y) and must learn time
 
     # Encoder (MLP)
     enc_hidden_dims: Tuple[int, ...] = (192, 96, 48, 32)
@@ -36,15 +40,22 @@ class TrainingConfig:
     batch_size: int = 512
     learning_rate: float = 0.0002
     num_epochs: int = 200
+    num_workers: int = 8  # DataLoader workers (increase for faster data loading)
 
     # WGAN training: update discriminator n_critic times per generator update
     n_critic: int = 5
 
+    # LR scheduler
+    lr_scheduler_eta_min: float = 1e-5  # Minimum LR for cosine annealing
+
+    # Gradient clipping
+    grad_clip_norm: float = 1.0  # Max norm for gradient clipping (0 to disable)
+
     # Loss weights (from paper Section 4.2)
     lambda_feat: float = 1.0  # Feature matching loss weight
-    lambda_rec: float = 5.0  # Reconstruction loss weight
+    lambda_rec: float = 4.0  # Reconstruction loss weight (tuned between 3.0-5.0)
     lambda_lat: float = 0.5  # Latent encoding loss weight
-    lambda_kld: float = 0.05  # KL divergence loss weight
+    lambda_kld: float = 0.02  # KL divergence loss weight (tuned between 0.01-0.05)
 
     # Dataset
     max_samples_per_word: int = 5  # Cap samples per word to balance dataset
@@ -53,6 +64,37 @@ class TrainingConfig:
     # Checkpointing
     save_every: int = 10  # Save checkpoint every N epochs
     log_every: int = 100  # Log every N batches
+
+
+@dataclass
+class EvaluationConfig:
+    """Evaluation configuration."""
+    # Sample size
+    n_samples: int = 2000  # Number of samples for evaluation (increased for stable FID)
+
+    # Generation
+    truncation: float = 1.0  # No truncation for evaluation (full diversity)
+
+    # FID score (paper Section 4.3)
+    fid_autoencoder_epochs: int = 100  # Epochs to train autoencoder for FID
+    fid_autoencoder_lr: float = 0.001  # Learning rate for FID autoencoder
+    fid_hidden_dim: int = 32  # Paper: "32 dimensional space"
+
+    # Precision/Recall
+    precision_recall_k: int = 3  # k for k-NN manifold estimation (paper uses k=3)
+
+    # Signal processing
+    savgol_window: int = 21  # Savitzky-Golay filter window (tuned to match paper metrics)
+    savgol_poly_order: int = 3  # Savitzky-Golay polynomial order
+
+
+@dataclass
+class ModalConfig:
+    """Configuration for Modal remote execution."""
+    checkpoint_dir: str = '/data/checkpoints'
+    data_path: str = '/data/swipelogs.zip'
+    wandb_project: str = 'wordgesture-gan'
+    random_seed: int = 42
 
 
 @dataclass
@@ -74,4 +116,6 @@ class KeyboardConfig:
 # Default configurations
 DEFAULT_MODEL_CONFIG = ModelConfig()
 DEFAULT_TRAINING_CONFIG = TrainingConfig()
+DEFAULT_EVALUATION_CONFIG = EvaluationConfig()
+DEFAULT_MODAL_CONFIG = ModalConfig()
 DEFAULT_KEYBOARD_CONFIG = KeyboardConfig()

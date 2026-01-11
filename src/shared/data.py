@@ -2,18 +2,127 @@
 Data loading and preprocessing for word-gesture dataset.
 """
 
-import os
 import zipfile
-import json
+import hashlib
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from typing import Dict, List, Tuple, Optional
+from pathlib import Path
 from collections import defaultdict
 import random
 
 from .keyboard import QWERTYKeyboard
 from .config import TrainingConfig, ModelConfig, DEFAULT_TRAINING_CONFIG, DEFAULT_MODEL_CONFIG
+
+
+def infer_key_positions(
+    gestures_by_word: Dict[str, List[np.ndarray]],
+    min_samples: int = 10
+) -> Dict[str, Tuple[float, float]]:
+    """
+    Infer key positions from gesture start/end points.
+
+    For words starting/ending with each letter, collect the start/end positions
+    and compute the median as the inferred key position.
+
+    Args:
+        gestures_by_word: Dictionary of word -> list of gesture arrays
+        min_samples: Minimum samples needed to include a letter
+
+    Returns:
+        Dictionary mapping letter -> (x, y) position
+    """
+    start_positions = defaultdict(list)
+    end_positions = defaultdict(list)
+
+    for word, gestures in gestures_by_word.items():
+        if len(word) >= 2:
+            first_letter = word[0]
+            last_letter = word[-1]
+            for g in gestures:
+                start_positions[first_letter].append(g[0, :2])
+                end_positions[last_letter].append(g[-1, :2])
+
+    inferred = {}
+    for letter in 'qwertyuiopasdfghjklzxcvbnm':
+        positions = []
+        if letter in start_positions:
+            positions.extend(start_positions[letter])
+        if letter in end_positions:
+            positions.extend(end_positions[letter])
+
+        if len(positions) >= min_samples:
+            positions = np.array(positions)
+            inferred[letter] = (np.median(positions[:, 0]), np.median(positions[:, 1]))
+
+    return inferred
+
+
+def compute_canonical_transform(
+    inferred_positions: Dict[str, Tuple[float, float]],
+    keyboard: QWERTYKeyboard
+) -> Dict[str, float]:
+    """
+    Compute linear transformation from gesture space to canonical keyboard space.
+
+    Fits: canonical = scale * gesture + offset
+
+    Args:
+        inferred_positions: Key positions inferred from gesture data
+        keyboard: QWERTYKeyboard with canonical positions
+
+    Returns:
+        Dictionary with scale_x, offset_x, scale_y, offset_y
+    """
+    gesture_x, gesture_y = [], []
+    canonical_x, canonical_y = [], []
+
+    for letter, (gx, gy) in inferred_positions.items():
+        cx, cy = keyboard.get_key_center(letter)
+        gesture_x.append(gx)
+        gesture_y.append(gy)
+        canonical_x.append(cx)
+        canonical_y.append(cy)
+
+    gesture_x = np.array(gesture_x)
+    gesture_y = np.array(gesture_y)
+    canonical_x = np.array(canonical_x)
+    canonical_y = np.array(canonical_y)
+
+    # Linear regression: canonical = scale * gesture + offset
+    A_x = np.vstack([gesture_x, np.ones(len(gesture_x))]).T
+    scale_x, offset_x = np.linalg.lstsq(A_x, canonical_x, rcond=None)[0]
+
+    A_y = np.vstack([gesture_y, np.ones(len(gesture_y))]).T
+    scale_y, offset_y = np.linalg.lstsq(A_y, canonical_y, rcond=None)[0]
+
+    return {
+        'scale_x': scale_x,
+        'offset_x': offset_x,
+        'scale_y': scale_y,
+        'offset_y': offset_y,
+    }
+
+
+def apply_canonical_transform(
+    gesture: np.ndarray,
+    transform: Dict[str, float]
+) -> np.ndarray:
+    """
+    Transform gesture coordinates from dataset space to canonical keyboard space.
+
+    Args:
+        gesture: Array of shape (seq_length, 3) with (x, y, t)
+        transform: Dictionary with scale_x, offset_x, scale_y, offset_y
+
+    Returns:
+        Transformed gesture array
+    """
+    result = gesture.copy()
+    result[:, 0] = transform['scale_x'] * gesture[:, 0] + transform['offset_x']
+    result[:, 1] = transform['scale_y'] * gesture[:, 1] + transform['offset_y']
+    return result
 
 
 class GestureDataset(Dataset):
@@ -158,9 +267,16 @@ def normalize_gesture(
 
     points = np.array(points, dtype=np.float32)
 
-    # Convert timestamps to cumulative time from start (in seconds)
+    # Convert timestamps to cumulative time from start, normalized to [0, 1]
+    # This matches the prototype format (linspace 0 to 1) and allows the
+    # generator to learn timing within its [-1, 1] output range
     start_time = points[0, 2]
-    points[:, 2] = (points[:, 2] - start_time) / 1000.0  # Convert to seconds
+    end_time = points[-1, 2]
+    duration_ms = end_time - start_time
+    if duration_ms > 0:
+        points[:, 2] = (points[:, 2] - start_time) / duration_ms  # Normalize to [0, 1]
+    else:
+        points[:, 2] = np.linspace(0, 1, len(points))
 
     # Resample to seq_length points
     if len(points) == seq_length:
@@ -207,15 +323,30 @@ def normalize_gesture(
     return resampled
 
 
+def _get_cache_path(zip_path: str, model_config: ModelConfig, training_config: TrainingConfig) -> Path:
+    """Get cache file path based on config hash."""
+    config_str = f"{model_config.seq_length}_{training_config.max_samples_per_word}"
+    config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
+    zip_name = Path(zip_path).stem
+    return Path(zip_path).parent / f".cache_{zip_name}_{config_hash}.pt"
+
+
 def load_dataset_from_zip(
     zip_path: str,
     keyboard: QWERTYKeyboard,
     model_config: ModelConfig = DEFAULT_MODEL_CONFIG,
     training_config: TrainingConfig = DEFAULT_TRAINING_CONFIG,
-    max_files: Optional[int] = None
+    max_files: Optional[int] = None,
+    use_cache: bool = True,
 ) -> Tuple[Dict[str, List[np.ndarray]], Dict[str, np.ndarray]]:
     """
     Load gesture dataset from zip file.
+
+    Gestures are automatically normalized to canonical keyboard space by:
+    1. Loading gestures in their original coordinate space
+    2. Inferring key positions from gesture start/end points
+    3. Computing a linear transformation to canonical space
+    4. Applying the transformation to all gestures
 
     Args:
         zip_path: Path to swipelogs.zip
@@ -223,10 +354,19 @@ def load_dataset_from_zip(
         model_config: Model configuration
         training_config: Training configuration
         max_files: Maximum number of log files to process (for debugging)
+        use_cache: Whether to use cached preprocessed data (default True)
 
     Returns:
         Tuple of (gestures_by_word, prototypes_by_word)
     """
+    # Try to load from cache first
+    if use_cache and max_files is None:
+        cache_path = _get_cache_path(zip_path, model_config, training_config)
+        if cache_path.exists():
+            print(f"Loading preprocessed data from cache: {cache_path}")
+            cached = torch.load(cache_path, weights_only=False)
+            return cached['gestures_by_word'], cached['prototypes_by_word']
+
     gestures_by_word = defaultdict(list)
     processed_files = 0
 
@@ -261,6 +401,19 @@ def load_dataset_from_zip(
     print(f"Processed {processed_files} log files")
     print(f"Found {len(gestures_by_word)} unique words")
 
+    # Compute transformation from gesture space to canonical keyboard space
+    inferred_positions = infer_key_positions(gestures_by_word)
+    transform = compute_canonical_transform(inferred_positions, keyboard)
+    print(f"Computed canonical transform: scale=({transform['scale_x']:.4f}, {transform['scale_y']:.4f}), "
+          f"offset=({transform['offset_x']:.4f}, {transform['offset_y']:.4f})")
+
+    # Apply transformation to all gestures and clip to valid range
+    for word in gestures_by_word:
+        gestures_by_word[word] = [
+            np.clip(apply_canonical_transform(g, transform), [-1, -1, 0], [1, 1, 1])
+            for g in gestures_by_word[word]
+        ]
+
     # Cap samples per word to balance dataset
     max_samples = training_config.max_samples_per_word
     for word in gestures_by_word:
@@ -269,14 +422,23 @@ def load_dataset_from_zip(
                 gestures_by_word[word], max_samples
             )
 
-    # Generate prototypes for each word
+    # Generate prototypes for each word (already in canonical space)
     prototypes_by_word = {}
     for word in gestures_by_word:
-        prototypes_by_word[word] = keyboard.get_word_prototype(
-            word, model_config.seq_length
-        )
+        prototypes_by_word[word] = keyboard.get_word_prototype(word, model_config.seq_length)
 
-    return dict(gestures_by_word), prototypes_by_word
+    gestures_dict = dict(gestures_by_word)
+
+    # Save to cache for faster subsequent loads
+    if use_cache and max_files is None:
+        cache_path = _get_cache_path(zip_path, model_config, training_config)
+        print(f"Saving preprocessed data to cache: {cache_path}")
+        torch.save({
+            'gestures_by_word': gestures_dict,
+            'prototypes_by_word': prototypes_by_word,
+        }, cache_path)
+
+    return gestures_dict, prototypes_by_word
 
 
 def create_train_test_split(
