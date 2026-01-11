@@ -5,10 +5,11 @@ Contrastive Gesture Encoder Training on Modal
 Trains embeddings where same-word gestures are close, different-word gestures are far.
 
 Usage:
-    python train_contrastive.py                    # Train 100 epochs
+    python train_contrastive.py                    # Train 100 epochs (T4 default)
     python train_contrastive.py --epochs 50        # Train 50 epochs
     python train_contrastive.py --no-resume        # Start fresh
     python train_contrastive.py --augment-min-jerk # Train with min jerk augmentation
+    python train_contrastive.py --gpu L40S         # Use faster GPU (higher cost)
 """
 
 import os
@@ -176,7 +177,8 @@ async def run_train_sandbox(
     resume: bool = True,
     augment_min_jerk: bool = False,
     min_jerk_noise: float = 0.02,
-    min_jerk_augmentations: int = 2
+    min_jerk_augmentations: int = 2,
+    gpu: str = 'T4'
 ):
     """Run training in a Sandbox with real-time stdout streaming."""
     sb = modal.Sandbox.create(
@@ -184,7 +186,7 @@ async def run_train_sandbox(
         str(num_epochs), str(int(resume)), str(int(augment_min_jerk)), str(min_jerk_noise), str(min_jerk_augmentations),
         app=app,
         image=image,
-        gpu='T4',
+        gpu=gpu,
         volumes={'/data': volume},
         timeout=7200,
     )
@@ -209,17 +211,21 @@ async def main():
                         help='Std dev of Gaussian noise on key positions for min jerk (default: 0.02)')
     parser.add_argument('--min-jerk-augmentations', type=int, default=2,
                         help='Number of min jerk samples per word (default: 2)')
+    parser.add_argument('--gpu', type=str, default='T4',
+                        choices=['T4', 'L4', 'A10G', 'L40S', 'A100'],
+                        help='GPU type (default: T4, most cost-effective for contrastive)')
     args = parser.parse_args()
 
     async with app.run():
         aug_str = f" with min jerk augmentation ({args.min_jerk_augmentations}x)" if args.augment_min_jerk else ""
-        print(f"Training for {args.epochs} epochs (resume={not args.no_resume}){aug_str}...")
+        print(f"Training for {args.epochs} epochs on {args.gpu} (resume={not args.no_resume}){aug_str}...")
         return_code = await run_train_sandbox(
             args.epochs,
             resume=not args.no_resume,
             augment_min_jerk=args.augment_min_jerk,
             min_jerk_noise=args.min_jerk_noise,
-            min_jerk_augmentations=args.min_jerk_augmentations
+            min_jerk_augmentations=args.min_jerk_augmentations,
+            gpu=args.gpu
         )
 
     print(f"\nCompleted with return code: {return_code}")

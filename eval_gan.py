@@ -3,9 +3,9 @@
 Unified Evaluation for WordGesture-GAN and Minimum Jerk Baseline
 
 Usage:
-    python eval.py --model gan              # Evaluate GAN (default)
-    python eval.py --model min-jerk         # Evaluate minimum jerk baseline
-    python eval.py --model both             # Evaluate both and compare
+    python eval.py --model both             # Evaluate both and compare (default)
+    python eval.py --model gan              # Evaluate GAN only
+    python eval.py --model min-jerk         # Evaluate minimum jerk baseline only
     python eval.py --model gan --wandb      # Log GAN results to W&B
 """
 
@@ -320,8 +320,8 @@ async def run_eval_sandbox(
 async def main():
     import argparse
     parser = argparse.ArgumentParser(description='Unified evaluation for WordGesture-GAN and Minimum Jerk')
-    parser.add_argument('--model', type=str, default='gan', choices=['gan', 'min-jerk', 'both'],
-                        help='Model to evaluate (default: gan)')
+    parser.add_argument('--model', type=str, default='both', choices=['gan', 'min-jerk', 'both'],
+                        help='Model to evaluate (default: both)')
     parser.add_argument('--n-samples', type=int, default=200, help='Number of samples for evaluation')
     parser.add_argument('--truncation', type=float, default=1.0, help='Truncation for latent sampling (GAN only)')
     parser.add_argument('--savgol-window', type=int, default=21, help='Savitzky-Golay filter window size')
