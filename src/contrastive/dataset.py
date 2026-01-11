@@ -12,8 +12,8 @@ from typing import Dict, List, Tuple, Iterator, Optional
 from collections import defaultdict
 import random
 
-from .contrastive_model import ContrastiveConfig, DEFAULT_CONTRASTIVE_CONFIG
-from .keyboard import QWERTYKeyboard
+from .model import ContrastiveConfig, DEFAULT_CONTRASTIVE_CONFIG
+from src.shared.keyboard import QWERTYKeyboard
 
 
 def augment_with_minimum_jerk(

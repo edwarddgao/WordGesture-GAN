@@ -14,7 +14,7 @@ from typing import Dict, Tuple, Optional
 import numpy as np
 from collections import defaultdict
 
-from .contrastive_model import (
+from .model import (
     ContrastiveEncoder,
     SupervisedContrastiveLoss,
     ContrastiveConfig,

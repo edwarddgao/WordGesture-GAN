@@ -12,7 +12,7 @@ import torch.nn as nn
 from torch.nn.utils import spectral_norm
 from typing import Tuple
 
-from .config import ModelConfig, DEFAULT_MODEL_CONFIG
+from src.shared.config import ModelConfig, DEFAULT_MODEL_CONFIG
 
 
 class VariationalEncoder(nn.Module):
@@ -91,19 +91,24 @@ class Generator(nn.Module):
     Generator network using Bidirectional LSTM.
 
     Architecture (from paper Figure 3):
-    - Input: Word prototype (128x3) concatenated with repeated latent code (128x32)
+    - Input: Word prototype concatenated with repeated latent code
     - 4 BiLSTM layers with hidden dim 32
     - Linear output layer with Tanh activation
 
-    The generator takes a word prototype and latent code to produce a gesture.
+    When prototype_has_time=False, the generator only receives (x,y) spatial
+    coordinates and must learn to predict time values from spatial context.
+    This forces the model to learn the curvature → velocity relationship.
     """
 
     def __init__(self, config: ModelConfig = DEFAULT_MODEL_CONFIG):
         super().__init__()
         self.config = config
 
-        # Input: prototype (3) + latent code (latent_dim)
-        input_dim = config.input_dim + config.latent_dim  # 3 + 32 = 35
+        # Input dimension depends on whether prototype includes time
+        # If prototype_has_time=False, input is (x,y) + latent = 2 + 32 = 34
+        # If prototype_has_time=True, input is (x,y,t) + latent = 3 + 32 = 35
+        proto_dim = config.input_dim if config.prototype_has_time else 2
+        input_dim = proto_dim + config.latent_dim
 
         # BiLSTM layers
         self.lstm = nn.LSTM(
@@ -114,7 +119,7 @@ class Generator(nn.Module):
             bidirectional=True
         )
 
-        # Output layer: BiLSTM hidden_dim * 2 (bidirectional) -> 3
+        # Output layer: BiLSTM hidden_dim * 2 (bidirectional) -> 3 (x, y, t)
         self.output_layer = nn.Linear(config.gen_hidden_dim * 2, config.input_dim)
 
     def forward(
@@ -138,17 +143,23 @@ class Generator(nn.Module):
         """
         batch_size, seq_length = prototype.shape[:2]
 
-        # Repeat latent code along sequence length: (batch, latent_dim) -> (batch, seq_length, latent_dim)
+        # Extract prototype features based on config
+        if self.config.prototype_has_time:
+            proto_input = prototype  # (batch, seq_length, 3)
+        else:
+            # Only use spatial (x, y) - force generator to learn time
+            proto_input = prototype[:, :, :2]  # (batch, seq_length, 2)
+
+        # Repeat latent code along sequence length
         z_repeated = z.unsqueeze(1).repeat(1, seq_length, 1)
 
-        # Concatenate prototype and latent code: (batch, seq_length, 3 + latent_dim)
-        x = torch.cat([prototype, z_repeated], dim=-1)
+        # Concatenate prototype and latent code
+        x = torch.cat([proto_input, z_repeated], dim=-1)
 
         # Pass through BiLSTM
         lstm_out, _ = self.lstm(x)
 
         # Direct output (paper architecture - no residual connection)
-        # This allows learning full acceleration dynamics
         output = torch.tanh(self.output_layer(lstm_out))
 
         return output

@@ -3,23 +3,26 @@
 Evaluate and demo contrastive gesture encoder.
 
 Usage:
-    python eval_contrastive.py --checkpoint path/to/checkpoint.pt
-    python eval_contrastive.py --checkpoint path/to/checkpoint.pt --query "hello"
-    python eval_contrastive.py --checkpoint path/to/checkpoint.pt --tsne
+    python eval_contrastive.py --checkpoint path/to/checkpoint.pt              # recall@k, mAP
+    python eval_contrastive.py --checkpoint path/to/checkpoint.pt --centroids  # centroid comparison
+    python eval_contrastive.py --checkpoint path/to/checkpoint.pt --tsne       # t-SNE visualization
+    python eval_contrastive.py --checkpoint path/to/checkpoint.pt --query hello # similarity search
 """
 
 import argparse
+import random
 import torch
+import torch.nn.functional as F
 import numpy as np
 from pathlib import Path
 from collections import Counter
 
-from src.config import ModelConfig, TrainingConfig
-from src.keyboard import QWERTYKeyboard
-from src.data import load_dataset_from_zip
-from src.contrastive_model import ContrastiveConfig, ContrastiveEncoder
-from src.contrastive_dataset import create_contrastive_datasets, create_contrastive_data_loader
-from src.contrastive_trainer import ContrastiveTrainer
+from src.shared.config import ModelConfig, TrainingConfig
+from src.shared.keyboard import QWERTYKeyboard, MinimumJerkModel
+from src.shared.data import load_dataset_from_zip
+from src.contrastive.model import ContrastiveConfig, ContrastiveEncoder
+from src.contrastive.dataset import create_contrastive_datasets, create_contrastive_data_loader
+from src.contrastive.trainer import ContrastiveTrainer
 
 
 def log(msg):
@@ -178,12 +181,123 @@ def create_tsne_plot(
     plt.close(fig)
 
 
+def evaluate_centroids(
+    encoder: ContrastiveEncoder,
+    gestures_by_word: dict,
+    keyboard: QWERTYKeyboard,
+    device: str,
+    sample_counts: tuple = (5, 10, 20, 50)
+):
+    """Compare real centroids vs min jerk centroids.
+
+    Tests how well synthetic (min jerk) centroids can substitute for real gesture centroids.
+    """
+    encoder.eval()
+
+    # Split into train/test (80/20, same as training)
+    min_gestures = 2
+    eligible_words = [w for w, g in gestures_by_word.items() if len(g) >= min_gestures]
+    random.seed(42)
+    random.shuffle(eligible_words)
+
+    split_idx = int(len(eligible_words) * 0.8)
+    train_words = set(eligible_words[:split_idx])
+    test_words = eligible_words[split_idx:]
+    log(f'  Train words: {len(train_words)}, Test words: {len(test_words)}')
+
+    # Fit MinimumJerkModel on training data
+    log('Fitting MinimumJerkModel on training data...')
+    train_gestures_by_word = {w: gestures_by_word[w] for w in train_words}
+    min_jerk_model = MinimumJerkModel(keyboard)
+    min_jerk_model.fit(train_gestures_by_word, verbose=True)
+
+    # Embed all test gestures
+    log('Embedding test gestures...')
+    query_embeddings = []
+    query_words = []
+
+    with torch.no_grad():
+        for word in test_words:
+            for g in gestures_by_word[word]:
+                tensor = torch.FloatTensor(g).unsqueeze(0).to(device)
+                emb = encoder(tensor).squeeze(0)
+                query_embeddings.append(emb)
+                query_words.append(word)
+
+    query_embeddings = torch.stack(query_embeddings)
+    log(f'  Embedded {len(query_embeddings)} gestures')
+
+    # Compute REAL centroids
+    log('Computing real centroids...')
+    real_centroids = {}
+    with torch.no_grad():
+        for word in test_words:
+            embeds = []
+            for g in gestures_by_word[word]:
+                tensor = torch.FloatTensor(g).unsqueeze(0).to(device)
+                emb = encoder(tensor).squeeze(0)
+                embeds.append(emb)
+            centroid = torch.stack(embeds).mean(dim=0)
+            real_centroids[word] = F.normalize(centroid, p=2, dim=0)
+
+    word_list = list(test_words)
+    real_matrix = torch.stack([real_centroids[w] for w in word_list])
+
+    # Compute real recall@1
+    log('Computing metrics...')
+    sim_real = query_embeddings @ real_matrix.T
+    _, topk_real = sim_real.topk(1, dim=1)
+    correct_real = sum(1 for i, word in enumerate(query_words)
+                       if word_list.index(word) in topk_real[i].cpu().numpy())
+    real_recall1 = correct_real / len(query_words)
+
+    # Test min jerk centroids with different sample counts
+    results = {'real_recall@1': real_recall1}
+
+    log('')
+    log('=' * 60)
+    log('Centroid Quality: Real vs Min Jerk')
+    log('=' * 60)
+    log(f'  Real centroids recall@1: {real_recall1:.4f}')
+    log('')
+    log('  Samples    recall@1    Gap vs Real')
+
+    for num_samples in sample_counts:
+        minjerk_centroids = {}
+        with torch.no_grad():
+            for word in test_words:
+                trajs = []
+                for _ in range(num_samples):
+                    traj = min_jerk_model.generate_trajectory(
+                        word, num_points=128, include_midpoints=True
+                    )
+                    trajs.append(torch.FloatTensor(traj).unsqueeze(0).to(device))
+                trajs = torch.cat(trajs, dim=0)
+                embeddings = encoder(trajs)
+                centroid = embeddings.mean(dim=0)
+                minjerk_centroids[word] = F.normalize(centroid, p=2, dim=0)
+
+        minjerk_matrix = torch.stack([minjerk_centroids[w] for w in word_list])
+        sim_minjerk = query_embeddings @ minjerk_matrix.T
+        _, topk_minjerk = sim_minjerk.topk(1, dim=1)
+        correct_mj = sum(1 for i, word in enumerate(query_words)
+                         if word_list.index(word) in topk_minjerk[i].cpu().numpy())
+        mj_recall1 = correct_mj / len(query_words)
+        gap = real_recall1 - mj_recall1
+        log(f'  {num_samples:3d}         {mj_recall1:.4f}      {gap:+.4f}')
+        results[f'minjerk_{num_samples}_recall@1'] = mj_recall1
+
+    log('=' * 60)
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description='Evaluate contrastive gesture encoder')
     parser.add_argument('--checkpoint', type=str, required=True, help='Path to model checkpoint')
     parser.add_argument('--data', type=str, default='dataset/swipelogs.zip', help='Path to dataset')
     parser.add_argument('--query', type=str, help='Word to query (demo similarity search)')
     parser.add_argument('--tsne', action='store_true', help='Generate t-SNE visualization')
+    parser.add_argument('--centroids', action='store_true', help='Evaluate centroid quality (real vs min jerk)')
     parser.add_argument('--output', type=str, default='contrastive_tsne.png', help='Output path for t-SNE')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
     args = parser.parse_args()
@@ -248,6 +362,11 @@ def main():
         log('\nGenerating t-SNE visualization...')
         embeddings_np = embeddings.numpy()
         create_tsne_plot(embeddings_np, words, args.output)
+
+    # Centroid comparison (real vs min jerk)
+    if args.centroids:
+        log('\nEvaluating centroid quality...')
+        evaluate_centroids(encoder, gestures_by_word, keyboard, device)
 
     log('\nDone.')
 

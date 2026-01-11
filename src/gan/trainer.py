@@ -18,7 +18,7 @@ from .losses import (
     LatentEncodingLoss,
     KLDivergenceLoss
 )
-from .config import ModelConfig, TrainingConfig, DEFAULT_MODEL_CONFIG, DEFAULT_TRAINING_CONFIG
+from src.shared.config import ModelConfig, TrainingConfig, DEFAULT_MODEL_CONFIG, DEFAULT_TRAINING_CONFIG
 
 
 class WordGestureGANTrainer:

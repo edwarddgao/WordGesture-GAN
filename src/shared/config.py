@@ -26,6 +26,9 @@ class ModelConfig:
     disc_hidden_dims: Tuple[int, ...] = (192, 96, 48, 24)
     use_temporal_disc: bool = True  # Use Conv1D temporal discriminator instead of MLP
 
+    # Prototype input
+    prototype_has_time: bool = False  # If False, generator only sees (x,y) and must learn time
+
     # Encoder (MLP)
     enc_hidden_dims: Tuple[int, ...] = (192, 96, 48, 32)
 
@@ -37,6 +40,7 @@ class TrainingConfig:
     batch_size: int = 512
     learning_rate: float = 0.0002
     num_epochs: int = 200
+    num_workers: int = 8  # DataLoader workers (increase for faster data loading)
 
     # WGAN training: update discriminator n_critic times per generator update
     n_critic: int = 5

@@ -3,10 +3,12 @@ Data loading and preprocessing for word-gesture dataset.
 """
 
 import zipfile
+import hashlib
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from typing import Dict, List, Tuple, Optional
+from pathlib import Path
 from collections import defaultdict
 import random
 
@@ -321,12 +323,21 @@ def normalize_gesture(
     return resampled
 
 
+def _get_cache_path(zip_path: str, model_config: ModelConfig, training_config: TrainingConfig) -> Path:
+    """Get cache file path based on config hash."""
+    config_str = f"{model_config.seq_length}_{training_config.max_samples_per_word}"
+    config_hash = hashlib.md5(config_str.encode()).hexdigest()[:8]
+    zip_name = Path(zip_path).stem
+    return Path(zip_path).parent / f".cache_{zip_name}_{config_hash}.pt"
+
+
 def load_dataset_from_zip(
     zip_path: str,
     keyboard: QWERTYKeyboard,
     model_config: ModelConfig = DEFAULT_MODEL_CONFIG,
     training_config: TrainingConfig = DEFAULT_TRAINING_CONFIG,
     max_files: Optional[int] = None,
+    use_cache: bool = True,
 ) -> Tuple[Dict[str, List[np.ndarray]], Dict[str, np.ndarray]]:
     """
     Load gesture dataset from zip file.
@@ -343,10 +354,19 @@ def load_dataset_from_zip(
         model_config: Model configuration
         training_config: Training configuration
         max_files: Maximum number of log files to process (for debugging)
+        use_cache: Whether to use cached preprocessed data (default True)
 
     Returns:
         Tuple of (gestures_by_word, prototypes_by_word)
     """
+    # Try to load from cache first
+    if use_cache and max_files is None:
+        cache_path = _get_cache_path(zip_path, model_config, training_config)
+        if cache_path.exists():
+            print(f"Loading preprocessed data from cache: {cache_path}")
+            cached = torch.load(cache_path, weights_only=False)
+            return cached['gestures_by_word'], cached['prototypes_by_word']
+
     gestures_by_word = defaultdict(list)
     processed_files = 0
 
@@ -407,7 +427,18 @@ def load_dataset_from_zip(
     for word in gestures_by_word:
         prototypes_by_word[word] = keyboard.get_word_prototype(word, model_config.seq_length)
 
-    return dict(gestures_by_word), prototypes_by_word
+    gestures_dict = dict(gestures_by_word)
+
+    # Save to cache for faster subsequent loads
+    if use_cache and max_files is None:
+        cache_path = _get_cache_path(zip_path, model_config, training_config)
+        print(f"Saving preprocessed data to cache: {cache_path}")
+        torch.save({
+            'gestures_by_word': gestures_dict,
+            'prototypes_by_word': prototypes_by_word,
+        }, cache_path)
+
+    return gestures_dict, prototypes_by_word
 
 
 def create_train_test_split(

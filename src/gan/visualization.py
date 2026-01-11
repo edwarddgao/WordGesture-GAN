@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from typing import List, Optional, Tuple
 
-from .config import KeyboardConfig, DEFAULT_KEYBOARD_CONFIG
-from .keyboard import QWERTYKeyboard
+from src.shared.config import KeyboardConfig, DEFAULT_KEYBOARD_CONFIG
+from src.shared.keyboard import QWERTYKeyboard
 
 
 # Paper colors
@@ -81,11 +81,12 @@ def plot_gesture(
     # Draw line
     ax.plot(x, y, color=color, alpha=alpha * 0.7, linewidth=line_width, zorder=2)
 
-    # Draw dots evenly spaced along trajectory (arc-length sampling)
-    # Since gestures are arc-length resampled, uniform indices = uniform spatial spacing
-    if show_dots:
+    # Draw dots evenly spaced in time (shows velocity: clustered = slow, sparse = fast)
+    if show_dots and gesture.shape[1] >= 3:
         n_dots = 32  # Number of dots to show
-        indices = np.linspace(0, len(gesture) - 1, n_dots, dtype=int)
+        times = gesture[:, 2]
+        time_samples = np.linspace(times.min(), times.max(), n_dots)
+        indices = np.searchsorted(times, time_samples).clip(0, len(gesture) - 1)
         x_dots, y_dots = x[indices], y[indices]
         ax.scatter(x_dots, y_dots, c=color, s=dot_size, alpha=alpha, zorder=3)
 

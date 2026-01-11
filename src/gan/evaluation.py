@@ -14,15 +14,25 @@ Also implements time-aware dynamics metrics that properly use the time channel:
 - Speed profile correlation (velocity magnitude over time)
 """
 
+import hashlib
 import numpy as np
 import torch
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 from scipy.spatial.distance import cdist
 from scipy.optimize import linear_sum_assignment
 from scipy.signal import savgol_filter
 
 from .models import AutoEncoder
-from .config import ModelConfig, EvaluationConfig, DEFAULT_MODEL_CONFIG, DEFAULT_EVALUATION_CONFIG
+from src.shared.config import ModelConfig, EvaluationConfig, DEFAULT_MODEL_CONFIG, DEFAULT_EVALUATION_CONFIG
+
+
+def _get_ae_cache_path(train_data: np.ndarray, eval_config: EvaluationConfig) -> Path:
+    """Get cache path for FID autoencoder based on training data hash."""
+    # Hash based on data shape and a sample of the data
+    data_sig = f"{train_data.shape}_{train_data[:10].tobytes()[:100].hex()}_{eval_config.fid_hidden_dim}"
+    cache_hash = hashlib.md5(data_sig.encode()).hexdigest()[:12]
+    return Path("/data/.cache_fid_ae_{}.pt".format(cache_hash))
 
 
 def scipy_matrix_sqrt(matrix: np.ndarray) -> np.ndarray:
@@ -290,65 +300,65 @@ def evaluate_all_metrics(
     train_gestures: Optional[np.ndarray] = None,
     model_config: ModelConfig = DEFAULT_MODEL_CONFIG,
     eval_config: EvaluationConfig = DEFAULT_EVALUATION_CONFIG,
-    device: str = 'cuda'
+    device: str = 'cuda',
+    skip_dtw: bool = False,
+    cached_real: Optional[Dict] = None,
 ) -> Dict[str, float]:
     """
     Run all evaluation metrics from the paper on flat gesture arrays.
-
-    This is a convenience wrapper that works with numpy arrays directly,
-    as used in modal_train.py.
 
     Args:
         real_gestures: Array of shape (n, seq_len, 3) with real gestures
         fake_gestures: Array of shape (n, seq_len, 3) with fake gestures
         train_gestures: Optional training gestures for FID autoencoder training.
-                       If None, uses real_gestures for training.
         model_config: Model configuration
         eval_config: Evaluation configuration
         device: Device for FID computation ('cuda' or 'cpu')
+        skip_dtw: Skip DTW Wasserstein (expensive O(n²) computation)
+        cached_real: Dict with precomputed real gesture data for reuse.
+                    Keys: real_flat_xy, real_dists, real_radii, autoencoder, real_features
 
     Returns:
-        Dictionary with all metrics:
-        - l2_wasserstein: L2 Wasserstein distance (x,y only)
-        - dtw_wasserstein: DTW Wasserstein distance (x,y only)
-        - jerk_real, jerk_fake: Mean jerk values
-        - velocity_corr: Time-aware velocity correlation (d/dt)
-        - acceleration_corr: Time-aware acceleration correlation (d²/dt²)
-        - speed_profile_corr: Speed magnitude correlation
-        - time_delta_corr: Time delta pattern correlation
-        - fid: FID score
-        - precision, recall: k-NN precision/recall
+        Dictionary with metrics and '_cached_real' for reuse in subsequent calls.
     """
     from torch.utils.data import TensorDataset, DataLoader as TorchDataLoader
 
     n = len(real_gestures)
     results = {}
 
+    # Use cached real data if provided, otherwise compute
+    if cached_real:
+        real_flat_xy = cached_real['real_flat_xy']
+    else:
+        real_flat_xy = real_gestures[:, :, :2].reshape(n, -1)
+
     # L2 Wasserstein (using cdist for speed)
-    real_flat_xy = real_gestures[:, :, :2].reshape(n, -1)
     fake_flat_xy = fake_gestures[:, :, :2].reshape(n, -1)
     dist_matrix = cdist(real_flat_xy, fake_flat_xy, metric='euclidean')
     row_ind, col_ind = linear_sum_assignment(dist_matrix)
     results['l2_wasserstein'] = dist_matrix[row_ind, col_ind].mean()
 
     # DTW Wasserstein (using fastdtw with parallel computation)
-    from fastdtw import fastdtw
-    from scipy.spatial.distance import euclidean
-    from joblib import Parallel, delayed
+    if skip_dtw:
+        results['dtw_wasserstein'] = -1.0  # Skipped
+    else:
+        from fastdtw import fastdtw
+        from scipy.spatial.distance import euclidean
+        from joblib import Parallel, delayed
 
-    def compute_dtw_row(i):
-        row = np.zeros(n)
-        for j in range(n):
-            distance, _ = fastdtw(real_gestures[i, :, :2], fake_gestures[j, :, :2], dist=euclidean)
-            row[j] = distance
-        return row
+        def compute_dtw_row(i):
+            row = np.zeros(n)
+            for j in range(n):
+                distance, _ = fastdtw(real_gestures[i, :, :2], fake_gestures[j, :, :2], dist=euclidean)
+                row[j] = distance
+            return row
 
-    dtw_rows = Parallel(n_jobs=-1, verbose=0)(delayed(compute_dtw_row)(i) for i in range(n))
-    dtw_dist = np.array(dtw_rows)
-    row_ind2, col_ind2 = linear_sum_assignment(dtw_dist)
-    dtw_raw = dtw_dist[row_ind2, col_ind2].mean()
-    # Normalize by sqrt(seq_length) to match paper scale
-    results['dtw_wasserstein'] = dtw_raw / np.sqrt(model_config.seq_length)
+        dtw_rows = Parallel(n_jobs=-1, verbose=0)(delayed(compute_dtw_row)(i) for i in range(n))
+        dtw_dist = np.array(dtw_rows)
+        row_ind2, col_ind2 = linear_sum_assignment(dtw_dist)
+        dtw_raw = dtw_dist[row_ind2, col_ind2].mean()
+        # Normalize by sqrt(seq_length) to match paper scale
+        results['dtw_wasserstein'] = dtw_raw / np.sqrt(model_config.seq_length)
 
     # Jerk (using Savitzky-Golay filter)
     def compute_gesture_jerk(g):
@@ -381,47 +391,70 @@ def evaluate_all_metrics(
     results['time_delta_corr'] = time_delta_correlation(real_gestures, fake_gestures)
 
     # FID Score (train autoencoder on training data)
-    # Paper Section 5.5: "trained an auto-encoder on the training dataset"
-    # Target: L1 reconstruction loss of ~0.041 (paper)
-    train_data = train_gestures if train_gestures is not None else real_gestures
-    train_tensor = torch.tensor(train_data, dtype=torch.float32)
-    ae_dataset = TensorDataset(train_tensor)
-    ae_loader = TorchDataLoader(ae_dataset, batch_size=512, shuffle=True)
+    # Use cached autoencoder and real_features if available
+    if cached_real and 'autoencoder' in cached_real:
+        autoencoder = cached_real['autoencoder']
+        real_features = cached_real['real_features']
+        final_loss = cached_real['ae_loss']
+    else:
+        train_data = train_gestures if train_gestures is not None else real_gestures
+        ae_cache_path = _get_ae_cache_path(train_data, eval_config)
 
-    # Custom training loop for FID
-    autoencoder = AutoEncoder(model_config, eval_config.fid_hidden_dim).to(device)
-    ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=eval_config.fid_autoencoder_lr)
-    ae_criterion = torch.nn.L1Loss()
+        autoencoder = AutoEncoder(model_config, eval_config.fid_hidden_dim).to(device)
+        ae_criterion = torch.nn.L1Loss()
 
-    autoencoder.train()
-    final_loss = 0.0
-    for epoch in range(eval_config.fid_autoencoder_epochs):
-        epoch_loss = 0.0
-        num_batches = 0
-        for (batch,) in ae_loader:
-            batch = batch.to(device)
-            ae_optimizer.zero_grad()
-            reconstructed = autoencoder(batch)
-            loss = ae_criterion(reconstructed, batch)
-            loss.backward()
-            ae_optimizer.step()
-            epoch_loss += loss.item()
-            num_batches += 1
-        final_loss = epoch_loss / num_batches
+        # Try to load cached autoencoder
+        if ae_cache_path.exists():
+            print(f"  Loading cached FID autoencoder from {ae_cache_path}")
+            cached_ae = torch.load(ae_cache_path, map_location=device, weights_only=True)
+            autoencoder.load_state_dict(cached_ae['state_dict'])
+            final_loss = cached_ae['final_loss']
+        else:
+            # Train autoencoder
+            print(f"  Training FID autoencoder for {eval_config.fid_autoencoder_epochs} epochs...")
+            train_tensor = torch.tensor(train_data, dtype=torch.float32)
+            ae_dataset = TensorDataset(train_tensor)
+            ae_loader = TorchDataLoader(ae_dataset, batch_size=512, shuffle=True)
+            ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=eval_config.fid_autoencoder_lr)
 
-    # Store reconstruction loss (paper target: 0.041)
+            autoencoder.train()
+            final_loss = 0.0
+            for epoch in range(eval_config.fid_autoencoder_epochs):
+                epoch_loss = 0.0
+                num_batches = 0
+                for (batch,) in ae_loader:
+                    batch = batch.to(device)
+                    ae_optimizer.zero_grad()
+                    reconstructed = autoencoder(batch)
+                    loss = ae_criterion(reconstructed, batch)
+                    loss.backward()
+                    ae_optimizer.step()
+                    epoch_loss += loss.item()
+                    num_batches += 1
+                final_loss = epoch_loss / num_batches
+
+            torch.save({
+                'state_dict': autoencoder.state_dict(),
+                'final_loss': final_loss,
+            }, ae_cache_path)
+            print(f"  Cached FID autoencoder to {ae_cache_path}")
+
+        # Compute real features
+        autoencoder.eval()
+        with torch.no_grad():
+            real_tensor = torch.tensor(real_gestures, dtype=torch.float32).to(device)
+            real_features = autoencoder.encode(real_tensor).cpu().numpy()
+
     results['ae_reconstruction_loss'] = final_loss
 
-    # Compute test reconstruction loss
+    # Compute test reconstruction loss and fake features
+    ae_criterion = torch.nn.L1Loss()
     autoencoder.eval()
     with torch.no_grad():
         real_tensor = torch.tensor(real_gestures, dtype=torch.float32).to(device)
         fake_tensor = torch.tensor(fake_gestures, dtype=torch.float32).to(device)
         real_reconstructed = autoencoder(real_tensor)
         results['ae_test_loss'] = ae_criterion(real_reconstructed, real_tensor).item()
-
-        # Extract features
-        real_features = autoencoder.encode(real_tensor).cpu().numpy()
         fake_features = autoencoder.encode(fake_tensor).cpu().numpy()
 
     # Compute FID
@@ -436,11 +469,15 @@ def evaluate_all_metrics(
 
     # Precision/Recall (k-NN based)
     k = eval_config.precision_recall_k
-    real_dists = cdist(real_flat_xy, real_flat_xy, metric='euclidean')
+    if cached_real and 'real_dists' in cached_real:
+        real_dists = cached_real['real_dists']
+        real_radii = cached_real['real_radii']
+    else:
+        real_dists = cdist(real_flat_xy, real_flat_xy, metric='euclidean')
+        real_radii = np.sort(real_dists, axis=1)[:, k]
+
     fake_dists = cdist(fake_flat_xy, fake_flat_xy, metric='euclidean')
     real_fake_dists = cdist(real_flat_xy, fake_flat_xy, metric='euclidean')
-
-    real_radii = np.sort(real_dists, axis=1)[:, k]
     fake_radii = np.sort(fake_dists, axis=1)[:, k]
 
     # Precision: fraction of fake samples within real manifold
@@ -449,5 +486,15 @@ def evaluate_all_metrics(
     rec = np.mean([np.any(real_fake_dists[i, :] <= fake_radii) for i in range(n)])
     results['precision'] = prec
     results['recall'] = rec
+
+    # Store cached data for reuse
+    results['_cached_real'] = {
+        'real_flat_xy': real_flat_xy,
+        'real_dists': real_dists,
+        'real_radii': real_radii,
+        'autoencoder': autoencoder,
+        'real_features': real_features,
+        'ae_loss': final_loss,
+    }
 
     return results
