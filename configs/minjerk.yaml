@@ -1,0 +1,5 @@
+fid:
+  latent_dim: 32
+  epochs: 50
+  batch_size: 512
+  lr: 0.001

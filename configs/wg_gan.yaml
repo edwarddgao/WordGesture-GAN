@@ -1,0 +1,22 @@
+data:
+  data_dir: data/processed
+  n_points: 128
+
+model:
+  latent_dim: 32
+  hidden_size: 32
+  num_layers: 5
+
+training:
+  batch_size: 512
+  lr: 0.0002
+  epochs: 50
+  n_critic: 5
+  checkpoint_dir: checkpoints
+  checkpoint_every: 10
+
+loss:
+  lambda_feat: 1.0
+  lambda_rec: 5.0
+  lambda_lat: 0.5
+  lambda_kld: 0.05

@@ -1,0 +1,1510 @@
+{
+  "table_of_contents": [
+    {
+      "title": "WordGesture-GAN: Modeling Word-Gesture Movement with\nGenerative Adversarial Network",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          64.546875,
+          82.76910400390625
+        ],
+        [
+          544.1405029296875,
+          82.76910400390625
+        ],
+        [
+          544.1405029296875,
+          119.9027099609375
+        ],
+        [
+          64.546875,
+          119.9027099609375
+        ]
+      ]
+    },
+    {
+      "title": "ABSTRACT",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          53.490234375,
+          335.1545715332031
+        ],
+        [
+          112.658203125,
+          335.1545715332031
+        ],
+        [
+          112.658203125,
+          346.06365966796875
+        ],
+        [
+          53.490234375,
+          346.06365966796875
+        ]
+      ]
+    },
+    {
+      "title": "CCS CONCEPTS",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          53.19140625,
+          568.08984375
+        ],
+        [
+          134.8198699951172,
+          568.08984375
+        ],
+        [
+          134.8198699951172,
+          579.8466644287109
+        ],
+        [
+          53.19140625,
+          579.8466644287109
+        ]
+      ]
+    },
+    {
+      "title": "KEYWORDS",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          317.9549865722656,
+          335.1545715332031
+        ],
+        [
+          382.201171875,
+          335.1545715332031
+        ],
+        [
+          382.201171875,
+          346.06365966796875
+        ],
+        [
+          317.9549865722656,
+          346.06365966796875
+        ]
+      ]
+    },
+    {
+      "title": "ACM Reference Format:",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          317.35546875,
+          375.1171875
+        ],
+        [
+          404.6536560058594,
+          375.1171875
+        ],
+        [
+          404.6536560058594,
+          384.22125244140625
+        ],
+        [
+          317.35546875,
+          384.22125244140625
+        ]
+      ]
+    },
+    {
+      "title": "1 INTRODUCTION",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          317.056640625,
+          455.26959228515625
+        ],
+        [
+          420.68597412109375,
+          455.26959228515625
+        ],
+        [
+          420.68597412109375,
+          466.1786804199219
+        ],
+        [
+          317.056640625,
+          466.1786804199219
+        ]
+      ]
+    },
+    {
+      "title": "2 RELATED WORK",
+      "heading_level": null,
+      "page_id": 2,
+      "polygon": [
+        [
+          52.59375,
+          217.28656005859375
+        ],
+        [
+          157.78125,
+          217.28656005859375
+        ],
+        [
+          157.78125,
+          228.1956787109375
+        ],
+        [
+          52.59375,
+          228.1956787109375
+        ]
+      ]
+    },
+    {
+      "title": "2.1 Word-Gesture Input",
+      "heading_level": null,
+      "page_id": 2,
+      "polygon": [
+        [
+          52.892578125,
+          232.97381591796875
+        ],
+        [
+          178.08535766601562,
+          232.97381591796875
+        ],
+        [
+          178.08535766601562,
+          243.8829345703125
+        ],
+        [
+          52.892578125,
+          243.8829345703125
+        ]
+      ]
+    },
+    {
+      "title": "2.2 Performance Models",
+      "heading_level": null,
+      "page_id": 2,
+      "polygon": [
+        [
+          53.7890625,
+          542.9405670166016
+        ],
+        [
+          181.6875,
+          542.9405670166016
+        ],
+        [
+          181.6875,
+          553.8496704101562
+        ],
+        [
+          53.7890625,
+          553.8496704101562
+        ]
+      ]
+    },
+    {
+      "title": "2.3 Production Models",
+      "heading_level": null,
+      "page_id": 2,
+      "polygon": [
+        [
+          317.056640625,
+          159.328125
+        ],
+        [
+          436.1550598144531,
+          159.328125
+        ],
+        [
+          436.1550598144531,
+          170.2877197265625
+        ],
+        [
+          317.056640625,
+          170.2877197265625
+        ]
+      ]
+    },
+    {
+      "title": "2.4 Generative Adversarial Networks",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          52.5,
+          180.75
+        ],
+        [
+          243.75,
+          180.75
+        ],
+        [
+          243.75,
+          190.5
+        ],
+        [
+          52.5,
+          190.5
+        ]
+      ]
+    },
+    {
+      "title": "3 ARCHITECTURE OF WordGesture-GAN",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          316.16015625,
+          154.5
+        ],
+        [
+          537.0,
+          154.5
+        ],
+        [
+          537.0,
+          164.25
+        ],
+        [
+          316.16015625,
+          164.25
+        ]
+      ]
+    },
+    {
+      "title": "3.1 Generator",
+      "heading_level": null,
+      "page_id": 3,
+      "polygon": [
+        [
+          319.1484375,
+          251.25
+        ],
+        [
+          393.2578125,
+          251.25
+        ],
+        [
+          393.2578125,
+          259.1015625
+        ],
+        [
+          319.1484375,
+          259.1015625
+        ]
+      ]
+    },
+    {
+      "title": "3.2 Discriminator",
+      "heading_level": null,
+      "page_id": 5,
+      "polygon": [
+        [
+          52.5,
+          400.5
+        ],
+        [
+          147.75,
+          400.5
+        ],
+        [
+          147.75,
+          409.53515625
+        ],
+        [
+          52.5,
+          409.53515625
+        ]
+      ]
+    },
+    {
+      "title": "3.3 Loss functions",
+      "heading_level": null,
+      "page_id": 5,
+      "polygon": [
+        [
+          52.5,
+          663.75
+        ],
+        [
+          150.75,
+          663.75
+        ],
+        [
+          150.75,
+          672.75
+        ],
+        [
+          52.5,
+          672.75
+        ]
+      ]
+    },
+    {
+      "title": "4 TRAINING WordGesture-GAN",
+      "heading_level": null,
+      "page_id": 6,
+      "polygon": [
+        [
+          51.99609375,
+          657.75
+        ],
+        [
+          222.75,
+          657.75
+        ],
+        [
+          222.75,
+          666.75
+        ],
+        [
+          51.99609375,
+          666.75
+        ]
+      ]
+    },
+    {
+      "title": "4.1 Dataset",
+      "heading_level": null,
+      "page_id": 6,
+      "polygon": [
+        [
+          52.5,
+          673.27734375
+        ],
+        [
+          116.25,
+          673.27734375
+        ],
+        [
+          116.25,
+          682.5
+        ],
+        [
+          52.5,
+          682.5
+        ]
+      ]
+    },
+    {
+      "title": "4.2 Training Process",
+      "heading_level": null,
+      "page_id": 6,
+      "polygon": [
+        [
+          316.7578125,
+          355.39453125
+        ],
+        [
+          426.0,
+          355.39453125
+        ],
+        [
+          426.0,
+          366.0
+        ],
+        [
+          316.7578125,
+          366.0
+        ]
+      ]
+    },
+    {
+      "title": "5 EVALUATION",
+      "heading_level": null,
+      "page_id": 7,
+      "polygon": [
+        [
+          52.5,
+          85.46484375
+        ],
+        [
+          140.25,
+          85.46484375
+        ],
+        [
+          140.25,
+          93.75
+        ],
+        [
+          52.5,
+          93.75
+        ]
+      ]
+    },
+    {
+      "title": "5.1 Re-implementing Minimum Jerk Model and Style-Transfer GAN",
+      "heading_level": null,
+      "page_id": 7,
+      "polygon": [
+        [
+          53.19140625,
+          158.25
+        ],
+        [
+          294.75,
+          158.25
+        ],
+        [
+          294.75,
+          181.37109375
+        ],
+        [
+          53.19140625,
+          181.37109375
+        ]
+      ]
+    },
+    {
+      "title": "5.2 Simulating gestures with the generator in WordGesture-GAN",
+      "heading_level": null,
+      "page_id": 7,
+      "polygon": [
+        [
+          53.7890625,
+          484.171875
+        ],
+        [
+          285.0,
+          484.171875
+        ],
+        [
+          285.0,
+          507.0
+        ],
+        [
+          53.7890625,
+          507.0
+        ]
+      ]
+    },
+    {
+      "title": "5.3 Visual Inspection",
+      "heading_level": null,
+      "page_id": 7,
+      "polygon": [
+        [
+          317.25,
+          117.0
+        ],
+        [
+          429.75,
+          117.0
+        ],
+        [
+          429.75,
+          127.23046875
+        ],
+        [
+          317.25,
+          127.23046875
+        ]
+      ]
+    },
+    {
+      "title": "5.4 Wasserstein Distance between Simulated and User-drawn Gestures",
+      "heading_level": null,
+      "page_id": 8,
+      "polygon": [
+        [
+          317.35546875,
+          84.75
+        ],
+        [
+          544.5,
+          84.75
+        ],
+        [
+          544.5,
+          106.5
+        ],
+        [
+          317.35546875,
+          106.5
+        ]
+      ]
+    },
+    {
+      "title": "5.5 Frechet Inception Distance Score between Simulated and User-drawn Gestures",
+      "heading_level": null,
+      "page_id": 8,
+      "polygon": [
+        [
+          316.5,
+          518.9765625
+        ],
+        [
+          549.75,
+          518.9765625
+        ],
+        [
+          549.75,
+          540.0
+        ],
+        [
+          316.5,
+          540.0
+        ]
+      ]
+    },
+    {
+      "title": "5.6 Precision and Recall of Generated Gestures \nover the User-Drawn Gestures",
+      "heading_level": null,
+      "page_id": 9,
+      "polygon": [
+        [
+          54.984375,
+          551.25
+        ],
+        [
+          291.75,
+          551.25
+        ],
+        [
+          291.75,
+          573.50390625
+        ],
+        [
+          54.984375,
+          573.50390625
+        ]
+      ]
+    },
+    {
+      "title": "5.7 Correlations for Velocity and Acceleration\nbetween Generated and User-drawn\nGestures",
+      "heading_level": null,
+      "page_id": 10,
+      "polygon": [
+        [
+          53.19140625,
+          85.4066162109375
+        ],
+        [
+          287.6236572265625,
+          85.4066162109375
+        ],
+        [
+          287.6236572265625,
+          122.21392822265625
+        ],
+        [
+          53.19140625,
+          122.21392822265625
+        ]
+      ]
+    },
+    {
+      "title": "5.8 Distributions of Velocity and Acceleration\nfor Generated and User-Drawn Gestures",
+      "heading_level": null,
+      "page_id": 10,
+      "polygon": [
+        [
+          53.7890625,
+          561.12890625
+        ],
+        [
+          286.292724609375,
+          561.12890625
+        ],
+        [
+          286.292724609375,
+          586.7237701416016
+        ],
+        [
+          53.7890625,
+          586.7237701416016
+        ]
+      ]
+    },
+    {
+      "title": "5.9 Comparing Jerk in User-drawn and\nGenerated Gestures",
+      "heading_level": null,
+      "page_id": 10,
+      "polygon": [
+        [
+          316.7578125,
+          462.2345886230469
+        ],
+        [
+          517.0897216796875,
+          462.2345886230469
+        ],
+        [
+          517.0897216796875,
+          486.0927734375
+        ],
+        [
+          316.7578125,
+          486.0927734375
+        ]
+      ]
+    },
+    {
+      "title": "5.10 Duration of Gesture Production",
+      "heading_level": null,
+      "page_id": 10,
+      "polygon": [
+        [
+          317.9549865722656,
+          651.62109375
+        ],
+        [
+          505.13330078125,
+          651.62109375
+        ],
+        [
+          505.13330078125,
+          663.4386749267578
+        ],
+        [
+          317.9549865722656,
+          663.4386749267578
+        ]
+      ]
+    },
+    {
+      "title": "6 DISCUSSION AND FUTURE WORK",
+      "heading_level": null,
+      "page_id": 11,
+      "polygon": [
+        [
+          53.19140625,
+          647.25
+        ],
+        [
+          246.83203125,
+          647.25
+        ],
+        [
+          246.83203125,
+          657.03515625
+        ],
+        [
+          53.19140625,
+          657.03515625
+        ]
+      ]
+    },
+    {
+      "title": "6.1 Performance of WordGesture-GAN",
+      "heading_level": null,
+      "page_id": 11,
+      "polygon": [
+        [
+          52.5,
+          663.75
+        ],
+        [
+          252.75,
+          663.75
+        ],
+        [
+          252.75,
+          672.75
+        ],
+        [
+          52.5,
+          672.75
+        ]
+      ]
+    },
+    {
+      "title": "6.2 Applications of WordGesture-GAN",
+      "heading_level": null,
+      "page_id": 11,
+      "polygon": [
+        [
+          316.7578125,
+          576.0
+        ],
+        [
+          516.0,
+          576.0
+        ],
+        [
+          516.0,
+          585.87890625
+        ],
+        [
+          316.7578125,
+          585.87890625
+        ]
+      ]
+    },
+    {
+      "title": "6.3 Limitations and Future Work",
+      "heading_level": null,
+      "page_id": 12,
+      "polygon": [
+        [
+          317.35546875,
+          333.0
+        ],
+        [
+          487.5,
+          333.0
+        ],
+        [
+          487.5,
+          341.25
+        ],
+        [
+          317.35546875,
+          341.25
+        ]
+      ]
+    },
+    {
+      "title": "7 CONCLUSION",
+      "heading_level": null,
+      "page_id": 12,
+      "polygon": [
+        [
+          316.5,
+          475.27734375
+        ],
+        [
+          405.75,
+          475.27734375
+        ],
+        [
+          405.75,
+          485.25
+        ],
+        [
+          316.5,
+          485.25
+        ]
+      ]
+    },
+    {
+      "title": "REFERENCES",
+      "heading_level": null,
+      "page_id": 13,
+      "polygon": [
+        [
+          53.79800033569336,
+          85.4066162109375
+        ],
+        [
+          124.013671875,
+          85.4066162109375
+        ],
+        [
+          124.013671875,
+          96.31573486328125
+        ],
+        [
+          53.79800033569336,
+          96.31573486328125
+        ]
+      ]
+    }
+  ],
+  "page_stats": [
+    {
+      "page_id": 0,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1321
+        ],
+        [
+          "Line",
+          84
+        ],
+        [
+          "Text",
+          16
+        ],
+        [
+          "SectionHeader",
+          6
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 2,
+        "llm_error_count": 0,
+        "llm_tokens_used": 7649,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 1,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1837
+        ],
+        [
+          "Line",
+          99
+        ],
+        [
+          "Text",
+          10
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Figure",
+          1
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ],
+        [
+          "Reference",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 1,
+        "llm_error_count": 0,
+        "llm_tokens_used": 3690,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 2,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          2131
+        ],
+        [
+          "Line",
+          109
+        ],
+        [
+          "Text",
+          8
+        ],
+        [
+          "SectionHeader",
+          4
+        ],
+        [
+          "PageHeader",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 3,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          122
+        ],
+        [
+          "Span",
+          85
+        ],
+        [
+          "Text",
+          11
+        ],
+        [
+          "SectionHeader",
+          3
+        ],
+        [
+          "PageHeader",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 4,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          394
+        ],
+        [
+          "Line",
+          12
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Figure",
+          2
+        ],
+        [
+          "Caption",
+          2
+        ],
+        [
+          "FigureGroup",
+          2
+        ],
+        [
+          "Reference",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 5,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          131
+        ],
+        [
+          "Span",
+          97
+        ],
+        [
+          "Text",
+          13
+        ],
+        [
+          "Reference",
+          3
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "SectionHeader",
+          2
+        ],
+        [
+          "Equation",
+          2
+        ],
+        [
+          "ListItem",
+          2
+        ],
+        [
+          "Figure",
+          1
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ],
+        [
+          "ListGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 6,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Span",
+          146
+        ],
+        [
+          "Line",
+          121
+        ],
+        [
+          "Text",
+          14
+        ],
+        [
+          "Equation",
+          4
+        ],
+        [
+          "Reference",
+          4
+        ],
+        [
+          "SectionHeader",
+          3
+        ],
+        [
+          "PageHeader",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 7,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          101
+        ],
+        [
+          "Span",
+          54
+        ],
+        [
+          "Text",
+          7
+        ],
+        [
+          "SectionHeader",
+          4
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Figure",
+          2
+        ],
+        [
+          "Caption",
+          2
+        ],
+        [
+          "FigureGroup",
+          2
+        ],
+        [
+          "Reference",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 8,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          99
+        ],
+        [
+          "Span",
+          48
+        ],
+        [
+          "Text",
+          4
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Figure",
+          2
+        ],
+        [
+          "Caption",
+          2
+        ],
+        [
+          "SectionHeader",
+          2
+        ],
+        [
+          "FigureGroup",
+          2
+        ],
+        [
+          "Reference",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 9,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          75
+        ],
+        [
+          "Span",
+          55
+        ],
+        [
+          "TableCell",
+          44
+        ],
+        [
+          "Text",
+          5
+        ],
+        [
+          "Reference",
+          5
+        ],
+        [
+          "Table",
+          4
+        ],
+        [
+          "Caption",
+          4
+        ],
+        [
+          "TableGroup",
+          4
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Equation",
+          2
+        ],
+        [
+          "SectionHeader",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 4,
+        "llm_error_count": 0,
+        "llm_tokens_used": 12424,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 10,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1064
+        ],
+        [
+          "Line",
+          62
+        ],
+        [
+          "SectionHeader",
+          4
+        ],
+        [
+          "Text",
+          4
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Figure",
+          2
+        ],
+        [
+          "Caption",
+          2
+        ],
+        [
+          "FigureGroup",
+          2
+        ],
+        [
+          "Reference",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 11,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          94
+        ],
+        [
+          "Span",
+          41
+        ],
+        [
+          "TableCell",
+          32
+        ],
+        [
+          "Text",
+          8
+        ],
+        [
+          "Caption",
+          3
+        ],
+        [
+          "SectionHeader",
+          3
+        ],
+        [
+          "Reference",
+          3
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "Table",
+          2
+        ],
+        [
+          "Equation",
+          2
+        ],
+        [
+          "TableGroup",
+          2
+        ],
+        [
+          "Figure",
+          1
+        ],
+        [
+          "FigureGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 2,
+        "llm_error_count": 0,
+        "llm_tokens_used": 4885,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 12,
+      "text_extraction_method": "surya",
+      "block_counts": [
+        [
+          "Line",
+          104
+        ],
+        [
+          "Span",
+          80
+        ],
+        [
+          "TableCell",
+          10
+        ],
+        [
+          "Text",
+          8
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "SectionHeader",
+          2
+        ],
+        [
+          "Table",
+          1
+        ],
+        [
+          "Caption",
+          1
+        ],
+        [
+          "TableGroup",
+          1
+        ],
+        [
+          "Reference",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 1,
+        "llm_error_count": 0,
+        "llm_tokens_used": 2572,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 13,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          2727
+        ],
+        [
+          "Line",
+          153
+        ],
+        [
+          "ListItem",
+          38
+        ],
+        [
+          "Reference",
+          38
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "ListGroup",
+          2
+        ],
+        [
+          "SectionHeader",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 14,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          1091
+        ],
+        [
+          "Line",
+          59
+        ],
+        [
+          "ListItem",
+          15
+        ],
+        [
+          "Reference",
+          15
+        ],
+        [
+          "PageHeader",
+          2
+        ],
+        [
+          "ListGroup",
+          2
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    }
+  ],
+  "debug_data_path": "debug_data/Chu_et_al_2023_WordGesture-GAN"
+}

@@ -1,0 +1,69 @@
+# ---- OS junk ----
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ---- Editor / IDE ----
+.cursor/
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.dylib
+
+.venv/
+venv/
+env/
+ENV/
+
+build/
+dist/
+*.egg-info/
+.eggs/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.ipynb_checkpoints/
+
+# ---- ML / experiment artifacts ----
+checkpoints/
+checkpoint/
+logs/
+runs/
+wandb/
+tensorboard/
+tb/
+outputs/
+output/
+results/
+experiments/
+
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+*.h5
+*.hdf5
+*.npz
+
+# ---- Data (raw / large) ----
+# Keep processed TSVs + README, but ignore raw swipe logs/archives.
+data/
+!wordgesture_gan/data/
+
+# ---- Misc ----
+*.log
+
