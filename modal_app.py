@@ -1,0 +1,123 @@
+"""Modal app for training WordGesture-GAN on cloud GPUs."""
+
+import modal
+
+VOLUME_NAME = "wordgesture-gan-data"
+
+# Container image with all dependencies and local code
+image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .apt_install("build-essential")
+    .pip_install(
+        "torch",
+        "numpy",
+        "pandas",
+        "scipy",
+        "scikit-learn",
+        "matplotlib",
+        "tqdm",
+        "pyyaml",
+        "numba",
+    )
+    .env({"NUMBA_CACHE_DIR": "/tmp/numba_cache"})
+    .add_local_dir("wordgesture_gan", remote_path="/app/wordgesture_gan")
+    .add_local_dir("configs", remote_path="/app/configs")
+    .add_local_file("train_wg_gan.py", remote_path="/app/train_wg_gan.py")
+)
+
+app = modal.App("wordgesture-gan", image=image)
+
+# Persistent volume for data and checkpoints
+vol = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
+
+
+@app.function(
+    gpu="L40S",
+    volumes={"/data": vol},
+    timeout=7200,
+)
+def train(epochs: int | None = None, batch_size: int | None = None):
+    """Train WordGesture-GAN on Modal.
+
+    Args:
+        epochs: Override epochs from config (optional)
+        batch_size: Override batch size from config (optional)
+    """
+    import os
+    import sys
+    from pathlib import Path
+
+    import torch
+    import yaml
+
+    os.chdir("/app")
+    sys.path.insert(0, "/app")
+
+    # Load config
+    config_path = Path("/app/configs/wg_gan.yaml")
+    with config_path.open("r") as f:
+        cfg = yaml.safe_load(f)
+
+    # Override config values if provided
+    if epochs is not None:
+        cfg["training"]["epochs"] = epochs
+    if batch_size is not None:
+        cfg["training"]["batch_size"] = batch_size
+
+    # Update paths to use volume
+    cfg["data"]["data_dir"] = "/data/processed"
+    cfg["training"]["checkpoint_dir"] = "/data/checkpoints"
+
+    # Write modified config
+    temp_config = Path("/tmp/training_config.yaml")
+    with temp_config.open("w") as f:
+        yaml.dump(cfg, f)
+
+    print("=" * 60)
+    print("WordGesture-GAN Training on Modal")
+    print("=" * 60)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cuda":
+        print(f"Device: {torch.cuda.get_device_name(0)}")
+    else:
+        print(f"Device: {device}")
+    print(f"Epochs: {cfg['training']['epochs']}")
+    print(f"Batch size: {cfg['training']['batch_size']}")
+    print("=" * 60)
+
+    # Import training module and patch argparse
+    import argparse
+
+    from train_wg_gan import main as train_main
+
+    original_parse = argparse.ArgumentParser.parse_args
+
+    def patched_parse(self, args=None, namespace=None):
+        ns = argparse.Namespace()
+        ns.config = temp_config
+        return ns
+
+    argparse.ArgumentParser.parse_args = patched_parse
+
+    try:
+        train_main()
+    finally:
+        argparse.ArgumentParser.parse_args = original_parse
+
+    # Commit volume to persist checkpoints
+    vol.commit()
+    print("\nTraining complete! Checkpoints saved to volume.")
+
+
+@app.local_entrypoint()
+def main(
+    epochs: int = None,
+    batch_size: int = None,
+):
+    """CLI entrypoint for training.
+
+    Usage:
+        modal run modal_app.py --epochs 50
+        modal run modal_app.py --epochs 10 --batch-size 256
+    """
+    train.remote(epochs=epochs, batch_size=batch_size)

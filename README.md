@@ -32,8 +32,23 @@ This creates `data/processed/train.npz`, `data/processed/test.npz`, and split me
 
 ## Train WordGesture-GAN
 
+**Local:**
 ```bash
 python train_wg_gan.py --config configs/wg_gan.yaml
+```
+
+**Modal (cloud GPU):**
+```bash
+# One-time setup: upload data to Modal volume
+modal volume create wordgesture-gan-data
+modal volume put wordgesture-gan-data data/processed/train.npz processed/train.npz
+modal volume put wordgesture-gan-data data/processed/test.npz processed/test.npz
+
+# Train on L40S GPU
+modal run modal_app.py --epochs 50
+
+# Download checkpoint
+modal volume get wordgesture-gan-data checkpoints/wg_gan_latest.pt ./checkpoints/
 ```
 
 Checkpoints are written under `checkpoints/`.
