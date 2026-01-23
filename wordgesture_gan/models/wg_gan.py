@@ -34,9 +34,16 @@ class VariationalEncoder(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, latent_dim: int = 32, hidden_size: int = 16, num_layers: int = 5) -> None:
+    def __init__(
+        self,
+        latent_dim: int = 32,
+        hidden_size: int = 16,
+        num_layers: int = 5,
+        dt_scale: float = 0.05,
+    ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
+        self.dt_scale = dt_scale
         self.lstm = nn.LSTM(
             input_size=3 + latent_dim,
             hidden_size=hidden_size,
@@ -46,6 +53,7 @@ class Generator(nn.Module):
         )
         self.fc = nn.Linear(hidden_size * 2, 3)
         self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, prototype: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         batch, seq_len, _ = prototype.shape
@@ -53,7 +61,10 @@ class Generator(nn.Module):
         x = torch.cat([prototype, z_rep], dim=-1)
         out, _ = self.lstm(x)
         out = self.fc(out)
-        return self.tanh(out)
+        # x, y use tanh [-1, 1]; dt uses sigmoid * scale [0, dt_scale]
+        xy = self.tanh(out[..., :2])
+        dt = self.sigmoid(out[..., 2:3]) * self.dt_scale
+        return torch.cat([xy, dt], dim=-1)
 
 
 class Discriminator(nn.Module):
