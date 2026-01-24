@@ -66,6 +66,28 @@ python eval.py \
 
 Outputs JSON summaries and prints paper-style tables to stdout.
 
+## Animate gesture comparisons
+
+GIF export uses Pillow (included in requirements).
+
+```bash
+# Multi-word overlays (Figure 7/8 style)
+python reproduce_figures.py \
+  --n_words 6 \
+  --models user,wg_gan,minjerk \
+  --n_samples 5 \
+  --collapse_samples true \
+  --out results/gifs/fig8_overlay.gif
+
+# Per-model x per-word grid (Figure 6 style)
+python reproduce_figures.py \
+  --n_words 6 \
+  --models user,wg_gan,minjerk \
+  --n_samples 1 \
+  --collapse_samples false \
+  --out results/gifs/fig6_grid.gif
+```
+
 ## Notes
 
 - Coordinates are normalized to `[-1, 1]` with timestamps stored as `dt` (seconds).
