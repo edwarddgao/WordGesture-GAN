@@ -76,6 +76,7 @@ def to_fixed_length(sample: RawSample, n_points: int) -> np.ndarray:
     xs, ys = normalize_xy(xs, ys, sample.keyb_width, sample.keyb_height)
 
     dt = np.diff(timestamps, prepend=timestamps[0]) / 1000.0
+    dt = np.maximum(dt, 0.0)  # Ensure non-negative time deltas
     gesture = np.stack([xs, ys, dt], axis=-1)
     return gesture.astype(np.float32)
 
