@@ -74,6 +74,20 @@ def _velocity_accel_stats(gestures: np.ndarray) -> Dict[str, float]:
     }
 
 
+def _dt_duration_stats(gestures: np.ndarray) -> Dict[str, float]:
+    # Exclude the first dt (always 0 in our preprocessing) for dt mean/std.
+    if gestures.ndim != 3 or gestures.shape[-1] < 3:
+        return {"dt_mean": float("nan"), "dt_std": float("nan"), "duration_mean": float("nan"), "duration_std": float("nan")}
+    dt = gestures[:, 1:, 2].reshape(-1) if gestures.shape[1] > 1 else gestures[:, :, 2].reshape(-1)
+    durations = np.sum(gestures[:, :, 2], axis=1)
+    return {
+        "dt_mean": float(np.mean(dt)) if dt.size else float("nan"),
+        "dt_std": float(np.std(dt)) if dt.size else float("nan"),
+        "duration_mean": float(np.mean(durations)) if durations.size else float("nan"),
+        "duration_std": float(np.std(durations)) if durations.size else float("nan"),
+    }
+
+
 def _duration_rmse(real: np.ndarray, real_words: List[str], pred: np.ndarray, pred_words: List[str]) -> float:
     real_map = {w: np.mean(v) for w, v in word_durations(real, real_words).items()}
     pred_map = {w: np.mean(v) for w, v in word_durations(pred, pred_words).items()}
@@ -155,6 +169,8 @@ def evaluate_model(
         "jerk_fake_std": float(np.std(fake_jerk)),
         "velocity_stats_fake": _velocity_accel_stats(fake),
         "velocity_stats_real": _velocity_accel_stats(real),
+        "dt_stats_fake": _dt_duration_stats(fake),
+        "dt_stats_real": _dt_duration_stats(real),
     }
 
 
@@ -165,6 +181,13 @@ def main() -> None:
     parser.add_argument("--checkpoint", required=True, type=Path)
     parser.add_argument("--data_dir", required=True, type=Path)
     parser.add_argument("--out_dir", required=True, type=Path)
+    parser.add_argument(
+        "--dt_calibration",
+        type=str,
+        default="none",
+        choices=["none", "train_mean"],
+        help="Optionally rescale WG-GAN dt to match training-set mean dt (helps dynamics/jerk/FID when timing is off).",
+    )
     args = parser.parse_args()
 
     total_start = time.time()
@@ -192,6 +215,9 @@ def main() -> None:
         latent_dim=int(cfg["model"]["latent_dim"]),
         hidden_size=int(cfg["model"]["hidden_size"]),
         num_layers=int(cfg["model"]["num_layers"]),
+        dt_scale=float(cfg["model"].get("dt_scale", 0.05)),
+        dt_activation=str(cfg["model"].get("dt_activation", "sigmoid")),
+        force_dt0=bool(cfg["model"].get("force_dt0", True)),
     ).to(device)
     generator.load_state_dict(checkpoint["generator"])
     generator.eval()
@@ -212,6 +238,16 @@ def main() -> None:
         wg_gan_words.extend([word] * count)
     wg_gan_samples = np.concatenate(wg_gan_samples, axis=0)
     print(f"  Generated {len(wg_gan_samples)} samples in {time.time() - t0:.1f}s")
+
+    if args.dt_calibration == "train_mean":
+        train_dt_mean = _dt_duration_stats(train_gestures)["dt_mean"]
+        fake_dt_mean = _dt_duration_stats(wg_gan_samples)["dt_mean"]
+        if np.isfinite(train_dt_mean) and np.isfinite(fake_dt_mean) and fake_dt_mean > 1e-8:
+            scale = float(train_dt_mean / fake_dt_mean)
+            wg_gan_samples[:, :, 2] *= scale
+            print(f"\n[Info] Applied WG-GAN dt calibration: scale={scale:.4f} (train_dt_mean={train_dt_mean:.6f}, fake_dt_mean={fake_dt_mean:.6f})")
+        else:
+            print("\n[Info] Skipped WG-GAN dt calibration (non-finite dt stats).")
 
     print("\n[Step 4/7] Fitting Minimum Jerk distributions...")
     t0 = time.time()
