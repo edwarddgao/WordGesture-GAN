@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from wordgesture_gan.data.preprocess import load_dataset
 from wordgesture_gan.keyboard.qwerty import KeyboardLayout
-from wordgesture_gan.metrics.distance import dtw_distance, l2_distance, per_word_wasserstein
+from wordgesture_gan.metrics.distance import l2_distance, per_word_wasserstein
 from wordgesture_gan.metrics.dynamics import dynamics_correlation, derivatives, jerk_stat
 from wordgesture_gan.metrics.duration import clc_predict, fit_clc, gesture_duration, word_durations
 from wordgesture_gan.metrics.fid import compute_fid, train_autoencoder
@@ -104,7 +104,7 @@ def evaluate_model(
 
     t0 = time.time()
     print("  [2/6] Computing Wasserstein DTW distance...")
-    dtw_mean, dtw_std = per_word_wasserstein(real[:, :, :2], real_words, fake[:, :, :2], fake_words, metric="dtw")
+    dtw_mean, dtw_std = per_word_wasserstein(real[:, :, :2], real_words, fake[:, :, :2], fake_words, metric="dtw", band_width=15)
     print(f"         Done in {time.time() - t0:.1f}s -> DTW: {dtw_mean:.4f} ± {dtw_std:.4f}")
 
     t0 = time.time()

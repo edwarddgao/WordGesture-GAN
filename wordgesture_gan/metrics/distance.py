@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Dict, List, Tuple
 
 import numpy as np
-from numba import njit
+from numba import njit, prange
 from scipy.optimize import linear_sum_assignment
 from tqdm import tqdm
 
@@ -37,31 +37,75 @@ def _dtw_core(a: np.ndarray, b: np.ndarray) -> float:
     return cost[n, m]
 
 
-def dtw_distance(a: np.ndarray, b: np.ndarray) -> float:
-    return float(_dtw_core(a, b))
+@njit(cache=True)
+def _dtw_core_banded(a: np.ndarray, b: np.ndarray, band_width: int) -> float:
+    """DTW with Sakoe-Chiba band constraint."""
+    n, m = a.shape[0], b.shape[0]
+    dims = a.shape[1]
+    cost = np.full((n + 1, m + 1), 1e20, dtype=np.float64)
+    cost[0, 0] = 0.0
+
+    for i in range(1, n + 1):
+        j_start = max(1, i - band_width)
+        j_end = min(m + 1, i + band_width + 1)
+        for j in range(j_start, j_end):
+            dist = 0.0
+            for k in range(dims):
+                diff = a[i - 1, k] - b[j - 1, k]
+                dist += diff * diff
+            dist = np.sqrt(dist)
+            best = cost[i - 1, j]
+            if cost[i, j - 1] < best:
+                best = cost[i, j - 1]
+            if cost[i - 1, j - 1] < best:
+                best = cost[i - 1, j - 1]
+            cost[i, j] = dist + best
+    return cost[n, m]
+
+
+@njit(parallel=True, cache=True)
+def _pairwise_dtw_parallel(real: np.ndarray, fake: np.ndarray, band_width: int) -> np.ndarray:
+    """Compute pairwise DTW distances in parallel."""
+    n_real, n_fake = real.shape[0], fake.shape[0]
+    cost = np.zeros((n_real, n_fake), dtype=np.float64)
+    total = n_real * n_fake
+
+    for idx in prange(total):
+        i, j = idx // n_fake, idx % n_fake
+        if band_width > 0:
+            cost[i, j] = _dtw_core_banded(real[i], fake[j], band_width)
+        else:
+            cost[i, j] = _dtw_core(real[i], fake[j])
+    return cost
 
 
 def _pairwise_cost(
     real: List[np.ndarray],
     fake: List[np.ndarray],
     metric: str,
+    band_width: int = 0,
 ) -> np.ndarray:
-    metric_fn = l2_distance if metric == "l2" else dtw_distance
-    cost = np.zeros((len(real), len(fake)), dtype=np.float32)
-    for i, r in enumerate(real):
-        for j, f in enumerate(fake):
-            cost[i, j] = metric_fn(r, f)
-    return cost
+    if metric == "l2":
+        cost = np.zeros((len(real), len(fake)), dtype=np.float32)
+        for i, r in enumerate(real):
+            for j, f in enumerate(fake):
+                cost[i, j] = l2_distance(r, f)
+        return cost
+    # DTW: use parallel implementation
+    real_arr = np.stack(real, axis=0)
+    fake_arr = np.stack(fake, axis=0)
+    return _pairwise_dtw_parallel(real_arr, fake_arr, band_width).astype(np.float32)
 
 
 def wasserstein_matching(
     real: List[np.ndarray],
     fake: List[np.ndarray],
     metric: str = "l2",
+    band_width: int = 0,
 ) -> float:
     if not real or not fake:
         return float("nan")
-    cost = _pairwise_cost(real, fake, metric)
+    cost = _pairwise_cost(real, fake, metric, band_width)
     row_ind, col_ind = linear_sum_assignment(cost)
     return float(cost[row_ind, col_ind].mean())
 
@@ -73,6 +117,7 @@ def per_word_wasserstein(
     fake_words: List[str],
     metric: str = "l2",
     show_progress: bool = True,
+    band_width: int = 0,
 ) -> Tuple[float, float]:
     words = sorted(set(real_words))
     word_to_real: Dict[str, List[np.ndarray]] = {w: [] for w in words}
@@ -85,7 +130,7 @@ def per_word_wasserstein(
     scores = []
     iterator = tqdm(words, desc=f"         {metric.upper()} matching", leave=False) if show_progress else words
     for word in iterator:
-        score = wasserstein_matching(word_to_real[word], word_to_fake[word], metric)
+        score = wasserstein_matching(word_to_real[word], word_to_fake[word], metric, band_width)
         if not np.isnan(score):
             scores.append(score)
     if not scores:
