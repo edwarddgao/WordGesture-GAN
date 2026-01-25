@@ -8,7 +8,6 @@ import numpy as np
 from scipy.optimize import minimize
 
 from ..keyboard.qwerty import KeyboardLayout
-from ..prototypes import build_word_prototype
 
 
 def gesture_duration(gesture: np.ndarray) -> float:
@@ -22,10 +21,13 @@ def word_durations(gestures: np.ndarray, words: List[str]) -> Dict[str, List[flo
     return durations
 
 
-def _prototype_length(word: str, layout: KeyboardLayout, n_points: int = 128) -> float:
-    proto = build_word_prototype(word, n_points, layout)
-    xy = proto[:, :2]
-    return float(np.sum(np.linalg.norm(np.diff(xy, axis=0), axis=1)))
+def _prototype_segment_lengths(word: str, layout: KeyboardLayout) -> np.ndarray:
+    centers = layout.key_centers_normalized()
+    keys = [ch for ch in word.lower() if ch in centers]
+    if len(keys) < 2:
+        return np.zeros(0, dtype=np.float64)
+    points = np.array([centers[ch] for ch in keys], dtype=np.float64)
+    return np.linalg.norm(np.diff(points, axis=0), axis=1)
 
 
 def fit_clc(
@@ -36,15 +38,15 @@ def fit_clc(
     if layout is None:
         layout = KeyboardLayout()
     durations = word_durations(gestures, words)
-    word_lengths = {word: _prototype_length(word, layout) for word in durations.keys()}
-    y = np.array([np.mean(vals) for vals in durations.values()], dtype=np.float64)
-    x = np.array([word_lengths[word] for word in durations.keys()], dtype=np.float64)
+    word_list = list(durations.keys())
+    segment_lengths = [_prototype_segment_lengths(word, layout) for word in word_list]
+    y = np.array([np.mean(durations[word]) for word in word_list], dtype=np.float64)
 
     def rmse(params: np.ndarray) -> float:
         log_m, log_n = params
         m = np.exp(log_m)
         n = np.exp(log_n)
-        pred = m * (x ** n)
+        pred = np.array([m * np.sum(lengths ** n) for lengths in segment_lengths], dtype=np.float64)
         return float(np.sqrt(np.mean((pred - y) ** 2)))
 
     result = minimize(rmse, x0=np.log([300.0, 0.1]), method="Nelder-Mead")
@@ -55,5 +57,5 @@ def fit_clc(
 def clc_predict(word: str, m: float, n: float, layout: KeyboardLayout | None = None) -> float:
     if layout is None:
         layout = KeyboardLayout()
-    length = _prototype_length(word, layout)
-    return float(m * (length ** n))
+    lengths = _prototype_segment_lengths(word, layout)
+    return float(m * np.sum(lengths ** n))
