@@ -25,14 +25,12 @@ def _pairwise_l2(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
     for i in prange(n):
         for j in range(m):
-            total = 0.0
+            total_sq = 0.0
             for t in range(seq_len):
-                dist_sq = 0.0
                 for d in range(dims):
                     diff = a[i, t, d] - b[j, t, d]
-                    dist_sq += diff * diff
-                total += np.sqrt(dist_sq)
-            result[i, j] = total
+                    total_sq += diff * diff
+            result[i, j] = np.sqrt(total_sq)
 
     return result
 

@@ -93,4 +93,6 @@ python reproduce_figures.py \
 - Coordinates are normalized to `[-1, 1]` with timestamps stored as `dt` (seconds).
 - The minimum-jerk baseline uses aggregate via-point distributions and a minimum-jerk trajectory solver; evaluation treats it as spatial-only.
 - The CLC duration baseline uses the paper equation `T(P) = Σ m * ||AB||^n` over prototype segments.
+- Shape-only metrics use a flattened L2 (Frobenius) distance and DTW with sqrt of accumulated squared cost, matching the paper scale.
+- Shape-only dynamics (velocity/accel/jerk) use uniform `dt=1` (index-based) for comparable magnitudes.
 - WG-GAN evaluation reports both shape-only metrics and spatiotemporal Wasserstein on `(x, y, dt)`.

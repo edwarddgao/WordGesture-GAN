@@ -11,7 +11,8 @@ from tqdm import tqdm
 
 
 def l2_distance(a: np.ndarray, b: np.ndarray) -> float:
-    return float(np.sum(np.linalg.norm(a - b, axis=-1)))
+    diff = a - b
+    return float(np.sqrt(np.sum(diff * diff)))
 
 
 @njit(cache=True)
@@ -23,18 +24,17 @@ def _dtw_core(a: np.ndarray, b: np.ndarray) -> float:
     dims = a.shape[1]
     for i in range(1, n + 1):
         for j in range(1, m + 1):
-            dist = 0.0
+            dist_sq = 0.0
             for k in range(dims):
                 diff = a[i - 1, k] - b[j - 1, k]
-                dist += diff * diff
-            dist = np.sqrt(dist)
+                dist_sq += diff * diff
             best = cost[i - 1, j]
             if cost[i, j - 1] < best:
                 best = cost[i, j - 1]
             if cost[i - 1, j - 1] < best:
                 best = cost[i - 1, j - 1]
-            cost[i, j] = dist + best
-    return cost[n, m]
+            cost[i, j] = dist_sq + best
+    return np.sqrt(cost[n, m])
 
 
 @njit(cache=True)
@@ -49,18 +49,17 @@ def _dtw_core_banded(a: np.ndarray, b: np.ndarray, band_width: int) -> float:
         j_start = max(1, i - band_width)
         j_end = min(m + 1, i + band_width + 1)
         for j in range(j_start, j_end):
-            dist = 0.0
+            dist_sq = 0.0
             for k in range(dims):
                 diff = a[i - 1, k] - b[j - 1, k]
-                dist += diff * diff
-            dist = np.sqrt(dist)
+                dist_sq += diff * diff
             best = cost[i - 1, j]
             if cost[i, j - 1] < best:
                 best = cost[i, j - 1]
             if cost[i - 1, j - 1] < best:
                 best = cost[i - 1, j - 1]
-            cost[i, j] = dist + best
-    return cost[n, m]
+            cost[i, j] = dist_sq + best
+    return np.sqrt(cost[n, m])
 
 
 @njit(parallel=True, cache=True)
