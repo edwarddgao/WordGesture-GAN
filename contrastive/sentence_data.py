@@ -9,6 +9,7 @@ from typing import Dict, Iterator, List, Tuple
 
 import numpy as np
 
+from shared import KeyboardLayout, build_word_prototype
 from shared.data import RawSample, filter_sample, to_fixed_length
 
 
@@ -36,6 +37,11 @@ def _parse_sentence_words(sentence_id: str) -> List[str]:
     return sentence_id.split("_")
 
 
+def _path_length(points: np.ndarray) -> float:
+    """Calculate total Euclidean path length."""
+    return float(np.sqrt(np.diff(points[:, 0])**2 + np.diff(points[:, 1])**2).sum())
+
+
 def iter_raw_samples_with_user(raw_dir: Path) -> Iterator[Tuple[str, RawSample]]:
     """Iterate raw samples, yielding (username, sample) pairs."""
     for jsonl in sorted(raw_dir.rglob("*.jsonl")):
@@ -56,6 +62,7 @@ def load_sentence_dataset(
     n_points: int = 128,
     filter_errors: bool = True,
     min_complete_fraction: float = 0.5,
+    layout: KeyboardLayout | None = None,
 ) -> List[SentenceData]:
     """Load sentence-level dataset from raw JSONL files.
 
@@ -65,6 +72,8 @@ def load_sentence_dataset(
         filter_errors: If True, only include successful gestures (is_err=0).
         min_complete_fraction: Minimum fraction of words that must be present
             for a sentence to be included.
+        layout: If provided, filter out gestures where path length ratio
+            (gesture/expected) is outside 0.5-2.0 range.
 
     Returns:
         List of SentenceData objects, each representing a sentence attempt
@@ -94,6 +103,16 @@ def load_sentence_dataset(
 
         # Convert to fixed-length gesture
         gesture = to_fixed_length(sample, n_points)
+
+        # Filter by path length ratio
+        if layout is not None:
+            gesture_path = _path_length(gesture[:, :2])
+            proto = build_word_prototype(word, n_points, layout)[:, :2]
+            expected_path = _path_length(proto)
+            if expected_path > 0:
+                ratio = gesture_path / expected_path
+                if not (0.5 <= ratio <= 2.0):
+                    continue
 
         # Store attempt
         key = (username, sentence_id)
@@ -177,7 +196,7 @@ def load_sentence_dataset_subset(
     Returns:
         List of SentenceData objects.
     """
-    sentences = load_sentence_dataset(raw_dir, n_points)
+    sentences = load_sentence_dataset(raw_dir, n_points, layout=KeyboardLayout())
 
     # Filter to natural sentences if requested
     if natural_only:

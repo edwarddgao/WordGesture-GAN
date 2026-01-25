@@ -12,6 +12,11 @@ from torch.utils.data import Dataset
 from shared import KeyboardLayout, build_word_prototype, load_dataset
 
 
+def _path_length(points: np.ndarray) -> float:
+    """Calculate total Euclidean path length."""
+    return float(np.sqrt(np.diff(points[:, 0])**2 + np.diff(points[:, 1])**2).sum())
+
+
 class ContrastiveGestureDataset(Dataset):
     """Dataset that returns (gesture, prototype, word_idx) tuples.
 
@@ -26,15 +31,33 @@ class ContrastiveGestureDataset(Dataset):
         layout: KeyboardLayout | None = None,
         augment: bool = False,
         noise_std: float = 0.01,
+        filter_by_path_length: bool = True,
+        path_ratio_range: Tuple[float, float] = (0.5, 2.0),
     ) -> None:
         gestures, words = load_dataset(npz_path)
-        self.gestures = gestures
-        self.words = words
         self.n_points = n_points
         self.layout = layout or KeyboardLayout()
         self.augment = augment
         self.noise_std = noise_std
         self._prototype_cache: Dict[str, np.ndarray] = {}
+
+        # Filter by path length ratio
+        if filter_by_path_length:
+            min_ratio, max_ratio = path_ratio_range
+            valid_indices = []
+            for i, (gesture, word) in enumerate(zip(gestures, words)):
+                gesture_path = _path_length(gesture[:, :2])
+                proto = build_word_prototype(word, n_points, self.layout)[:, :2]
+                expected_path = _path_length(proto)
+                if expected_path > 0:
+                    ratio = gesture_path / expected_path
+                    if min_ratio <= ratio <= max_ratio:
+                        valid_indices.append(i)
+            gestures = gestures[valid_indices]
+            words = [words[i] for i in valid_indices]
+
+        self.gestures = gestures
+        self.words = words
 
         # Build word-to-index mapping
         self.unique_words = sorted(set(words))
