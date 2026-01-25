@@ -216,6 +216,8 @@ def main() -> None:
         hidden_size=int(cfg["model"]["hidden_size"]),
         num_layers=int(cfg["model"]["num_layers"]),
         dt_scale=float(cfg["model"].get("dt_scale", 0.05)),
+        dt_activation=str(cfg["model"].get("dt_activation", "sigmoid")),
+        force_dt0=bool(cfg["model"].get("force_dt0", True)),
     ).to(device)
     generator.load_state_dict(checkpoint["generator"])
     generator.eval()
@@ -292,19 +294,36 @@ def main() -> None:
     real_half_b_words: List[str] = []
     for word, gestures_list in test_by_word.items():
         np.random.shuffle(gestures_list)
-        mid = len(gestures_list) // 2
-        if mid == 0:
-            mid = 1  # ensure at least one in each half if possible
-        real_half_a.extend(gestures_list[:mid])
-        real_half_a_words.extend([word] * len(gestures_list[:mid]))
-        real_half_b.extend(gestures_list[mid:])
-        real_half_b_words.extend([word] * len(gestures_list[mid:]))
-    real_half_a = np.stack(real_half_a, axis=0)
-    real_half_b = np.stack(real_half_b, axis=0)
-    print(f"  Split test into {len(real_half_a)} + {len(real_half_b)} samples in {time.time() - t0:.1f}s")
+        if len(gestures_list) == 1:
+            # Randomly assign single-sample words to either half
+            if np.random.random() < 0.5:
+                real_half_a.extend(gestures_list)
+                real_half_a_words.append(word)
+            else:
+                real_half_b.extend(gestures_list)
+                real_half_b_words.append(word)
+        else:
+            mid = len(gestures_list) // 2
+            if mid == 0:
+                mid = 1
+            real_half_a.extend(gestures_list[:mid])
+            real_half_a_words.extend([word] * len(gestures_list[:mid]))
+            real_half_b.extend(gestures_list[mid:])
+            real_half_b_words.extend([word] * len(gestures_list[mid:]))
+
+    real_metrics = None
+    can_compute_real_baseline = bool(real_half_a) and bool(real_half_b)
+    if not can_compute_real_baseline:
+        print("  [Warning] Cannot create real baseline: insufficient samples for split.")
+        print("            Skipping real-to-real comparison.")
+    else:
+        real_half_a = np.stack(real_half_a, axis=0)
+        real_half_b = np.stack(real_half_b, axis=0)
+        print(f"  Split test into {len(real_half_a)} + {len(real_half_b)} samples in {time.time() - t0:.1f}s")
 
     print("\n[Step 8/8] Computing evaluation metrics...")
-    real_metrics = evaluate_model("Real (test split)", real_half_a, real_half_a_words, real_half_b, real_half_b_words, autoencoder)
+    if can_compute_real_baseline:
+        real_metrics = evaluate_model("Real (test split)", real_half_a, real_half_a_words, real_half_b, real_half_b_words, autoencoder)
     wg_metrics = evaluate_model("WordGesture-GAN", test_gestures, test_words, wg_gan_samples, wg_gan_words, autoencoder)
     mj_metrics = evaluate_model("MinimumJerk", test_gestures, test_words, minjerk_samples, minjerk_words, autoencoder)
 
@@ -344,7 +363,10 @@ def main() -> None:
     print(f"Total time: {total_time:.1f}s ({total_time/60:.1f} min)")
     print(f"\nResults saved to: {out_path}")
     print("\n--- Summary ---")
-    print(f"Real (baseline): L2={real_metrics['wasserstein_l2_mean']:.4f}, DTW={real_metrics['wasserstein_dtw_mean']:.4f}, FID={real_metrics['fid']:.4f}")
+    if real_metrics is not None:
+        print(f"Real (baseline): L2={real_metrics['wasserstein_l2_mean']:.4f}, DTW={real_metrics['wasserstein_dtw_mean']:.4f}, FID={real_metrics['fid']:.4f}")
+    else:
+        print("Real (baseline): skipped (insufficient samples for split)")
     print(f"WordGesture-GAN: L2={wg_metrics['wasserstein_l2_mean']:.4f}, DTW={wg_metrics['wasserstein_dtw_mean']:.4f}, FID={wg_metrics['fid']:.4f}")
     print(f"Minimum Jerk:    L2={mj_metrics['wasserstein_l2_mean']:.4f}, DTW={mj_metrics['wasserstein_dtw_mean']:.4f}, FID={mj_metrics['fid']:.4f}")
     print(f"Duration RMSE:   CLC={clc_rmse:.4f}, WG-GAN={wg_rmse:.4f}")
