@@ -34,10 +34,13 @@ WordGesture-GAN/
 │
 ├── contrastive/            # Contrastive learning package
 │   ├── train.py
-│   ├── eval.py
+│   ├── eval.py             # Word-level evaluation
+│   ├── eval_sentences.py   # Sentence-level evaluation
 │   ├── models.py           # Two-tower encoder
 │   ├── losses.py           # InfoNCE loss
 │   ├── data.py             # Augmentation pipeline
+│   ├── reranker.py         # LLM reranking (Gemini)
+│   ├── sentence_data.py    # Sentence dataset loader
 │   ├── config.yaml
 │   ├── checkpoints/
 │   └── results/
@@ -133,12 +136,39 @@ Two-tower encoder for gesture-to-word matching.
 python -m contrastive.train --config contrastive/config.yaml
 ```
 
-### Evaluate
+### Evaluate (Word-level)
 
 ```bash
 python -m contrastive.eval \
   --checkpoint contrastive/checkpoints/contrastive_latest.pt \
   --data_dir data/processed
+```
+
+### Evaluate (Sentence-level with LLM Reranking)
+
+Uses Gemini to rerank top-K candidates using linguistic context:
+
+```bash
+# Setup (one-time)
+pip install google-genai>=1.51.0 python-dotenv
+gcloud auth application-default login
+
+# Create .env with your GCP project
+echo "GOOGLE_CLOUD_PROJECT=your-project-id" >> .env
+echo "GOOGLE_CLOUD_LOCATION=global" >> .env
+
+# Baseline only
+python -m contrastive.eval_sentences \
+  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
+  --natural-only
+
+# With Gemini 3 Flash reranking (parallel)
+python -m contrastive.eval_sentences \
+  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
+  --natural-only \
+  --reranker gemini \
+  --max-concurrent 10 \
+  --output contrastive/results/sentence_eval.json
 ```
 
 ## Notes
