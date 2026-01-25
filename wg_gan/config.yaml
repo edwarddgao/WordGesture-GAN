@@ -12,7 +12,7 @@ training:
   lr: 0.0002
   epochs: 50
   n_critic: 5
-  checkpoint_dir: checkpoints
+  checkpoint_dir: wg_gan/checkpoints
   checkpoint_every: 10
 
 loss:

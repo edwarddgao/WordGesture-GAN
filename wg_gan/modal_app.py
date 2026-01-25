@@ -20,9 +20,8 @@ image = (
         "numba",
     )
     .env({"NUMBA_CACHE_DIR": "/tmp/numba_cache"})
-    .add_local_dir("wordgesture_gan", remote_path="/app/wordgesture_gan")
-    .add_local_dir("configs", remote_path="/app/configs")
-    .add_local_file("train_wg_gan.py", remote_path="/app/train_wg_gan.py")
+    .add_local_dir("wg_gan", remote_path="/app/wg_gan")
+    .add_local_dir("shared", remote_path="/app/shared")
 )
 
 app = modal.App("wordgesture-gan", image=image)
@@ -54,7 +53,7 @@ def train(epochs: int | None = None, batch_size: int | None = None):
     sys.path.insert(0, "/app")
 
     # Load config
-    config_path = Path("/app/configs/wg_gan.yaml")
+    config_path = Path("/app/wg_gan/config.yaml")
     with config_path.open("r") as f:
         cfg = yaml.safe_load(f)
 
@@ -88,7 +87,7 @@ def train(epochs: int | None = None, batch_size: int | None = None):
     # Import training module and patch argparse
     import argparse
 
-    from train_wg_gan import main as train_main
+    from .train import main as train_main
 
     original_parse = argparse.ArgumentParser.parse_args
 
@@ -117,7 +116,7 @@ def main(
     """CLI entrypoint for training.
 
     Usage:
-        modal run modal_app.py --epochs 50
-        modal run modal_app.py --epochs 10 --batch-size 256
+        modal run wg_gan/modal_app.py --epochs 50
+        modal run wg_gan/modal_app.py --epochs 10 --batch-size 256
     """
     train.remote(epochs=epochs, batch_size=batch_size)

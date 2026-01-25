@@ -6,7 +6,7 @@ from typing import List
 
 import numpy as np
 
-from ..keyboard.qwerty import KeyboardLayout, coalesce_repeats
+from shared import KeyboardLayout, coalesce_repeats
 from .fit import MinJerkFit
 
 

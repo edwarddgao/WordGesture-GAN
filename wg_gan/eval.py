@@ -15,18 +15,15 @@ import yaml
 from scipy.optimize import linear_sum_assignment
 from tqdm import tqdm
 
-from wordgesture_gan.data.preprocess import load_dataset
-from wordgesture_gan.keyboard.qwerty import KeyboardLayout
-from wordgesture_gan.metrics.distance import l2_distance, per_word_wasserstein
-from wordgesture_gan.metrics.dynamics import dynamics_correlation, derivatives, jerk_stat
-from wordgesture_gan.metrics.duration import clc_predict, fit_clc, gesture_duration, word_durations
-from wordgesture_gan.metrics.fid import compute_fid, train_autoencoder
-from wordgesture_gan.metrics.precision_recall import precision_recall
-from wordgesture_gan.minjerk.fit import fit_distributions
-from wordgesture_gan.minjerk.sample import sample_minimum_jerk
-from wordgesture_gan.models.wg_gan import Generator
-from wordgesture_gan.prototypes import build_word_prototype
-from wordgesture_gan.utils import get_device
+from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
+from wg_gan.metrics.distance import l2_distance, per_word_wasserstein
+from wg_gan.metrics.dynamics import dynamics_correlation, derivatives, jerk_stat
+from wg_gan.metrics.duration import clc_predict, fit_clc, gesture_duration, word_durations
+from wg_gan.metrics.fid import compute_fid, train_autoencoder
+from wg_gan.metrics.precision_recall import precision_recall
+from wg_gan.minjerk.fit import fit_distributions
+from wg_gan.minjerk.sample import sample_minimum_jerk
+from wg_gan.models import Generator
 
 
 def load_config(path: Path) -> Dict:

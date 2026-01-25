@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 from scipy.optimize import minimize
 
-from ..keyboard.qwerty import KeyboardLayout
+from shared import KeyboardLayout
 
 
 def gesture_duration(gesture: np.ndarray) -> float:

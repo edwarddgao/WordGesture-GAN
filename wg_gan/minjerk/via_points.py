@@ -7,7 +7,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from ..keyboard.qwerty import KeyboardLayout, coalesce_repeats
+from shared import KeyboardLayout, coalesce_repeats
 
 
 @dataclass

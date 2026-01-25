@@ -1,0 +1,24 @@
+data:
+  data_dir: data/processed
+  n_points: 128
+
+model:
+  embedding_dim: 64
+  projection_dim: 128
+
+contrastive:
+  temperature: 0.07
+  learnable_temp: true
+
+training:
+  batch_size: 512
+  lr: 0.0002
+  lr_temp: 0.001
+  weight_decay: 1.0e-4
+  epochs: 100
+  checkpoint_dir: contrastive/checkpoints
+  checkpoint_every: 10
+
+augmentation:
+  enabled: true
+  noise_std: 0.01

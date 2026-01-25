@@ -13,11 +13,8 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 import yaml
 
-from wordgesture_gan.data.preprocess import load_dataset
-from wordgesture_gan.keyboard.qwerty import KeyboardLayout
-from wordgesture_gan.models.wg_gan import Discriminator, Generator, VariationalEncoder
-from wordgesture_gan.prototypes import build_word_prototype
-from wordgesture_gan.utils import get_device
+from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
+from wg_gan.models import Discriminator, Generator, VariationalEncoder
 
 
 class GestureDataset(Dataset):

@@ -21,13 +21,10 @@ from matplotlib import animation
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
-from wordgesture_gan.data.preprocess import load_dataset
-from wordgesture_gan.keyboard.qwerty import QWERTY_ROWS, KeyboardLayout
-from wordgesture_gan.minjerk.fit import MinJerkFit, fit_distributions
-from wordgesture_gan.minjerk.sample import sample_minimum_jerk
-from wordgesture_gan.models.wg_gan import Generator
-from wordgesture_gan.prototypes import build_word_prototype
-from wordgesture_gan.utils import get_device
+from shared import QWERTY_ROWS, KeyboardLayout, build_word_prototype, get_device, load_dataset
+from .minjerk.fit import MinJerkFit, fit_distributions
+from .minjerk.sample import sample_minimum_jerk
+from .models import Generator
 
 
 MODEL_COLORS = {
@@ -244,8 +241,8 @@ def _add_legend(fig: plt.Figure, models: List[str]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Animate gesture comparisons as a single MP4.")
     parser.add_argument("--data_dir", type=Path, default=Path("data/processed"))
-    parser.add_argument("--checkpoint", type=Path, default=Path("checkpoints/wg_gan_latest.pt"))
-    parser.add_argument("--config", type=Path, default=Path("configs/wg_gan.yaml"))
+    parser.add_argument("--checkpoint", type=Path, default=Path("wg_gan/checkpoints/wg_gan_latest.pt"))
+    parser.add_argument("--config", type=Path, default=Path("wg_gan/config.yaml"))
     parser.add_argument("--n_words", type=int, default=1)
     parser.add_argument("--models", type=str, default="user,wg_gan,minjerk")
     parser.add_argument("--n_samples", type=int, default=5)

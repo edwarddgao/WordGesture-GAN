@@ -10,7 +10,7 @@ from scipy.linalg import sqrtm
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from wordgesture_gan.utils import get_device
+from shared import get_device
 
 
 class GestureAutoEncoder(nn.Module):

@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Tuple
 
 import numpy as np
 
-from ..keyboard.qwerty import KeyboardLayout
+from shared import KeyboardLayout
 from .via_points import extract_via_points, validate_gesture
 
 

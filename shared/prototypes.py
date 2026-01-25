@@ -6,7 +6,7 @@ from typing import List, Sequence
 
 import numpy as np
 
-from .keyboard.qwerty import KeyboardLayout
+from .keyboard import KeyboardLayout
 
 
 def build_word_prototype(word: str, n_points: int, layout: KeyboardLayout | None = None) -> np.ndarray:

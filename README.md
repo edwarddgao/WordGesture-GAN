@@ -2,6 +2,50 @@
 
 This project reproduces **WordGesture-GAN** (Chu et al., 2023) and the **Minimum Jerk** gesture-production model (Quinn & Zhai, 2018) on the *How We Swipe* dataset.
 
+## Project Structure
+
+```
+WordGesture-GAN/
+├── shared/                 # Common utilities
+│   ├── keyboard.py         # QWERTY layout and key positions
+│   ├── data.py             # Dataset loading and preprocessing
+│   ├── prototypes.py       # Word prototype generation
+│   └── parse_swipelogs.py  # Raw log parsing
+│
+├── wg_gan/                 # WordGesture-GAN package
+│   ├── train.py            # Training script
+│   ├── eval.py             # Evaluation script
+│   ├── models.py           # Generator, Discriminator, Encoder
+│   ├── reproduce_figures.py # GIF animation generation
+│   ├── modal_app.py        # Modal cloud training
+│   ├── config.yaml
+│   ├── checkpoints/
+│   ├── results/
+│   ├── metrics/            # Evaluation metrics
+│   │   ├── distance.py     # L2, DTW, Wasserstein
+│   │   ├── fid.py          # Fréchet Inception Distance
+│   │   ├── precision_recall.py
+│   │   ├── duration.py     # CLC baseline
+│   │   └── dynamics.py     # Velocity, acceleration, jerk
+│   └── minjerk/            # Minimum jerk baseline
+│       ├── fit.py          # Distribution fitting
+│       ├── sample.py       # Trajectory sampling
+│       └── via_points.py   # Via-point extraction
+│
+├── contrastive/            # Contrastive learning package
+│   ├── train.py
+│   ├── eval.py
+│   ├── models.py           # Two-tower encoder
+│   ├── losses.py           # InfoNCE loss
+│   ├── data.py             # Augmentation pipeline
+│   ├── config.yaml
+│   ├── checkpoints/
+│   └── results/
+│
+└── data/                   # Dataset storage
+    └── processed/          # Preprocessed .npz files
+```
+
 ## Setup
 
 ```bash
@@ -10,16 +54,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Data preprocessing
+## Data Preprocessing
 
-Place the raw swipe logs in `data/swipelogs/` (one `.log` per user/session).
+Place raw swipe logs in `data/swipelogs/` (one `.log` per user/session).
 
 ```bash
-python -m wordgesture_gan.data.parse_swipelogs \
+# Parse raw logs to JSONL
+python -m shared.parse_swipelogs \
   --log_dir data/swipelogs \
   --out_dir data/processed/raw
 
-python -m wordgesture_gan.data.preprocess \
+# Preprocess to fixed-length tensors
+python -m shared.data \
   --raw_dir data/processed/raw \
   --out_dir data/processed \
   --n_points 128 \
@@ -28,71 +74,77 @@ python -m wordgesture_gan.data.preprocess \
   --seed 1337
 ```
 
-This creates `data/processed/train.npz`, `data/processed/test.npz`, and split metadata.
+Creates `data/processed/train.npz`, `data/processed/test.npz`, and `split.json`.
 
-## Train WordGesture-GAN
+## WordGesture-GAN
 
-**Local:**
+### Train
+
 ```bash
-python train_wg_gan.py --config configs/wg_gan.yaml
-```
+# Local
+python -m wg_gan.train --config wg_gan/config.yaml
 
-**Modal (cloud GPU):**
-```bash
-# One-time setup: upload data to Modal volume
+# Modal (cloud GPU)
 modal volume create wordgesture-gan-data
 modal volume put wordgesture-gan-data data/processed/train.npz processed/train.npz
 modal volume put wordgesture-gan-data data/processed/test.npz processed/test.npz
-
-# Train on L40S GPU
-modal run modal_app.py --epochs 50
-
-# Download checkpoint
-modal volume get wordgesture-gan-data checkpoints/wg_gan_latest.pt ./checkpoints/
+modal run wg_gan/modal_app.py --epochs 50
+modal volume get wordgesture-gan-data checkpoints/wg_gan_latest.pt ./wg_gan/checkpoints/
 ```
 
-Checkpoints are written under `checkpoints/`.
-
-## Evaluate (WordGesture-GAN + Minimum Jerk)
+### Evaluate
 
 ```bash
-python eval.py \
-  --config configs/wg_gan.yaml \
-  --minjerk_config configs/minjerk.yaml \
-  --checkpoint checkpoints/wg_gan_latest.pt \
+python -m wg_gan.eval \
+  --config wg_gan/config.yaml \
+  --minjerk_config wg_gan/minjerk/config.yaml \
+  --checkpoint wg_gan/checkpoints/wg_gan_latest.pt \
   --data_dir data/processed \
-  --out_dir results
+  --out_dir wg_gan/results
 ```
 
-Outputs JSON summaries and prints paper-style tables to stdout.
-
-## Animate gesture comparisons
-
-GIF export uses Pillow (included in requirements).
+### Animate
 
 ```bash
-# Multi-word overlays (Figure 7/8 style)
-python reproduce_figures.py \
+# Multi-word overlay (Figure 7/8 style)
+python -m wg_gan.reproduce_figures \
   --n_words 6 \
   --models user,wg_gan,minjerk \
   --n_samples 5 \
   --collapse_samples true \
-  --out results/gifs/fig8_overlay.gif
+  --out wg_gan/results/gifs/overlay.gif
 
-# Per-model x per-word grid (Figure 6 style)
-python reproduce_figures.py \
+# Per-model grid (Figure 6 style)
+python -m wg_gan.reproduce_figures \
   --n_words 6 \
   --models user,wg_gan,minjerk \
   --n_samples 1 \
   --collapse_samples false \
-  --out results/gifs/fig6_grid.gif
+  --out wg_gan/results/gifs/grid.gif
+```
+
+## Contrastive Learning
+
+Two-tower encoder for gesture-to-word matching.
+
+### Train
+
+```bash
+python -m contrastive.train --config contrastive/config.yaml
+```
+
+### Evaluate
+
+```bash
+python -m contrastive.eval \
+  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
+  --data_dir data/processed
 ```
 
 ## Notes
 
-- Coordinates are normalized to `[-1, 1]` with timestamps stored as `dt` (seconds).
-- The minimum-jerk baseline uses aggregate via-point distributions and a minimum-jerk trajectory solver; evaluation treats it as spatial-only.
-- The CLC duration baseline uses the paper equation `T(P) = Σ m * ||AB||^n` over prototype segments.
-- Shape-only metrics use a flattened L2 (Frobenius) distance and DTW with sqrt of accumulated squared cost, matching the paper scale.
-- Shape-only dynamics (velocity/accel/jerk) use uniform `dt=1` (index-based) for comparable magnitudes.
-- WG-GAN evaluation reports both shape-only metrics and spatiotemporal Wasserstein on `(x, y, dt)`.
+- Coordinates normalized to `[-1, 1]`, timestamps as `dt` (seconds)
+- Minimum jerk baseline uses aggregate via-point distributions
+- CLC duration: `T(P) = Σ m * ||AB||^n` over prototype segments
+- Shape-only metrics use uniform `dt=1` for comparable dynamics
+- WG-GAN reports both shape-only and spatiotemporal `(x, y, dt)` metrics
