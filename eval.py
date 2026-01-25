@@ -216,8 +216,6 @@ def main() -> None:
         hidden_size=int(cfg["model"]["hidden_size"]),
         num_layers=int(cfg["model"]["num_layers"]),
         dt_scale=float(cfg["model"].get("dt_scale", 0.05)),
-        dt_activation=str(cfg["model"].get("dt_activation", "sigmoid")),
-        force_dt0=bool(cfg["model"].get("force_dt0", True)),
     ).to(device)
     generator.load_state_dict(checkpoint["generator"])
     generator.eval()
