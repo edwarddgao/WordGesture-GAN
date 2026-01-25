@@ -57,7 +57,17 @@ def _match_pairs(
     return pairs
 
 
-def _velocity_accel_stats(gestures: np.ndarray) -> Dict[str, float]:
+def _with_uniform_dt(gestures_xy: np.ndarray) -> np.ndarray:
+    if gestures_xy.ndim != 3 or gestures_xy.shape[-1] != 2:
+        raise ValueError("Expected gestures of shape (N, T, 2) for shape-only metrics.")
+    n_points = gestures_xy.shape[1]
+    dt = np.full((gestures_xy.shape[0], n_points, 1), 1.0 / max(n_points - 1, 1), dtype=gestures_xy.dtype)
+    dt[:, 0, 0] = 0.0
+    return np.concatenate([gestures_xy, dt], axis=-1)
+
+
+def _velocity_accel_stats(gestures_xy: np.ndarray) -> Dict[str, float]:
+    gestures = _with_uniform_dt(gestures_xy)
     velocities = []
     accelerations = []
     for gesture in gestures:
@@ -100,52 +110,56 @@ def _duration_rmse(real: np.ndarray, real_words: List[str], pred: np.ndarray, pr
 
 def evaluate_model(
     label: str,
-    real: np.ndarray,
+    real_xy: np.ndarray,
     real_words: List[str],
-    fake: np.ndarray,
+    fake_xy: np.ndarray,
     fake_words: List[str],
     autoencoder,
 ) -> Dict:
     print(f"\n{'='*60}")
     print(f"Evaluating: {label}")
     print(f"{'='*60}")
-    print(f"  Real samples: {len(real)}, Fake samples: {len(fake)}")
+    print(f"  Real samples: {len(real_xy)}, Fake samples: {len(fake_xy)}")
 
     t0 = time.time()
     print("  [1/6] Computing Wasserstein L2 distance...")
-    l2_mean, l2_std = per_word_wasserstein(real[:, :, :2], real_words, fake[:, :, :2], fake_words, metric="l2")
+    l2_mean, l2_std = per_word_wasserstein(real_xy, real_words, fake_xy, fake_words, metric="l2")
     print(f"         Done in {time.time() - t0:.1f}s -> L2: {l2_mean:.4f} ± {l2_std:.4f}")
 
     t0 = time.time()
     print("  [2/6] Computing Wasserstein DTW distance...")
-    dtw_mean, dtw_std = per_word_wasserstein(real[:, :, :2], real_words, fake[:, :, :2], fake_words, metric="dtw", band_width=15)
+    dtw_mean, dtw_std = per_word_wasserstein(real_xy, real_words, fake_xy, fake_words, metric="dtw", band_width=15)
     print(f"         Done in {time.time() - t0:.1f}s -> DTW: {dtw_mean:.4f} ± {dtw_std:.4f}")
 
     t0 = time.time()
     print("  [3/6] Computing FID...")
-    fid = compute_fid(real, fake, autoencoder)
+    fid = compute_fid(real_xy, fake_xy, autoencoder)
     print(f"         Done in {time.time() - t0:.1f}s -> FID: {fid:.4f}")
 
     t0 = time.time()
     print("  [4/6] Computing Precision/Recall...")
-    precision, recall = precision_recall(real, fake, k=3)
+    precision, recall = precision_recall(real_xy, fake_xy, k=3)
     print(f"         Done in {time.time() - t0:.1f}s -> P: {precision:.4f}, R: {recall:.4f}")
 
     t0 = time.time()
     print("  [5/6] Computing dynamics correlations...")
-    pairs = _match_pairs(real, real_words, fake, fake_words)
+    pairs = _match_pairs(real_xy, real_words, fake_xy, fake_words)
     v_corrs = []
     a_corrs = []
     for r, f in tqdm(pairs, desc="         Dynamics", leave=False):
-        v_corr, a_corr = dynamics_correlation(r, f)
+        r_dt = _with_uniform_dt(r[None, ...])[0]
+        f_dt = _with_uniform_dt(f[None, ...])[0]
+        v_corr, a_corr = dynamics_correlation(r_dt, f_dt)
         v_corrs.append(v_corr)
         a_corrs.append(a_corr)
     print(f"         Done in {time.time() - t0:.1f}s -> vel_corr: {np.mean(v_corrs):.4f}")
 
     t0 = time.time()
     print("  [6/6] Computing jerk statistics...")
-    real_jerk = [jerk_stat(g) for g in tqdm(real, desc="         Real jerk", leave=False)]
-    fake_jerk = [jerk_stat(g) for g in tqdm(fake, desc="         Fake jerk", leave=False)]
+    real_dt = _with_uniform_dt(real_xy)
+    fake_dt = _with_uniform_dt(fake_xy)
+    real_jerk = [jerk_stat(g) for g in tqdm(real_dt, desc="         Real jerk", leave=False)]
+    fake_jerk = [jerk_stat(g) for g in tqdm(fake_dt, desc="         Fake jerk", leave=False)]
     print(f"         Done in {time.time() - t0:.1f}s")
 
     print(f"  {label} evaluation complete.\n")
@@ -167,10 +181,8 @@ def evaluate_model(
         "jerk_real_std": float(np.std(real_jerk)),
         "jerk_fake_mean": float(np.mean(fake_jerk)),
         "jerk_fake_std": float(np.std(fake_jerk)),
-        "velocity_stats_fake": _velocity_accel_stats(fake),
-        "velocity_stats_real": _velocity_accel_stats(real),
-        "dt_stats_fake": _dt_duration_stats(fake),
-        "dt_stats_real": _dt_duration_stats(real),
+        "velocity_stats_fake": _velocity_accel_stats(fake_xy),
+        "velocity_stats_real": _velocity_accel_stats(real_xy),
     }
 
 
@@ -186,7 +198,7 @@ def main() -> None:
         type=str,
         default="none",
         choices=["none", "train_mean"],
-        help="Optionally rescale WG-GAN dt to match training-set mean dt (helps dynamics/jerk/FID when timing is off).",
+        help="Optionally rescale WG-GAN dt to match training-set mean dt (affects x,y,dt metrics).",
     )
     args = parser.parse_args()
 
@@ -201,14 +213,16 @@ def main() -> None:
     device = get_device()
     print(f"Using device: {device}")
 
-    print("\n[Step 1/7] Loading datasets...")
+    print("\n[Step 1/9] Loading datasets...")
     t0 = time.time()
     train_gestures, train_words = load_dataset(args.data_dir / "train.npz")
     test_gestures, test_words = load_dataset(args.data_dir / "test.npz")
     print(f"  Train: {len(train_gestures)} samples, Test: {len(test_gestures)} samples")
     print(f"  Done in {time.time() - t0:.1f}s")
+    train_xy = train_gestures[:, :, :2]
+    test_xy = test_gestures[:, :, :2]
 
-    print("\n[Step 2/7] Loading WordGesture-GAN checkpoint...")
+    print("\n[Step 2/9] Loading WordGesture-GAN checkpoint...")
     t0 = time.time()
     checkpoint = torch.load(args.checkpoint, map_location=device)
     generator = Generator(
@@ -222,7 +236,7 @@ def main() -> None:
     print(f"  Done in {time.time() - t0:.1f}s")
 
     word_counts = Counter(test_words)
-    print(f"\n[Step 3/7] Generating WordGesture-GAN samples ({len(test_gestures)} total)...")
+    print(f"\n[Step 3/9] Generating WordGesture-GAN samples ({len(test_gestures)} total)...")
     t0 = time.time()
     wg_gan_samples = []
     wg_gan_words: List[str] = []
@@ -235,6 +249,7 @@ def main() -> None:
         wg_gan_samples.append(fake)
         wg_gan_words.extend([word] * count)
     wg_gan_samples = np.concatenate(wg_gan_samples, axis=0)
+    wg_gan_xy = wg_gan_samples[:, :, :2]
     print(f"  Generated {len(wg_gan_samples)} samples in {time.time() - t0:.1f}s")
 
     if args.dt_calibration == "train_mean":
@@ -247,12 +262,12 @@ def main() -> None:
         else:
             print("\n[Info] Skipped WG-GAN dt calibration (non-finite dt stats).")
 
-    print("\n[Step 4/7] Fitting Minimum Jerk distributions...")
+    print("\n[Step 4/9] Fitting Minimum Jerk distributions...")
     t0 = time.time()
     fit = fit_distributions(train_gestures, train_words, layout)
     print(f"  Done in {time.time() - t0:.1f}s")
 
-    print(f"\n[Step 5/7] Generating Minimum Jerk samples ({len(test_gestures)} total)...")
+    print(f"\n[Step 5/9] Generating Minimum Jerk samples ({len(test_gestures)} total)...")
     t0 = time.time()
     minjerk_samples = []
     minjerk_words: List[str] = []
@@ -267,11 +282,12 @@ def main() -> None:
                 pbar.update(1)
     minjerk_samples = np.stack(minjerk_samples, axis=0)
     print(f"  Generated {len(minjerk_samples)} samples in {time.time() - t0:.1f}s")
+    minjerk_xy = minjerk_samples[:, :, :2]
 
-    print("\n[Step 6/7] Training FID autoencoder...")
+    print("\n[Step 6/9] Training FID autoencoder...")
     t0 = time.time()
     autoencoder = train_autoencoder(
-        train_gestures,
+        train_xy,
         latent_dim=minjerk_cfg["fid"]["latent_dim"],
         epochs=minjerk_cfg["fid"]["epochs"],
         batch_size=minjerk_cfg["fid"]["batch_size"],
@@ -280,7 +296,7 @@ def main() -> None:
     )
     print(f"  Done in {time.time() - t0:.1f}s")
 
-    print("\n[Step 7/8] Creating real baseline (test split)...")
+    print("\n[Step 7/9] Creating real baseline (test split)...")
     t0 = time.time()
     # Split test set by word into two halves for real-to-real comparison
     test_by_word: Dict[str, List[np.ndarray]] = {}
@@ -310,6 +326,8 @@ def main() -> None:
             real_half_b_words.extend([word] * len(gestures_list[mid:]))
 
     real_metrics = None
+    real_half_a_xy = None
+    real_half_b_xy = None
     can_compute_real_baseline = bool(real_half_a) and bool(real_half_b)
     if not can_compute_real_baseline:
         print("  [Warning] Cannot create real baseline: insufficient samples for split.")
@@ -317,13 +335,36 @@ def main() -> None:
     else:
         real_half_a = np.stack(real_half_a, axis=0)
         real_half_b = np.stack(real_half_b, axis=0)
+        real_half_a_xy = real_half_a[:, :, :2]
+        real_half_b_xy = real_half_b[:, :, :2]
         print(f"  Split test into {len(real_half_a)} + {len(real_half_b)} samples in {time.time() - t0:.1f}s")
 
-    print("\n[Step 8/8] Computing evaluation metrics...")
+    print("\n[Step 8/9] Computing shape-only evaluation metrics...")
     if can_compute_real_baseline:
-        real_metrics = evaluate_model("Real (test split)", real_half_a, real_half_a_words, real_half_b, real_half_b_words, autoencoder)
-    wg_metrics = evaluate_model("WordGesture-GAN", test_gestures, test_words, wg_gan_samples, wg_gan_words, autoencoder)
-    mj_metrics = evaluate_model("MinimumJerk", test_gestures, test_words, minjerk_samples, minjerk_words, autoencoder)
+        real_metrics = evaluate_model(
+            "Real (test split)",
+            real_half_a_xy,
+            real_half_a_words,
+            real_half_b_xy,
+            real_half_b_words,
+            autoencoder,
+        )
+    wg_metrics = evaluate_model("WordGesture-GAN", test_xy, test_words, wg_gan_xy, wg_gan_words, autoencoder)
+    mj_metrics = evaluate_model("MinimumJerk", test_xy, test_words, minjerk_xy, minjerk_words, autoencoder)
+
+    print("\n[Step 9/9] Computing WG-GAN spatiotemporal Wasserstein...")
+    t0 = time.time()
+    wg_xyt_l2_mean, wg_xyt_l2_std = per_word_wasserstein(
+        test_gestures, test_words, wg_gan_samples, wg_gan_words, metric="l2"
+    )
+    wg_xyt_dtw_mean, wg_xyt_dtw_std = per_word_wasserstein(
+        test_gestures, test_words, wg_gan_samples, wg_gan_words, metric="dtw", band_width=15
+    )
+    print(
+        f"         Done in {time.time() - t0:.1f}s -> "
+        f"L2={wg_xyt_l2_mean:.4f} ± {wg_xyt_l2_std:.4f}, "
+        f"DTW={wg_xyt_dtw_mean:.4f} ± {wg_xyt_dtw_std:.4f}"
+    )
 
     # Duration metrics
     print("\nComputing duration metrics...")
@@ -338,9 +379,17 @@ def main() -> None:
     print(f"  Done in {time.time() - t0:.1f}s")
 
     results = {
-        "real_baseline": real_metrics,
-        "wordgesture_gan": wg_metrics,
-        "minimum_jerk": mj_metrics,
+        "real_baseline": {"shape_xy": real_metrics} if real_metrics is not None else None,
+        "wordgesture_gan": {
+            "shape_xy": wg_metrics,
+            "spatiotemporal_xyt": {
+                "wasserstein_l2_mean": wg_xyt_l2_mean,
+                "wasserstein_l2_std": wg_xyt_l2_std,
+                "wasserstein_dtw_mean": wg_xyt_dtw_mean,
+                "wasserstein_dtw_std": wg_xyt_dtw_std,
+            },
+        },
+        "minimum_jerk": {"shape_xy": mj_metrics},
         "duration": {
             "clc_rmse": clc_rmse,
             "wg_gan_rmse": wg_rmse,
@@ -362,11 +411,31 @@ def main() -> None:
     print(f"\nResults saved to: {out_path}")
     print("\n--- Summary ---")
     if real_metrics is not None:
-        print(f"Real (baseline): L2={real_metrics['wasserstein_l2_mean']:.4f}, DTW={real_metrics['wasserstein_dtw_mean']:.4f}, FID={real_metrics['fid']:.4f}")
+        print(
+            "Real (baseline, shape): "
+            f"L2={real_metrics['wasserstein_l2_mean']:.4f}, "
+            f"DTW={real_metrics['wasserstein_dtw_mean']:.4f}, "
+            f"FID={real_metrics['fid']:.4f}"
+        )
     else:
         print("Real (baseline): skipped (insufficient samples for split)")
-    print(f"WordGesture-GAN: L2={wg_metrics['wasserstein_l2_mean']:.4f}, DTW={wg_metrics['wasserstein_dtw_mean']:.4f}, FID={wg_metrics['fid']:.4f}")
-    print(f"Minimum Jerk:    L2={mj_metrics['wasserstein_l2_mean']:.4f}, DTW={mj_metrics['wasserstein_dtw_mean']:.4f}, FID={mj_metrics['fid']:.4f}")
+    print(
+        "WordGesture-GAN (shape): "
+        f"L2={wg_metrics['wasserstein_l2_mean']:.4f}, "
+        f"DTW={wg_metrics['wasserstein_dtw_mean']:.4f}, "
+        f"FID={wg_metrics['fid']:.4f}"
+    )
+    print(
+        "WordGesture-GAN (x,y,dt): "
+        f"L2={wg_xyt_l2_mean:.4f}, "
+        f"DTW={wg_xyt_dtw_mean:.4f}"
+    )
+    print(
+        "Minimum Jerk (shape):    "
+        f"L2={mj_metrics['wasserstein_l2_mean']:.4f}, "
+        f"DTW={mj_metrics['wasserstein_dtw_mean']:.4f}, "
+        f"FID={mj_metrics['fid']:.4f}"
+    )
     print(f"Duration RMSE:   CLC={clc_rmse:.4f}, WG-GAN={wg_rmse:.4f}")
 
 
