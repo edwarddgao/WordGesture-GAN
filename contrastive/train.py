@@ -8,24 +8,18 @@ from pathlib import Path
 from typing import Dict
 
 import torch
-import yaml
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from shared import KeyboardLayout, get_device
+from shared import KeyboardLayout, get_device, load_yaml
 
 from .data import ContrastiveGestureDataset
 from .losses import InfoNCELoss
 from .models import TwoTowerModel
 
 
-def load_config(path: Path) -> Dict:
-    with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
-
-
 def train(config_path: Path) -> None:
-    cfg = load_config(config_path)
+    cfg = load_yaml(config_path)
     device = get_device()
     print(f"Using device: {device}")
 

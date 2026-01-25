@@ -11,9 +11,8 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-import yaml
 
-from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
+from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset, load_yaml
 from wg_gan.models import Discriminator, Generator, VariationalEncoder
 
 
@@ -53,17 +52,13 @@ def freeze_module(module: nn.Module):
             p.requires_grad = req
 
 
-def load_config(path: Path) -> Dict:
-    with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+def train(config_path: Path) -> None:
+    """Train WordGesture-GAN using the given config file.
 
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Train WordGesture-GAN.")
-    parser.add_argument("--config", required=True, type=Path)
-    args = parser.parse_args()
-
-    cfg = load_config(args.config)
+    Args:
+        config_path: Path to the YAML configuration file.
+    """
+    cfg = load_yaml(config_path)
     device = get_device()
     print(f"Using device: {device}")
 
@@ -191,6 +186,15 @@ def main() -> None:
         torch.save(checkpoint, checkpoint_dir / "wg_gan_latest.pt")
         if epoch % int(cfg["training"]["checkpoint_every"]) == 0:
             torch.save(checkpoint, checkpoint_dir / f"wg_gan_epoch_{epoch}.pt")
+
+
+def main() -> None:
+    """CLI entrypoint for training WordGesture-GAN."""
+    parser = argparse.ArgumentParser(description="Train WordGesture-GAN.")
+    parser.add_argument("--config", required=True, type=Path, help="Path to config YAML file.")
+    args = parser.parse_args()
+
+    train(args.config)
 
 
 if __name__ == "__main__":

@@ -133,15 +133,16 @@ def preprocess_dataset(
             target_labels.append(word)
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Save words as fixed-length Unicode strings (allows loading without pickle)
     np.savez_compressed(
         out_dir / "train.npz",
         gestures=np.asarray(train_gestures, dtype=np.float32),
-        words=np.asarray(train_labels, dtype=object),
+        words=np.asarray(train_labels, dtype="<U64"),
     )
     np.savez_compressed(
         out_dir / "test.npz",
         gestures=np.asarray(test_gestures, dtype=np.float32),
-        words=np.asarray(test_labels, dtype=object),
+        words=np.asarray(test_labels, dtype="<U64"),
     )
 
     meta = {
@@ -159,10 +160,23 @@ def preprocess_dataset(
 
 
 def load_dataset(path: Path) -> Tuple[np.ndarray, List[str]]:
-    data = np.load(path, allow_pickle=True)
-    gestures = data["gestures"].astype(np.float32)
-    words = data["words"].tolist()
-    return gestures, words
+    """Load a preprocessed gesture dataset from .npz file.
+
+    Tries to load without pickle first (newer format with string dtype),
+    falls back to allow_pickle=True for backward compatibility with old files.
+    """
+    try:
+        # Try loading without pickle (newer format)
+        data = np.load(path, allow_pickle=False)
+        gestures = data["gestures"].astype(np.float32)
+        words = data["words"].astype(str).tolist()
+        return gestures, words
+    except ValueError:
+        # Fallback to pickle for old object-dtype files
+        data = np.load(path, allow_pickle=True)
+        gestures = data["gestures"].astype(np.float32)
+        words = data["words"].tolist()
+        return gestures, words
 
 
 def main() -> None:

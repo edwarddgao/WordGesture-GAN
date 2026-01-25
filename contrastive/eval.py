@@ -10,16 +10,10 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-import yaml
 
 from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
 
 from .models import TwoTowerModel
-
-
-def load_config(path: Path) -> Dict:
-    with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
 
 
 def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerModel, Dict]:

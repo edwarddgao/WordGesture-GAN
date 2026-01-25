@@ -41,14 +41,18 @@ class ContrastiveGestureDataset(Dataset):
         self.noise_std = noise_std
         self._prototype_cache: Dict[str, np.ndarray] = {}
 
-        # Filter by path length ratio
+        # Filter by path length ratio (with caching for prototype path lengths)
         if filter_by_path_length:
             min_ratio, max_ratio = path_ratio_range
+            # Cache expected path lengths per word
+            expected_path_cache: Dict[str, float] = {}
             valid_indices = []
             for i, (gesture, word) in enumerate(zip(gestures, words)):
                 gesture_path = _path_length(gesture[:, :2])
-                proto = build_word_prototype(word, n_points, self.layout)[:, :2]
-                expected_path = _path_length(proto)
+                if word not in expected_path_cache:
+                    proto = build_word_prototype(word, n_points, self.layout)[:, :2]
+                    expected_path_cache[word] = _path_length(proto)
+                expected_path = expected_path_cache[word]
                 if expected_path > 0:
                     ratio = gesture_path / expected_path
                     if min_ratio <= ratio <= max_ratio:

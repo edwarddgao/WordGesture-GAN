@@ -82,6 +82,8 @@ def load_sentence_dataset(
     # Group samples by (username, sentence_id)
     # Key: (username, sentence_id) -> Dict[word -> List[_WordAttempt]]
     sentence_attempts: Dict[Tuple[str, str], Dict[str, List[_WordAttempt]]] = {}
+    # Cache expected path lengths per word for filtering
+    expected_path_cache: Dict[str, float] = {}
 
     for username, sample in iter_raw_samples_with_user(raw_dir):
         # Apply filtering
@@ -104,11 +106,13 @@ def load_sentence_dataset(
         # Convert to fixed-length gesture
         gesture = to_fixed_length(sample, n_points)
 
-        # Filter by path length ratio
+        # Filter by path length ratio (with caching)
         if layout is not None:
             gesture_path = _path_length(gesture[:, :2])
-            proto = build_word_prototype(word, n_points, layout)[:, :2]
-            expected_path = _path_length(proto)
+            if word not in expected_path_cache:
+                proto = build_word_prototype(word, n_points, layout)[:, :2]
+                expected_path_cache[word] = _path_length(proto)
+            expected_path = expected_path_cache[word]
             if expected_path > 0:
                 ratio = gesture_path / expected_path
                 if not (0.5 <= ratio <= 2.0):

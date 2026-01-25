@@ -393,8 +393,8 @@ def main() -> None:
     parser.add_argument(
         "--reranker",
         choices=["none", "gemini"],
-        default="gemini",
-        help="Reranker to use.",
+        default="none",
+        help="Reranker to use. 'none' uses top-1 candidates, 'gemini' uses LLM reranking.",
     )
     parser.add_argument(
         "--project",
@@ -496,13 +496,21 @@ def main() -> None:
         print(f"With Gemini Reranker ({args.model})")
         print("=" * 60)
 
-        reranker = GeminiReranker(
-            project=args.project,
-            location=args.location,
-            model=args.model,
-            max_concurrent=args.max_concurrent,
-            max_candidates_display=args.max_candidates_display,
-        )
+        try:
+            reranker = GeminiReranker(
+                project=args.project,
+                location=args.location,
+                model=args.model,
+                max_concurrent=args.max_concurrent,
+                max_candidates_display=args.max_candidates_display,
+            )
+        except ImportError as e:
+            print(f"\nError: {e}")
+            print("\nTo use the Gemini reranker, install required dependencies:")
+            print("  pip install google-genai>=1.51.0 python-dotenv")
+            print("\nSee README.md for full setup instructions.")
+            print("\nAlternatively, run with --reranker none for baseline evaluation.")
+            return
         # Use async evaluation for parallel API calls
         reranker_results = asyncio.run(evaluate_sentences_async(
             model, sentences, vocab, layout, n_points, device,

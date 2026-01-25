@@ -35,7 +35,7 @@ vol = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
     volumes={"/data": vol},
     timeout=7200,
 )
-def train(epochs: int | None = None, batch_size: int | None = None):
+def train_on_modal(epochs: int | None = None, batch_size: int | None = None):
     """Train WordGesture-GAN on Modal.
 
     Args:
@@ -70,7 +70,7 @@ def train(epochs: int | None = None, batch_size: int | None = None):
     # Write modified config
     temp_config = Path("/tmp/training_config.yaml")
     with temp_config.open("w") as f:
-        yaml.dump(cfg, f)
+        yaml.safe_dump(cfg, f)
 
     print("=" * 60)
     print("WordGesture-GAN Training on Modal")
@@ -84,24 +84,10 @@ def train(epochs: int | None = None, batch_size: int | None = None):
     print(f"Batch size: {cfg['training']['batch_size']}")
     print("=" * 60)
 
-    # Import training module and patch argparse
-    import argparse
+    # Import and call the training function directly
+    from wg_gan.train import train
 
-    from .train import main as train_main
-
-    original_parse = argparse.ArgumentParser.parse_args
-
-    def patched_parse(self, args=None, namespace=None):
-        ns = argparse.Namespace()
-        ns.config = temp_config
-        return ns
-
-    argparse.ArgumentParser.parse_args = patched_parse
-
-    try:
-        train_main()
-    finally:
-        argparse.ArgumentParser.parse_args = original_parse
+    train(temp_config)
 
     # Commit volume to persist checkpoints
     vol.commit()
@@ -119,4 +105,4 @@ def main(
         modal run wg_gan/modal_app.py --epochs 50
         modal run wg_gan/modal_app.py --epochs 10 --batch-size 256
     """
-    train.remote(epochs=epochs, batch_size=batch_size)
+    train_on_modal.remote(epochs=epochs, batch_size=batch_size)

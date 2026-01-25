@@ -5,17 +5,14 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-
-# Load .env from project root
-load_dotenv(Path(__file__).parent.parent / ".env")
-
+if TYPE_CHECKING:
+    from google import genai
+    from google.genai import types
 
 RERANK_PROMPT_TEMPLATE = """You are proofreading swipe keyboard output. Select words to form a grammatically correct English sentence.
 
@@ -26,6 +23,25 @@ Candidates (* = gesture system's choice):
 
 Carefully read the sentence. For each position, select the word that makes the sentence grammatically correct and natural. Output one word per line:
 """
+
+
+def _load_optional_deps():
+    """Load optional dependencies for Gemini reranker.
+
+    Raises:
+        ImportError: If required packages are not installed.
+    """
+    try:
+        from google import genai
+        from google.genai import types
+
+        return genai, types
+    except ImportError as e:
+        raise ImportError(
+            "GeminiReranker requires google-genai and python-dotenv. "
+            "Install with: pip install google-genai>=1.51.0 python-dotenv\n"
+            "See README.md for setup instructions."
+        ) from e
 
 
 class GeminiReranker:
@@ -40,6 +56,7 @@ class GeminiReranker:
         retry_delay: float = 1.0,
         max_concurrent: int = 10,
         max_candidates_display: int = 10,
+        load_dotenv: bool = True,
     ):
         """Initialize the Gemini reranker.
 
@@ -51,7 +68,23 @@ class GeminiReranker:
             retry_delay: Base delay between retries (exponential backoff).
             max_concurrent: Maximum concurrent API calls for async batch processing.
             max_candidates_display: Maximum candidates to show in prompt per position.
+            load_dotenv: If True, load .env file from project root if it exists.
         """
+        # Load optional dependencies
+        genai, types = _load_optional_deps()
+        self._types = types
+
+        # Optionally load .env file
+        if load_dotenv:
+            env_path = Path(__file__).parent.parent / ".env"
+            if env_path.exists():
+                try:
+                    from dotenv import load_dotenv as _load_dotenv
+
+                    _load_dotenv(env_path)
+                except ImportError:
+                    pass  # dotenv is optional if env vars are set directly
+
         self.project = project or os.environ.get("GOOGLE_CLOUD_PROJECT")
         if not self.project:
             raise ValueError(
@@ -175,7 +208,7 @@ class GeminiReranker:
                 response = self.client.models.generate_content(
                     model=self.model,
                     contents=prompt,
-                    config=types.GenerateContentConfig(
+                    config=self._types.GenerateContentConfig(
                         temperature=0.0,  # Deterministic for consistent reranking
                         max_output_tokens=256,
                     ),
@@ -188,7 +221,11 @@ class GeminiReranker:
                     time.sleep(delay)
 
         # All retries failed, fall back to top-1
-        print(f"Warning: Reranker failed after {self.max_retries} attempts: {last_error}")
+        warnings.warn(
+            f"Reranker failed after {self.max_retries} attempts: {last_error}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
         return [cands[0][0] for cands in candidates]
 
     def rerank_batch(

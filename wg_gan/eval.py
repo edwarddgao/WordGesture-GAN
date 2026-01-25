@@ -11,11 +11,10 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-import yaml
 from scipy.optimize import linear_sum_assignment
 from tqdm import tqdm
 
-from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
+from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset, load_yaml
 from wg_gan.metrics.distance import l2_distance, per_word_wasserstein
 from wg_gan.metrics.dynamics import dynamics_correlation, derivatives, jerk_stat
 from wg_gan.metrics.duration import clc_predict, fit_clc, gesture_duration, word_durations
@@ -24,11 +23,6 @@ from wg_gan.metrics.precision_recall import precision_recall
 from wg_gan.minjerk.fit import fit_distributions
 from wg_gan.minjerk.sample import sample_minimum_jerk
 from wg_gan.models import Generator
-
-
-def load_config(path: Path) -> Dict:
-    with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
 
 
 def _match_pairs(
@@ -204,8 +198,8 @@ def main() -> None:
     print("WordGesture-GAN & Minimum Jerk Evaluation")
     print("=" * 60)
 
-    cfg = load_config(args.config)
-    minjerk_cfg = load_config(args.minjerk_config)
+    cfg = load_yaml(args.config)
+    minjerk_cfg = load_yaml(args.minjerk_config)
     layout = KeyboardLayout()
     device = get_device()
     print(f"Using device: {device}")
