@@ -310,7 +310,7 @@ def main() -> None:
     if collapse_samples:
         rows, cols = _grid_dims(n_words)
         fig, axes = plt.subplots(rows, cols, figsize=(cols * 3.2, rows * 2.6 + 0.4))
-        fig.subplots_adjust(top=0.88)
+        fig.subplots_adjust(top=0.82)
         _add_legend(fig, models)
         axes_list = axes.flatten() if isinstance(axes, np.ndarray) else [axes]
         tracks: List[Track] = []
