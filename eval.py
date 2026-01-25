@@ -294,13 +294,27 @@ def main() -> None:
     real_half_b_words: List[str] = []
     for word, gestures_list in test_by_word.items():
         np.random.shuffle(gestures_list)
-        mid = len(gestures_list) // 2
-        if mid == 0:
-            mid = 1  # ensure at least one in each half if possible
-        real_half_a.extend(gestures_list[:mid])
-        real_half_a_words.extend([word] * len(gestures_list[:mid]))
-        real_half_b.extend(gestures_list[mid:])
-        real_half_b_words.extend([word] * len(gestures_list[mid:]))
+        if len(gestures_list) == 1:
+            # Single sample: randomly assign to one half to avoid leaving the other empty
+            if np.random.random() < 0.5:
+                real_half_a.extend(gestures_list)
+                real_half_a_words.append(word)
+            else:
+                real_half_b.extend(gestures_list)
+                real_half_b_words.append(word)
+        else:
+            mid = len(gestures_list) // 2
+            if mid == 0:
+                mid = 1  # For 2+ samples, ensure at least one in each half
+            real_half_a.extend(gestures_list[:mid])
+            real_half_a_words.extend([word] * len(gestures_list[:mid]))
+            real_half_b.extend(gestures_list[mid:])
+            real_half_b_words.extend([word] * len(gestures_list[mid:]))
+    if not real_half_a or not real_half_b:
+        raise ValueError(
+            f"Cannot create real baseline: one half is empty (half_a={len(real_half_a)}, half_b={len(real_half_b)}). "
+            "Need more test samples with multiple instances per word."
+        )
     real_half_a = np.stack(real_half_a, axis=0)
     real_half_b = np.stack(real_half_b, axis=0)
     print(f"  Split test into {len(real_half_a)} + {len(real_half_b)} samples in {time.time() - t0:.1f}s")
