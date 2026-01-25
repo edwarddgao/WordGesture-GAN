@@ -61,7 +61,7 @@ def _with_uniform_dt(gestures_xy: np.ndarray) -> np.ndarray:
     if gestures_xy.ndim != 3 or gestures_xy.shape[-1] != 2:
         raise ValueError("Expected gestures of shape (N, T, 2) for shape-only metrics.")
     n_points = gestures_xy.shape[1]
-    dt = np.full((gestures_xy.shape[0], n_points, 1), 1.0 / max(n_points - 1, 1), dtype=gestures_xy.dtype)
+    dt = np.ones((gestures_xy.shape[0], n_points, 1), dtype=gestures_xy.dtype)
     dt[:, 0, 0] = 0.0
     return np.concatenate([gestures_xy, dt], axis=-1)
 
