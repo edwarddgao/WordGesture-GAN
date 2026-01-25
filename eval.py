@@ -293,14 +293,17 @@ def main() -> None:
     real_half_b = []
     real_half_b_words: List[str] = []
     for word, gestures_list in test_by_word.items():
+        if len(gestures_list) < 2:
+            # Skip words with only 1 sample - they cannot be split into two halves
+            continue
         np.random.shuffle(gestures_list)
         mid = len(gestures_list) // 2
-        if mid == 0:
-            mid = 1  # ensure at least one in each half if possible
         real_half_a.extend(gestures_list[:mid])
         real_half_a_words.extend([word] * len(gestures_list[:mid]))
         real_half_b.extend(gestures_list[mid:])
         real_half_b_words.extend([word] * len(gestures_list[mid:]))
+    if not real_half_a or not real_half_b:
+        raise ValueError("Cannot create real baseline: not enough samples per word to split test set into two halves.")
     real_half_a = np.stack(real_half_a, axis=0)
     real_half_b = np.stack(real_half_b, axis=0)
     print(f"  Split test into {len(real_half_a)} + {len(real_half_b)} samples in {time.time() - t0:.1f}s")
