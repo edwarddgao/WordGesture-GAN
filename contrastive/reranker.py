@@ -7,7 +7,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from dotenv import load_dotenv
 from google import genai
@@ -17,21 +17,28 @@ from google.genai import types
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 
-RERANK_PROMPT_TEMPLATE = """You are a language model helping correct swipe keyboard input. Given gesture recognition candidates for each word position, select the word that creates the most grammatically correct and semantically coherent sentence.
+RERANK_PROMPT_TEMPLATE = """You are proofreading swipe keyboard output. Select words to form a grammatically correct English sentence.
 
-Current best guess: {top1_sequence}
+Current: {top1_sequence}
 
-## Candidates per Position (gesture system's top pick marked with *)
+Candidates (* = gesture system's choice):
 {candidates_formatted}
 
-## Instructions
-For each position, choose the word that:
-1. Makes grammatical sense in context (correct verb tense, article agreement, etc.)
-2. Creates a coherent, meaningful sentence
-3. If multiple words work equally well, prefer the higher-scored candidate (marked with *)
+Carefully read the sentence. For each position, select the word that makes the sentence grammatically correct and natural. Output one word per line:
+"""
 
-## Output
-Output exactly one word per line, in position order:
+RERANK_PROMPT_TEMPLATE_WITH_WRITEIN = """You are proofreading swipe keyboard output. Select words to form a grammatically correct English sentence.
+
+Current: {top1_sequence}
+
+Candidates (* = gesture system's choice):
+{candidates_formatted}
+
+Carefully read the sentence. For each position:
+- Pick from the candidates if one fits grammatically
+- If NO candidate makes sense, suggest a common English word with a SIMILAR SHAPE on a QWERTY keyboard (same general left-to-right swipe pattern)
+
+Output one word per line:
 """
 
 
@@ -46,6 +53,8 @@ class GeminiReranker:
         max_retries: int = 3,
         retry_delay: float = 1.0,
         max_concurrent: int = 10,
+        allow_writein: bool = False,
+        max_candidates_display: int = 10,
     ):
         """Initialize the Gemini reranker.
 
@@ -56,6 +65,8 @@ class GeminiReranker:
             max_retries: Maximum retries on API errors.
             retry_delay: Base delay between retries (exponential backoff).
             max_concurrent: Maximum concurrent API calls for async batch processing.
+            allow_writein: If True, allow LLM to suggest words not in candidates.
+            max_candidates_display: Maximum candidates to show in prompt per position.
         """
         self.project = project or os.environ.get("GOOGLE_CLOUD_PROJECT")
         if not self.project:
@@ -68,6 +79,8 @@ class GeminiReranker:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.max_concurrent = max_concurrent
+        self.allow_writein = allow_writein
+        self.max_candidates_display = max_candidates_display
         self._executor = ThreadPoolExecutor(max_workers=max_concurrent)
 
         self.client = genai.Client(
@@ -79,7 +92,7 @@ class GeminiReranker:
     def _format_candidates(
         self,
         candidates: List[List[Tuple[str, float]]],
-        max_per_position: int = 10,
+        max_per_position: int | None = None,
     ) -> str:
         """Format candidates for the prompt.
 
@@ -90,6 +103,8 @@ class GeminiReranker:
         Returns:
             Formatted string for prompt.
         """
+        if max_per_position is None:
+            max_per_position = self.max_candidates_display
         lines = []
         for i, position_candidates in enumerate(candidates, start=1):
             # Take top candidates
@@ -112,7 +127,8 @@ class GeminiReranker:
         """Build the full prompt for reranking."""
         top1_sequence = " ".join(cands[0][0] for cands in candidates)
         candidates_formatted = self._format_candidates(candidates)
-        return RERANK_PROMPT_TEMPLATE.format(
+        template = RERANK_PROMPT_TEMPLATE_WITH_WRITEIN if self.allow_writein else RERANK_PROMPT_TEMPLATE
+        return template.format(
             top1_sequence=top1_sequence,
             candidates_formatted=candidates_formatted,
         )
@@ -122,6 +138,7 @@ class GeminiReranker:
         response_text: str,
         n_positions: int,
         candidates: List[List[Tuple[str, float]]],
+        word_validator: Optional[Callable[[str, int], Optional[str]]] = None,
     ) -> List[str]:
         """Parse LLM response into selected words.
 
@@ -129,6 +146,8 @@ class GeminiReranker:
             response_text: Raw LLM response.
             n_positions: Expected number of positions.
             candidates: Original candidates (for fallback).
+            word_validator: Optional callback to validate write-in words.
+                Takes (word, position_idx) and returns the word if valid, or None.
 
         Returns:
             List of selected words, one per position.
@@ -143,6 +162,14 @@ class GeminiReranker:
                 valid_words = {w for w, _ in candidates[i]}
                 if word in valid_words:
                     selected.append(word)
+                elif self.allow_writein and word_validator:
+                    # Try to validate write-in word
+                    validated = word_validator(word, i)
+                    if validated:
+                        selected.append(validated)
+                    else:
+                        # Fallback to top candidate
+                        selected.append(candidates[i][0][0])
                 else:
                     # Fallback to top candidate
                     selected.append(candidates[i][0][0])
@@ -155,12 +182,15 @@ class GeminiReranker:
     def rerank(
         self,
         candidates: List[List[Tuple[str, float]]],
+        word_validator: Optional[Callable[[str, int], Optional[str]]] = None,
     ) -> List[str]:
         """Rerank candidates for each position using Gemini.
 
         Args:
             candidates: List of (word, score) tuples per position,
                 sorted by score descending.
+            word_validator: Optional callback to validate write-in words.
+                Takes (word, position_idx) and returns the word if valid, or None.
 
         Returns:
             List of selected words, one per position.
@@ -182,7 +212,7 @@ class GeminiReranker:
                         max_output_tokens=256,
                     ),
                 )
-                return self._parse_response(response.text, len(candidates), candidates)
+                return self._parse_response(response.text, len(candidates), candidates, word_validator)
             except Exception as e:
                 last_error = e
                 if attempt < self.max_retries - 1:
@@ -196,44 +226,60 @@ class GeminiReranker:
     def rerank_batch(
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
+        word_validators: Optional[List[Callable[[str, int], Optional[str]]]] = None,
     ) -> List[List[str]]:
         """Rerank multiple sentences (sequential).
 
         Args:
             batch_candidates: List of candidate lists, one per sentence.
+            word_validators: Optional list of validators, one per sentence.
 
         Returns:
             List of selected word lists, one per sentence.
         """
+        if word_validators:
+            return [self.rerank(c, v) for c, v in zip(batch_candidates, word_validators)]
         return [self.rerank(candidates) for candidates in batch_candidates]
 
     async def rerank_async(
         self,
         candidates: List[List[Tuple[str, float]]],
+        word_validator: Optional[Callable[[str, int], Optional[str]]] = None,
     ) -> List[str]:
         """Async version of rerank using thread pool."""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self._executor, self.rerank, candidates)
+        return await loop.run_in_executor(
+            self._executor,
+            lambda: self.rerank(candidates, word_validator)
+        )
 
     async def rerank_batch_async(
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
+        word_validators: Optional[List[Callable[[str, int], Optional[str]]]] = None,
     ) -> List[List[str]]:
         """Rerank multiple sentences concurrently.
 
         Args:
             batch_candidates: List of candidate lists, one per sentence.
+            word_validators: Optional list of validators, one per sentence.
 
         Returns:
             List of selected word lists, one per sentence.
         """
         semaphore = asyncio.Semaphore(self.max_concurrent)
 
-        async def limited_rerank(candidates: List[List[Tuple[str, float]]]) -> List[str]:
+        async def limited_rerank(
+            candidates: List[List[Tuple[str, float]]],
+            validator: Optional[Callable[[str, int], Optional[str]]] = None,
+        ) -> List[str]:
             async with semaphore:
-                return await self.rerank_async(candidates)
+                return await self.rerank_async(candidates, validator)
 
-        tasks = [limited_rerank(c) for c in batch_candidates]
+        if word_validators:
+            tasks = [limited_rerank(c, v) for c, v in zip(batch_candidates, word_validators)]
+        else:
+            tasks = [limited_rerank(c) for c in batch_candidates]
         return await asyncio.gather(*tasks)
 
 

@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -92,6 +92,41 @@ def get_top_k_candidates(
         candidates.append(position_candidates)
 
     return candidates
+
+
+def create_word_validator(
+    gesture_embs: torch.Tensor,
+    proto_embs: torch.Tensor,
+    word_to_idx: Dict[str, int],
+    threshold: float,
+) -> Callable[[str, int], Optional[str]]:
+    """Create a word validator for write-in suggestions.
+
+    Args:
+        gesture_embs: (N, D) gesture embeddings for the sentence
+        proto_embs: (V, D) prototype embeddings for vocabulary
+        word_to_idx: mapping from word to vocabulary index
+        threshold: minimum similarity score to accept a write-in
+
+    Returns:
+        Validator function that takes (word, position) and returns word if valid.
+    """
+    def validator(word: str, position: int) -> Optional[str]:
+        word = word.lower()
+        if word not in word_to_idx:
+            return None
+
+        # Get similarity between gesture and word's prototype
+        word_idx = word_to_idx[word]
+        gesture_emb = gesture_embs[position]  # (D,)
+        proto_emb = proto_embs[word_idx]  # (D,)
+        similarity = (gesture_emb @ proto_emb).item()
+
+        if similarity >= threshold:
+            return word
+        return None
+
+    return validator
 
 
 def compute_wer(predictions: List[str], ground_truth: List[str]) -> float:
@@ -232,6 +267,9 @@ async def evaluate_sentences_async(
     k: int = 10,
     reranker=None,
     verbose: bool = False,
+    return_details: bool = False,
+    allow_writein: bool = False,
+    writein_threshold: float = 0.65,
 ) -> Dict[str, float]:
     """Evaluate sentence-level accuracy with parallel reranking.
 
@@ -245,6 +283,9 @@ async def evaluate_sentences_async(
         k: Number of candidates for reranking
         reranker: Reranker with rerank_batch_async method
         verbose: Print progress
+        return_details: Return per-sentence details
+        allow_writein: Allow write-in words with gesture validation
+        writein_threshold: Minimum similarity for write-in validation
 
     Returns:
         Dictionary of metrics
@@ -262,9 +303,10 @@ async def evaluate_sentences_async(
     if verbose:
         print(f"Evaluating {len(sentences)} sentences...")
 
-    # Collect all candidates first
+    # Collect all candidates and gesture embeddings
     all_candidates = []
     all_ground_truth = []
+    all_gesture_embs = []
     recall_at_k_hits = 0
     total_words = 0
 
@@ -280,6 +322,7 @@ async def evaluate_sentences_async(
         candidates = get_top_k_candidates(gesture_embs, proto_embs, vocab, k)
         all_candidates.append(candidates)
         all_ground_truth.append(sentence.words)
+        all_gesture_embs.append(gesture_embs)
 
         # Check recall@K (oracle upper bound)
         for j, gt_word in enumerate(sentence.words):
@@ -288,32 +331,61 @@ async def evaluate_sentences_async(
             if gt_word in candidate_words:
                 recall_at_k_hits += 1
 
+    # Create word validators if write-in is enabled
+    word_validators = None
+    if allow_writein:
+        word_validators = [
+            create_word_validator(gesture_embs, proto_embs, word_to_idx, writein_threshold)
+            for gesture_embs in all_gesture_embs
+        ]
+
     # Rerank all sentences in parallel
     if verbose:
         print(f"Reranking {len(sentences)} sentences in parallel...")
 
     if hasattr(reranker, 'rerank_batch_async'):
-        all_predictions = await reranker.rerank_batch_async(all_candidates)
+        all_predictions = await reranker.rerank_batch_async(all_candidates, word_validators)
     else:
-        all_predictions = [reranker.rerank(c) for c in all_candidates]
+        if word_validators:
+            all_predictions = [reranker.rerank(c, v) for c, v in zip(all_candidates, word_validators)]
+        else:
+            all_predictions = [reranker.rerank(c) for c in all_candidates]
 
     # Compute metrics
     correct_words = 0
     correct_sentences = 0
     total_wer = 0.0
+    sentence_details = []
 
-    for predictions, ground_truth in zip(all_predictions, all_ground_truth):
+    for i, (predictions, ground_truth, candidates) in enumerate(
+        zip(all_predictions, all_ground_truth, all_candidates)
+    ):
         # Word accuracy
+        word_correct = 0
         for pred, gt in zip(predictions, ground_truth):
             if pred == gt:
                 correct_words += 1
+                word_correct += 1
 
         # Sentence accuracy
-        if predictions == ground_truth:
+        is_correct = predictions == ground_truth
+        if is_correct:
             correct_sentences += 1
 
         # WER
-        total_wer += compute_wer(predictions, ground_truth)
+        wer = compute_wer(predictions, ground_truth)
+        total_wer += wer
+
+        if return_details:
+            sentence_details.append({
+                "index": i,
+                "ground_truth": ground_truth,
+                "predictions": predictions,
+                "candidates": candidates,
+                "is_correct": is_correct,
+                "word_accuracy": word_correct / len(ground_truth) if ground_truth else 0,
+                "wer": wer,
+            })
 
     total_sentences = len(sentences)
     word_accuracy = correct_words / total_words if total_words > 0 else 0.0
@@ -321,7 +393,7 @@ async def evaluate_sentences_async(
     avg_wer = total_wer / total_sentences if total_sentences > 0 else 0.0
     recall_at_k = recall_at_k_hits / total_words if total_words > 0 else 0.0
 
-    return {
+    results = {
         "word_accuracy": word_accuracy,
         "sentence_accuracy": sentence_accuracy,
         "wer": avg_wer,
@@ -329,6 +401,11 @@ async def evaluate_sentences_async(
         "total_words": total_words,
         "total_sentences": total_sentences,
     }
+
+    if return_details:
+        results["details"] = sentence_details
+
+    return results
 
 
 def main() -> None:
@@ -412,6 +489,28 @@ def main() -> None:
         default=10,
         help="Maximum concurrent API calls for reranking.",
     )
+    parser.add_argument(
+        "--show-errors",
+        action="store_true",
+        help="Show sentences that failed after reranking.",
+    )
+    parser.add_argument(
+        "--allow-writein",
+        action="store_true",
+        help="Allow LLM to suggest words not in top-k candidates (validated by gesture similarity).",
+    )
+    parser.add_argument(
+        "--writein-threshold",
+        type=float,
+        default=0.65,
+        help="Minimum gesture similarity score to accept a write-in word (default: 0.65).",
+    )
+    parser.add_argument(
+        "--max-candidates-display",
+        type=int,
+        default=10,
+        help="Maximum candidates to show LLM per position (default: 10).",
+    )
     args = parser.parse_args()
 
     device = get_device()
@@ -457,7 +556,8 @@ def main() -> None:
     reranker_results = None
     if args.reranker == "gemini":
         print("\n" + "=" * 60)
-        print(f"With Gemini Reranker ({args.model})")
+        writein_str = f" + write-in (threshold={args.writein_threshold})" if args.allow_writein else ""
+        print(f"With Gemini Reranker ({args.model}){writein_str}")
         print("=" * 60)
 
         reranker = GeminiReranker(
@@ -465,11 +565,16 @@ def main() -> None:
             location=args.location,
             model=args.model,
             max_concurrent=args.max_concurrent,
+            allow_writein=args.allow_writein,
+            max_candidates_display=args.max_candidates_display,
         )
         # Use async evaluation for parallel API calls
         reranker_results = asyncio.run(evaluate_sentences_async(
             model, sentences, vocab, layout, n_points, device,
-            k=args.k, reranker=reranker, verbose=True
+            k=args.k, reranker=reranker, verbose=True,
+            return_details=args.show_errors,
+            allow_writein=args.allow_writein,
+            writein_threshold=args.writein_threshold,
         ))
 
         # Compute improvements
@@ -481,6 +586,29 @@ def main() -> None:
         print(f"\n  Word Accuracy:     {reranker_results['word_accuracy']:.1%} ({word_acc_delta:+.1%})")
         print(f"  Sentence Accuracy: {reranker_results['sentence_accuracy']:.1%} ({sent_acc_delta:+.1%})")
         print(f"  WER:               {reranker_results['wer']:.3f} ({wer_reduction:.1%} reduction)")
+
+        # Show errors if requested
+        if args.show_errors and "details" in reranker_results:
+            errors = [d for d in reranker_results["details"] if not d["is_correct"]]
+            if errors:
+                print(f"\n" + "=" * 60)
+                print(f"Failed Sentences ({len(errors)} / {len(reranker_results['details'])})")
+                print("=" * 60)
+                for err in errors:
+                    print(f"\n[{err['index']}] Ground truth: {' '.join(err['ground_truth'])}")
+                    print(f"    Prediction:   {' '.join(err['predictions'])}")
+                    # Show word-level diff
+                    diffs = []
+                    for j, (gt, pred) in enumerate(zip(err['ground_truth'], err['predictions'])):
+                        if gt != pred:
+                            # Show top candidates for this position
+                            cands = err['candidates'][j][:5]
+                            cand_str = ", ".join(f"{w}({s:.2f})" for w, s in cands)
+                            gt_in_cands = any(w == gt for w, _ in err['candidates'][j])
+                            marker = "✓" if gt_in_cands else "✗"
+                            diffs.append(f"    Position {j+1}: '{pred}' should be '{gt}' {marker} [{cand_str}]")
+                    for diff in diffs:
+                        print(diff)
 
     # Save results
     if args.output:
