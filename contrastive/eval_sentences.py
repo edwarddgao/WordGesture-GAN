@@ -381,8 +381,8 @@ def main() -> None:
     parser.add_argument(
         "--max_sentences",
         type=int,
-        default=None,
-        help="Maximum sentences to evaluate (for quick testing).",
+        default=50,
+        help="Maximum sentences to evaluate.",
     )
     parser.add_argument(
         "--k",
@@ -393,7 +393,7 @@ def main() -> None:
     parser.add_argument(
         "--reranker",
         choices=["none", "gemini"],
-        default="none",
+        default="gemini",
         help="Reranker to use.",
     )
     parser.add_argument(
@@ -427,9 +427,9 @@ def main() -> None:
         help="Random seed for sentence sampling.",
     )
     parser.add_argument(
-        "--natural-only",
+        "--include-synthetic",
         action="store_true",
-        help="Only use natural sentences (enron dataset) instead of random word combinations.",
+        help="Include synthetic sentences (random word combinations) in addition to natural sentences.",
     )
     parser.add_argument(
         "--max-concurrent",
@@ -463,7 +463,7 @@ def main() -> None:
     print(f"Loading sentence data from {args.raw_dir}...")
     sentences = load_sentence_dataset_subset(
         args.raw_dir, n_points, args.max_sentences, args.seed,
-        natural_only=args.natural_only,
+        natural_only=not args.include_synthetic,
     )
     stats = get_sentence_stats(sentences)
     print(f"Loaded {stats['n_sentences']} sentences ({stats['n_words']} words)")
