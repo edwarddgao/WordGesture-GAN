@@ -17,6 +17,43 @@ def _path_length(points: np.ndarray) -> float:
     return float(np.sqrt(np.diff(points[:, 0])**2 + np.diff(points[:, 1])**2).sum())
 
 
+def filter_by_path_length(
+    gestures: np.ndarray,
+    words: List[str],
+    n_points: int,
+    layout: KeyboardLayout,
+    path_ratio_range: Tuple[float, float] = (0.5, 2.0),
+) -> Tuple[np.ndarray, List[str]]:
+    """Filter out gestures whose path length doesn't match the expected prototype.
+
+    Args:
+        gestures: (N, n_points, 3) array of gestures
+        words: List of N word labels
+        n_points: Number of points per gesture
+        layout: Keyboard layout for building prototypes
+        path_ratio_range: (min_ratio, max_ratio) for valid gesture/prototype length ratio
+
+    Returns:
+        Filtered (gestures, words) tuple
+    """
+    min_ratio, max_ratio = path_ratio_range
+    expected_path_cache: Dict[str, float] = {}
+    valid_indices = []
+
+    for i, (gesture, word) in enumerate(zip(gestures, words)):
+        gesture_path = _path_length(gesture[:, :2])
+        if word not in expected_path_cache:
+            proto = build_word_prototype(word, n_points, layout)[:, :2]
+            expected_path_cache[word] = _path_length(proto)
+        expected_path = expected_path_cache[word]
+        if expected_path > 0:
+            ratio = gesture_path / expected_path
+            if min_ratio <= ratio <= max_ratio:
+                valid_indices.append(i)
+
+    return gestures[valid_indices], [words[i] for i in valid_indices]
+
+
 class ContrastiveGestureDataset(Dataset):
     """Dataset that returns (gesture, prototype, word_idx) tuples.
 
@@ -41,24 +78,10 @@ class ContrastiveGestureDataset(Dataset):
         self.noise_std = noise_std
         self._prototype_cache: Dict[str, np.ndarray] = {}
 
-        # Filter by path length ratio (with caching for prototype path lengths)
         if filter_by_path_length:
-            min_ratio, max_ratio = path_ratio_range
-            # Cache expected path lengths per word
-            expected_path_cache: Dict[str, float] = {}
-            valid_indices = []
-            for i, (gesture, word) in enumerate(zip(gestures, words)):
-                gesture_path = _path_length(gesture[:, :2])
-                if word not in expected_path_cache:
-                    proto = build_word_prototype(word, n_points, self.layout)[:, :2]
-                    expected_path_cache[word] = _path_length(proto)
-                expected_path = expected_path_cache[word]
-                if expected_path > 0:
-                    ratio = gesture_path / expected_path
-                    if min_ratio <= ratio <= max_ratio:
-                        valid_indices.append(i)
-            gestures = gestures[valid_indices]
-            words = [words[i] for i in valid_indices]
+            gestures, words = filter_by_path_length(
+                gestures, words, n_points, self.layout, path_ratio_range
+            )
 
         self.gestures = gestures
         self.words = words

@@ -13,6 +13,7 @@ import torch
 
 from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
 
+from .data import filter_by_path_length
 from .models import TwoTowerModel
 
 
@@ -303,6 +304,15 @@ def main() -> None:
     # Load test data
     test_gestures, test_words = load_dataset(args.data_dir / "test.npz")
     train_gestures, train_words = load_dataset(args.data_dir / "train.npz")
+
+    # Filter out misaligned gestures (same filtering as training)
+    n_before = len(test_gestures)
+    test_gestures, test_words = filter_by_path_length(
+        test_gestures, test_words, n_points, layout
+    )
+    n_filtered = n_before - len(test_gestures)
+    if n_filtered > 0:
+        print(f"Filtered {n_filtered} samples with path length mismatch ({100*n_filtered/n_before:.1f}%)")
 
     print(f"Test samples: {len(test_gestures)}, vocab size: {len(set(test_words))}")
 
