@@ -63,6 +63,7 @@ def load_sentence_dataset(
     filter_errors: bool = True,
     min_complete_fraction: float = 0.5,
     layout: KeyboardLayout | None = None,
+    min_raw_points: int = 20,
 ) -> List[SentenceData]:
     """Load sentence-level dataset from raw JSONL files.
 
@@ -74,6 +75,8 @@ def load_sentence_dataset(
             for a sentence to be included.
         layout: If provided, filter out gestures where path length ratio
             (gesture/expected) is outside 0.5-2.0 range.
+        min_raw_points: Minimum raw sampled points required per gesture.
+            Gestures with fewer points are filtered out as low-quality.
 
     Returns:
         List of SentenceData objects, each representing a sentence attempt
@@ -89,7 +92,7 @@ def load_sentence_dataset(
         # Apply filtering
         if filter_errors and sample.is_err:
             continue
-        if not filter_sample(sample, min_points=5):
+        if not filter_sample(sample, min_points=min_raw_points):
             continue
 
         sentence_id = sample.sentence
@@ -186,6 +189,7 @@ def load_sentence_dataset_subset(
     max_sentences: int | None = None,
     seed: int = 42,
     natural_only: bool = False,
+    min_raw_points: int = 20,
 ) -> List[SentenceData]:
     """Load a subset of sentence data for quick evaluation.
 
@@ -196,11 +200,14 @@ def load_sentence_dataset_subset(
         seed: Random seed for reproducible sampling.
         natural_only: If True, only include sentences from enron dataset
             (real English sentences vs random word combinations).
+        min_raw_points: Minimum raw sampled points required per gesture.
 
     Returns:
         List of SentenceData objects.
     """
-    sentences = load_sentence_dataset(raw_dir, n_points, layout=KeyboardLayout())
+    sentences = load_sentence_dataset(
+        raw_dir, n_points, layout=KeyboardLayout(), min_raw_points=min_raw_points
+    )
 
     # Filter to natural sentences if requested
     if natural_only:

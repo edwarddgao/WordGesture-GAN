@@ -24,6 +24,15 @@ Candidates (* = gesture system's choice):
 Carefully read the sentence. For each position, select the word that makes the sentence grammatically correct and natural. Output one word per line:
 """
 
+INCREMENTAL_PROMPT_TEMPLATE = """You are proofreading swipe keyboard output. Select the next word.
+
+Partial sentence so far: {context}
+
+Candidates for next word (* = gesture system's top choice):
+{candidates}
+
+Select ONE word that continues the sentence grammatically and naturally. Output only the word:"""
+
 
 def _load_optional_deps():
     """Load optional dependencies for Gemini reranker.
@@ -274,6 +283,179 @@ class GeminiReranker:
                 return await self.rerank_async(candidates)
 
         tasks = [limited_rerank(c) for c in batch_candidates]
+        return await asyncio.gather(*tasks)
+
+    def _build_incremental_prompt(
+        self,
+        context: str,
+        candidates: List[Tuple[str, float]],
+    ) -> str:
+        """Build prompt for single position with history context.
+
+        Args:
+            context: Previously selected words as context.
+            candidates: (word, score) tuples for this position.
+
+        Returns:
+            Formatted prompt string.
+        """
+        top_candidates = candidates[: self.max_candidates_display]
+        parts = []
+        for j, (word, score) in enumerate(top_candidates):
+            if j == 0:
+                parts.append(f'*"{word}" ({score:.2f})')
+            else:
+                parts.append(f'"{word}" ({score:.2f})')
+        candidates_str = ", ".join(parts)
+
+        return INCREMENTAL_PROMPT_TEMPLATE.format(
+            context=context,
+            candidates=candidates_str,
+        )
+
+    def _get_single_word(
+        self,
+        prompt: str,
+        candidates: List[Tuple[str, float]],
+    ) -> str:
+        """Get single word selection from LLM.
+
+        Args:
+            prompt: Formatted prompt for single position.
+            candidates: Valid candidates for validation.
+
+        Returns:
+            Selected word (falls back to top-1 on error).
+        """
+        valid_words = {w for w, _ in candidates}
+        top1_word = candidates[0][0]
+
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=self._types.GenerateContentConfig(
+                        temperature=0.0,
+                        max_output_tokens=32,
+                    ),
+                )
+                # Parse single word from response
+                if response.text is None:
+                    return top1_word
+                word = response.text.strip().strip('"').strip("'").lower()
+                # Take first word if multiple returned
+                word = word.split()[0] if word else top1_word
+                word = word.strip('"').strip("'")
+
+                if word in valid_words:
+                    return word
+                else:
+                    return top1_word
+            except Exception as e:
+                last_error = e
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (2**attempt)
+                    time.sleep(delay)
+
+        warnings.warn(
+            f"Incremental reranker failed after {self.max_retries} attempts: {last_error}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return top1_word
+
+    def rerank_incremental(
+        self,
+        candidates: List[List[Tuple[str, float]]],
+        ground_truth: List[str],
+    ) -> List[str]:
+        """Rerank word-by-word, using ground truth previous words as context.
+
+        Simulates user correcting mistakes before typing the next word
+        (perfect context assumption).
+
+        Args:
+            candidates: List of (word, score) tuples per position.
+            ground_truth: Ground truth words for perfect context.
+
+        Returns:
+            List of selected words, one per position.
+        """
+        if not candidates:
+            return []
+
+        selected = []
+        for i, position_candidates in enumerate(candidates):
+            # Use ground truth words as context (perfect context assumption)
+            context = " ".join(ground_truth[:i]) if i > 0 else "(start of sentence)"
+            prompt = self._build_incremental_prompt(context, position_candidates)
+            word = self._get_single_word(prompt, position_candidates)
+            selected.append(word)
+
+        return selected
+
+    async def _get_single_word_async(
+        self,
+        prompt: str,
+        candidates: List[Tuple[str, float]],
+    ) -> str:
+        """Async version of _get_single_word using thread pool."""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor, lambda: self._get_single_word(prompt, candidates)
+        )
+
+    async def rerank_incremental_async(
+        self,
+        candidates: List[List[Tuple[str, float]]],
+        ground_truth: List[str],
+    ) -> List[str]:
+        """Async version of rerank_incremental.
+
+        Note: Still processes positions sequentially since each position
+        depends on ground_truth context. The async is for non-blocking I/O.
+        """
+        if not candidates:
+            return []
+
+        selected = []
+        for i, position_candidates in enumerate(candidates):
+            context = " ".join(ground_truth[:i]) if i > 0 else "(start of sentence)"
+            prompt = self._build_incremental_prompt(context, position_candidates)
+            word = await self._get_single_word_async(prompt, position_candidates)
+            selected.append(word)
+
+        return selected
+
+    async def rerank_incremental_batch_async(
+        self,
+        batch_candidates: List[List[List[Tuple[str, float]]]],
+        batch_ground_truth: List[List[str]],
+    ) -> List[List[str]]:
+        """Rerank multiple sentences incrementally with concurrency control.
+
+        Args:
+            batch_candidates: List of candidate lists, one per sentence.
+            batch_ground_truth: List of ground truth word lists, one per sentence.
+
+        Returns:
+            List of selected word lists, one per sentence.
+        """
+        semaphore = asyncio.Semaphore(self.max_concurrent)
+
+        async def limited_rerank(
+            candidates: List[List[Tuple[str, float]]],
+            ground_truth: List[str],
+        ) -> List[str]:
+            async with semaphore:
+                return await self.rerank_incremental_async(candidates, ground_truth)
+
+        tasks = [
+            limited_rerank(c, gt)
+            for c, gt in zip(batch_candidates, batch_ground_truth)
+        ]
         return await asyncio.gather(*tasks)
 
 
