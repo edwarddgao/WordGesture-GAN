@@ -14,14 +14,30 @@ if TYPE_CHECKING:
     from google import genai
     from google.genai import types
 
-RERANK_PROMPT_TEMPLATE = """You are proofreading swipe keyboard output. Select words to form a grammatically correct English sentence.
+RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. Select the correct word for each position. Output one word per line.
 
-Current: {top1_sequence}
+Example:
+Sentence: ill call you ibm three morning
+Position 1: *"ill", "all"
+Position 2: *"call", "caller"
+Position 3: *"you", "your"
+Position 4: *"ibm", "in", "inn"
+Position 5: *"three", "the", "there"
+Position 6: *"morning", "modeling"
+Answer:
+ill
+call
+you
+in
+the
+morning
 
-Candidates (* = gesture system's choice):
+Now fix this:
+Sentence: {top1_sequence}
+
 {candidates_formatted}
 
-Carefully read the sentence. For each position, select the word that makes the sentence grammatically correct and natural. Output one word per line:
+Answer:
 """
 
 

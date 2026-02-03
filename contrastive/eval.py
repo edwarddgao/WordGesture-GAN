@@ -487,6 +487,11 @@ def main() -> None:
         help="Show sentences that failed after reranking.",
     )
     parser.add_argument(
+        "--show-failures",
+        action="store_true",
+        help="Show detailed breakdown of OOV, retrieval, and reranking failures.",
+    )
+    parser.add_argument(
         "--max-candidates-display",
         type=int,
         default=10,
@@ -563,7 +568,7 @@ def main() -> None:
         reranker_results = asyncio.run(evaluate_sentences_async(
             model, sentences, vocab, layout, n_points, device,
             k=args.k, reranker=reranker, verbose=True,
-            return_details=args.show_errors,
+            return_details=args.show_errors or args.show_failures,
         ))
 
         # Compute improvements
@@ -606,6 +611,69 @@ def main() -> None:
                             diffs.append(f"    Position {j+1}: '{pred}' should be '{gt}' {marker} [{cand_str}]")
                     for diff in diffs:
                         print(diff)
+
+        # Show reranking failures only
+        if args.show_failures and "details" in reranker_results:
+            from collections import Counter
+            vocab_set = set(vocab)
+
+            oov_failures = []
+            retrieval_failures = []
+            rerank_failures = []
+
+            for detail in reranker_results["details"]:
+                for j, (gt, pred) in enumerate(zip(detail['ground_truth'], detail['predictions'])):
+                    if gt != pred:
+                        cand_words = [w for w, _ in detail['candidates'][j]]
+                        cands = detail['candidates'][j][:5]
+                        cand_str = ", ".join(f"{w}({s:.2f})" for w, s in cands)
+                        context = " ".join(detail['ground_truth'])
+
+                        failure = {
+                            "gt": gt,
+                            "pred": pred,
+                            "context": context,
+                            "cands": cand_str,
+                        }
+
+                        if gt not in vocab_set:
+                            oov_failures.append(failure)
+                        elif gt not in cand_words:
+                            retrieval_failures.append(failure)
+                        else:
+                            gt_rank = cand_words.index(gt) + 1
+                            failure["gt_rank"] = gt_rank
+                            rerank_failures.append(failure)
+
+            # OOV failures
+            print(f"\n" + "=" * 60)
+            print(f"OOV Failures ({len(oov_failures)}) - word not in vocabulary")
+            print("=" * 60)
+            for f in oov_failures:
+                print(f"  '{f['gt']}' (OOV) -> '{f['pred']}' | {f['context']}")
+
+            # Retrieval failures
+            print(f"\n" + "=" * 60)
+            print(f"Retrieval Failures ({len(retrieval_failures)}) - word in vocab, not top-{args.k}")
+            print("=" * 60)
+            for f in retrieval_failures:
+                print(f"  '{f['gt']}' -> '{f['pred']}' | {f['context']}")
+                print(f"      top-5: {f['cands']}")
+
+            # Reranking failures
+            print(f"\n" + "=" * 60)
+            print(f"Reranking Failures ({len(rerank_failures)}) - word in top-{args.k}, LLM wrong")
+            print("=" * 60)
+
+            pair_counts = Counter((f["pred"], f["gt"]) for f in rerank_failures)
+            print(f"\nMost common confusions (pred <- gt):")
+            for (pred, gt), count in pair_counts.most_common(30):
+                print(f"  {pred:15} <- {gt:15} ({count}x)")
+
+            print(f"\nDetailed:")
+            for f in rerank_failures[:50]:
+                print(f"  '{f['pred']}' <- '{f['gt']}' (rank {f['gt_rank']}) | {f['context']}")
+                print(f"      top-5: {f['cands']}")
 
     # Save results
     if args.output:
