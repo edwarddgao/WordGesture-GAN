@@ -13,14 +13,14 @@ from torch import nn
 class GestureEncoder(nn.Module):
     """1D CNN encoder for gesture trajectories.
 
-    Input: (B, seq_len, 3) - x, y, dt channels
+    Input: (B, seq_len, in_channels) - default 31 with key proximity + velocity
     Output: (B, embedding_dim) - L2 normalized embeddings
     """
 
-    def __init__(self, in_channels: int = 3, embedding_dim: int = 64) -> None:
+    def __init__(self, in_channels: int = 31, embedding_dim: int = 64) -> None:
         super().__init__()
         self.conv = nn.Sequential(
-            # (B, 3, 128) -> (B, 32, 64)
+            # (B, in_channels, 128) -> (B, 32, 64)
             nn.Conv1d(in_channels, 32, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm1d(32),
             nn.ReLU(),
@@ -98,7 +98,7 @@ class ProjectionHead(nn.Module):
 class TwoTowerModel(nn.Module):
     """Complete two-tower contrastive model.
 
-    Gesture tower: encodes (B, seq_len, 3) -> (B, embedding_dim)
+    Gesture tower: encodes (B, seq_len, gesture_in_channels) -> (B, embedding_dim)
     Prototype tower: encodes (B, seq_len, 2) -> (B, embedding_dim)
 
     Training uses projection heads; inference uses raw embeddings.
@@ -106,12 +106,14 @@ class TwoTowerModel(nn.Module):
 
     def __init__(
         self,
+        gesture_in_channels: int = 31,
         embedding_dim: int = 64,
         projection_dim: int = 128,
         temperature: float = 0.07,
     ) -> None:
         super().__init__()
-        self.gesture_encoder = GestureEncoder(in_channels=3, embedding_dim=embedding_dim)
+        self.gesture_in_channels = gesture_in_channels
+        self.gesture_encoder = GestureEncoder(in_channels=gesture_in_channels, embedding_dim=embedding_dim)
         self.prototype_encoder = PrototypeEncoder(in_channels=2, embedding_dim=embedding_dim)
         self.gesture_proj = ProjectionHead(embedding_dim, projection_dim)
         self.prototype_proj = ProjectionHead(embedding_dim, projection_dim)

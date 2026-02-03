@@ -12,7 +12,10 @@ WordGesture-GAN/
 │   ├── prototypes.py       # Word prototype generation
 │   └── parse_swipelogs.py  # Raw log parsing
 │
-├── wg_gan/                 # WordGesture-GAN package
+├── features/               # Gesture feature extraction
+│   └── gesture.py          # GestureFeatureExtractor (31-dim features)
+│
+├── wg_gan/                 # WordGesture-GAN (gesture synthesis)
 │   ├── train.py            # Training script
 │   ├── eval.py             # Evaluation script
 │   ├── models.py           # Generator, Discriminator, Encoder
@@ -32,18 +35,26 @@ WordGesture-GAN/
 │       ├── sample.py       # Trajectory sampling
 │       └── via_points.py   # Via-point extraction
 │
-├── contrastive/            # Contrastive learning package
-│   ├── train.py
-│   ├── eval.py             # Word-level evaluation
-│   ├── eval_sentences.py   # Sentence-level evaluation
+├── contrastive/            # Contrastive learning (embedding space)
+│   ├── train.py            # Training script
 │   ├── models.py           # Two-tower encoder
 │   ├── losses.py           # InfoNCE loss
-│   ├── data.py             # Augmentation pipeline
-│   ├── reranker.py         # LLM reranking (Gemini)
-│   ├── sentence_data.py    # Sentence dataset loader
+│   ├── data.py             # Dataset with augmentation
 │   ├── config.yaml
-│   ├── checkpoints/
-│   └── results/
+│   └── checkpoints/
+│
+├── ctc/                    # CTC decoder (character-level)
+│   ├── train.py            # Training script
+│   ├── models.py           # BLSTM-CTC model
+│   ├── decode.py           # CTCDecoder for inference
+│   ├── data.py             # Dataset loader
+│   ├── modal_app.py        # Modal cloud training
+│   └── config.yaml
+│
+├── recognition/            # Recognition pipeline
+│   ├── eval.py             # Full pipeline evaluation
+│   ├── reranker.py         # LLM reranking (Gemini)
+│   └── sentence_data.py    # Sentence dataset loader
 │
 └── data/                   # Dataset storage
     └── processed/          # Preprocessed .npz files
@@ -128,7 +139,7 @@ python -m wg_gan.reproduce_figures \
 
 ## Contrastive Learning
 
-Two-tower encoder for gesture-to-word matching.
+Two-tower encoder for gesture-to-word embedding matching.
 
 ### Train
 
@@ -136,39 +147,57 @@ Two-tower encoder for gesture-to-word matching.
 python -m contrastive.train --config contrastive/config.yaml
 ```
 
-### Evaluate (Word-level)
+## CTC Decoder
+
+Character-level CTC decoder for OOV word recovery.
+
+### Train
 
 ```bash
-python -m contrastive.eval \
-  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --data_dir data/processed
+# Local
+python -m ctc.train --config ctc/config.yaml
+
+# Modal (cloud GPU)
+modal run ctc/modal_app.py --epochs 100
+modal volume get wordgesture-gan-data checkpoints/ctc/ctc_best.pt ./ctc/checkpoints/
 ```
 
-### Evaluate (Sentence-level with LLM Reranking)
+## Recognition Pipeline
 
-Uses Gemini to rerank top-K candidates using linguistic context:
+Evaluates the full pipeline: contrastive retrieval → CTC fallback → LLM reranking.
+
+### Setup (one-time for Gemini)
 
 ```bash
-# Setup (one-time)
 pip install google-genai>=1.51.0 python-dotenv
 gcloud auth application-default login
 
 # Create .env with your GCP project
 echo "GOOGLE_CLOUD_PROJECT=your-project-id" >> .env
 echo "GOOGLE_CLOUD_LOCATION=global" >> .env
+```
 
-# Baseline only
-python -m contrastive.eval_sentences \
-  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --natural-only
+### Evaluate
 
-# With Gemini 3 Flash reranking (parallel)
-python -m contrastive.eval_sentences \
+```bash
+# Baseline only (top-1 retrieval)
+python -m recognition.eval \
   --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --natural-only \
+  --max_sentences 100
+
+# With CTC decoder
+python -m recognition.eval \
+  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
+  --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
+  --max_sentences 100
+
+# Full pipeline with Gemini reranking
+python -m recognition.eval \
+  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
+  --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
   --reranker gemini \
-  --max-concurrent 10 \
-  --output contrastive/results/sentence_eval.json
+  --max_sentences 100 \
+  --max-concurrent 10
 ```
 
 ## Notes

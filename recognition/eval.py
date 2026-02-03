@@ -1,4 +1,10 @@
-"""Evaluate gesture recognition with optional LLM reranking."""
+"""Evaluate gesture recognition pipeline with optional LLM reranking.
+
+This module combines:
+- Contrastive model for embedding-based retrieval
+- CTC decoder for OOV recovery
+- LLM reranker for final word selection
+"""
 
 from __future__ import annotations
 
@@ -13,10 +19,19 @@ import numpy as np
 import torch
 
 from shared import KeyboardLayout, build_word_prototype, get_device
+from features import GestureFeatureExtractor
+from contrastive.models import TwoTowerModel
 
-from .models import TwoTowerModel
 from .reranker import GeminiReranker, NoopReranker
 from .sentence_data import SentenceData, get_sentence_stats, load_sentence_dataset_subset
+
+# Optional CTC decoder import
+try:
+    from ctc import CTCDecoder
+    CTC_AVAILABLE = True
+except ImportError:
+    CTCDecoder = None
+    CTC_AVAILABLE = False
 
 
 def load_wordfreq_vocabulary(n: int) -> List[str]:
@@ -46,12 +61,16 @@ class ErrorBreakdown:
     rerank_fail: int = 0      # GT in top-k, LLM chose wrong
 
 
-def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerModel, Dict]:
+def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerModel, Dict, GestureFeatureExtractor]:
     """Load a trained model from checkpoint."""
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     cfg = checkpoint["config"]
 
+    # Get gesture_in_channels from config (default 31 for new models, 3 for old)
+    gesture_in_channels = cfg["model"].get("gesture_in_channels", 3)
+
     model = TwoTowerModel(
+        gesture_in_channels=gesture_in_channels,
         embedding_dim=cfg["model"]["embedding_dim"],
         projection_dim=cfg["model"]["projection_dim"],
         temperature=cfg["contrastive"]["temperature"],
@@ -59,7 +78,20 @@ def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerMod
     model.load_state_dict(checkpoint["model"])
     model.eval()
 
-    return model, cfg
+    # Create feature extractor if model uses extended features
+    features_cfg = cfg.get("features", {})
+    use_key_proximity = features_cfg.get("use_key_proximity", gesture_in_channels > 3)
+    use_velocity = features_cfg.get("use_velocity", gesture_in_channels > 3)
+    key_proximity_sigma = features_cfg.get("key_proximity_sigma", 0.3)
+
+    feature_extractor = GestureFeatureExtractor(
+        layout=KeyboardLayout(),
+        sigma=key_proximity_sigma,
+        use_key_proximity=use_key_proximity,
+        use_velocity=use_velocity,
+    )
+
+    return model, cfg, feature_extractor
 
 
 def build_vocabulary_embeddings(
@@ -165,6 +197,7 @@ def evaluate_sentences(
     k: int = 10,
     reranker=None,
     verbose: bool = False,
+    feature_extractor: GestureFeatureExtractor | None = None,
 ) -> Dict[str, float]:
     """Evaluate sentence-level accuracy with optional reranking.
 
@@ -209,6 +242,13 @@ def evaluate_sentences(
 
         # Encode gestures
         gestures_np = np.stack(sentence.gestures, axis=0)  # (n_words, n_points, 3)
+
+        # Apply feature extraction if available (key proximity, velocity)
+        if feature_extractor is not None:
+            gestures_np = np.stack(
+                [feature_extractor(g) for g in gestures_np], axis=0
+            )  # (n_words, n_points, 31)
+
         gestures_t = torch.from_numpy(gestures_np).to(device)
 
         with torch.no_grad():
@@ -270,6 +310,8 @@ async def evaluate_sentences_async(
     reranker=None,
     verbose: bool = False,
     return_details: bool = False,
+    ctc_decoder=None,
+    feature_extractor: GestureFeatureExtractor | None = None,
 ) -> Dict[str, float]:
     """Evaluate sentence-level accuracy with parallel reranking.
 
@@ -284,6 +326,7 @@ async def evaluate_sentences_async(
         reranker: Reranker with rerank_batch_async method
         verbose: Print progress
         return_details: Return per-sentence details
+        ctc_decoder: Optional CTC decoder for OOV recovery
 
     Returns:
         Dictionary of metrics
@@ -304,12 +347,20 @@ async def evaluate_sentences_async(
     # Collect all candidates
     all_candidates = []
     all_ground_truth = []
+    all_ctc_words = []
     recall_at_k_hits = 0
     total_words = 0
 
     for sentence in sentences:
         # Encode gestures
         gestures_np = np.stack(sentence.gestures, axis=0)
+
+        # Apply feature extraction if available (key proximity, velocity)
+        if feature_extractor is not None:
+            gestures_np = np.stack(
+                [feature_extractor(g) for g in gestures_np], axis=0
+            )  # (n_words, n_points, 31)
+
         gestures_t = torch.from_numpy(gestures_np).to(device)
 
         with torch.no_grad():
@@ -317,13 +368,23 @@ async def evaluate_sentences_async(
 
         # Get top-K candidates
         candidates = get_top_k_candidates(gesture_embs, proto_embs, vocab, k)
+
+        # Get CTC decoded words if decoder is available (passed separately to reranker)
+        ctc_words = None
+        if ctc_decoder is not None:
+            ctc_words = ctc_decoder.decode_batch(sentence.gestures)
+
         all_candidates.append(candidates)
         all_ground_truth.append(sentence.words)
+        all_ctc_words.append(ctc_words)
 
-        # Check recall@K (oracle upper bound)
+        # Check recall@K (oracle upper bound) - includes CTC decoded words
         for j, gt_word in enumerate(sentence.words):
             total_words += 1
             candidate_words = {w for w, _ in candidates[j]}
+            # Also count CTC decoded word as a valid candidate
+            if ctc_words is not None and j < len(ctc_words) and ctc_words[j]:
+                candidate_words.add(ctc_words[j])
             if gt_word in candidate_words:
                 recall_at_k_hits += 1
 
@@ -332,9 +393,12 @@ async def evaluate_sentences_async(
         print(f"Reranking {len(sentences)} sentences...")
 
     if hasattr(reranker, "rerank_batch_async"):
-        all_predictions = await reranker.rerank_batch_async(all_candidates)
+        all_predictions = await reranker.rerank_batch_async(all_candidates, all_ctc_words)
     else:
-        all_predictions = [reranker.rerank(c) for c in all_candidates]
+        all_predictions = [
+            reranker.rerank(c, ctc)
+            for c, ctc in zip(all_candidates, all_ctc_words)
+        ]
 
     # Compute metrics with error categorization
     vocab_set = set(vocab)
@@ -343,13 +407,19 @@ async def evaluate_sentences_async(
     total_wer = 0.0
     sentence_details = []
 
-    for i, (predictions, ground_truth, candidates) in enumerate(
-        zip(all_predictions, all_ground_truth, all_candidates)
+    for i, (predictions, ground_truth, candidates, ctc_words) in enumerate(
+        zip(all_predictions, all_ground_truth, all_candidates, all_ctc_words)
     ):
         # Categorize each word
         for j, (pred, gt) in enumerate(zip(predictions, ground_truth)):
             candidate_words = {w for w, _ in candidates[j]}
-            if gt not in vocab_set:
+            # Include CTC decoded word as valid candidate
+            ctc_word = ctc_words[j] if ctc_words and j < len(ctc_words) else None
+            if ctc_word:
+                candidate_words.add(ctc_word)
+
+            if gt not in vocab_set and (ctc_word is None or gt != ctc_word):
+                # OOV and CTC didn't decode it correctly
                 errors.oov += 1
             elif gt not in candidate_words:
                 errors.retrieval_fail += 1
@@ -373,6 +443,7 @@ async def evaluate_sentences_async(
                 "ground_truth": ground_truth,
                 "predictions": predictions,
                 "candidates": candidates,
+                "ctc_words": ctc_words,
                 "is_correct": is_correct,
                 "word_accuracy": sum(1 for p, g in zip(predictions, ground_truth) if p == g) / len(ground_truth) if ground_truth else 0,
                 "wer": wer,
@@ -402,13 +473,13 @@ async def evaluate_sentences_async(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Evaluate sentence-level accuracy with optional LLM reranking."
+        description="Evaluate gesture recognition pipeline with optional LLM reranking."
     )
     parser.add_argument(
         "--checkpoint",
         type=Path,
         required=True,
-        help="Path to model checkpoint.",
+        help="Path to contrastive model checkpoint.",
     )
     parser.add_argument(
         "--data_dir",
@@ -503,6 +574,12 @@ def main() -> None:
         default=10000,
         help="Use top N most common English words from wordfreq (default: 10000).",
     )
+    parser.add_argument(
+        "--ctc-checkpoint",
+        type=Path,
+        default=None,
+        help="Path to CTC decoder checkpoint. If provided, CTC decoded words are added as candidates.",
+    )
     args = parser.parse_args()
 
     device = get_device()
@@ -510,9 +587,11 @@ def main() -> None:
 
     # Load model
     print(f"Loading model from {args.checkpoint}...")
-    model, cfg = load_model(args.checkpoint, device)
+    model, cfg, feature_extractor = load_model(args.checkpoint, device)
     n_points = cfg["data"]["n_points"]
     layout = KeyboardLayout()
+    gesture_in_channels = cfg["model"].get("gesture_in_channels", 3)
+    print(f"Gesture input channels: {gesture_in_channels}")
 
     # Load sentence data first (needed to find OOV words)
     print(f"Loading sentence data from {args.raw_dir}...")
@@ -529,13 +608,25 @@ def main() -> None:
     oov_count = len(test_words - set(vocab))
     print(f"Vocabulary size: {len(vocab)} (wordfreq top-{args.vocab_size}, {oov_count}/{len(test_words)} test words OOV)")
 
+    # Load CTC decoder if provided
+    ctc_decoder = None
+    if args.ctc_checkpoint is not None:
+        if not CTC_AVAILABLE:
+            print("\nWarning: CTC module not available. Install with: pip install -e .")
+            print("Continuing without CTC decoder.\n")
+        else:
+            print(f"Loading CTC decoder from {args.ctc_checkpoint}...")
+            ctc_decoder = CTCDecoder.from_checkpoint(str(args.ctc_checkpoint))
+            print("CTC decoder loaded.")
+
     # Evaluate baseline (top-1, no reranking)
     print("\n" + "=" * 60)
     print("Baseline (Top-1, no reranking)")
     print("=" * 60)
     baseline_results = evaluate_sentences(
         model, sentences, vocab, layout, n_points, device,
-        k=args.k, reranker=NoopReranker(), verbose=True
+        k=args.k, reranker=NoopReranker(), verbose=True,
+        feature_extractor=feature_extractor,
     )
     print(f"\n  Word Accuracy:     {baseline_results['word_accuracy']:.1%}")
     print(f"  Sentence Accuracy: {baseline_results['sentence_accuracy']:.1%}")
@@ -569,6 +660,8 @@ def main() -> None:
             model, sentences, vocab, layout, n_points, device,
             k=args.k, reranker=reranker, verbose=True,
             return_details=args.show_errors or args.show_failures,
+            ctc_decoder=ctc_decoder,
+            feature_extractor=feature_extractor,
         ))
 
         # Compute improvements
@@ -622,18 +715,21 @@ def main() -> None:
             rerank_failures = []
 
             for detail in reranker_results["details"]:
+                ctc_words = detail.get('ctc_words')
                 for j, (gt, pred) in enumerate(zip(detail['ground_truth'], detail['predictions'])):
                     if gt != pred:
                         cand_words = [w for w, _ in detail['candidates'][j]]
                         cands = detail['candidates'][j][:5]
                         cand_str = ", ".join(f"{w}({s:.2f})" for w, s in cands)
                         context = " ".join(detail['ground_truth'])
+                        ctc_word = ctc_words[j] if ctc_words else None
 
                         failure = {
                             "gt": gt,
                             "pred": pred,
                             "context": context,
                             "cands": cand_str,
+                            "ctc": ctc_word,
                         }
 
                         if gt not in vocab_set:
@@ -650,14 +746,16 @@ def main() -> None:
             print(f"OOV Failures ({len(oov_failures)}) - word not in vocabulary")
             print("=" * 60)
             for f in oov_failures:
-                print(f"  '{f['gt']}' (OOV) -> '{f['pred']}' | {f['context']}")
+                ctc_str = f" [CTC: '{f['ctc']}']" if f['ctc'] else ""
+                print(f"  '{f['gt']}' (OOV) -> '{f['pred']}'{ctc_str} | {f['context']}")
 
             # Retrieval failures
             print(f"\n" + "=" * 60)
             print(f"Retrieval Failures ({len(retrieval_failures)}) - word in vocab, not top-{args.k}")
             print("=" * 60)
             for f in retrieval_failures:
-                print(f"  '{f['gt']}' -> '{f['pred']}' | {f['context']}")
+                ctc_str = f" [CTC: '{f['ctc']}']" if f['ctc'] else ""
+                print(f"  '{f['gt']}' -> '{f['pred']}'{ctc_str} | {f['context']}")
                 print(f"      top-5: {f['cands']}")
 
             # Reranking failures
@@ -672,7 +770,8 @@ def main() -> None:
 
             print(f"\nDetailed:")
             for f in rerank_failures[:50]:
-                print(f"  '{f['pred']}' <- '{f['gt']}' (rank {f['gt_rank']}) | {f['context']}")
+                ctc_str = f" [CTC: '{f['ctc']}']" if f['ctc'] else ""
+                print(f"  '{f['pred']}' <- '{f['gt']}' (rank {f['gt_rank']}){ctc_str} | {f['context']}")
                 print(f"      top-5: {f['cands']}")
 
     # Save results
@@ -683,7 +782,6 @@ def main() -> None:
                 "max_sentences": args.max_sentences,
                 "k": args.k,
                 "reranker": args.reranker,
-                "reranker_mode": args.reranker_mode,
                 "seed": args.seed,
             },
             "baseline": baseline_results,

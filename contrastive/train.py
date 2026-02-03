@@ -28,6 +28,12 @@ def train(config_path: Path) -> None:
     n_points = int(cfg["data"]["n_points"])
     batch_size = int(cfg["training"]["batch_size"])
 
+    # Feature extraction config
+    features_cfg = cfg.get("features", {})
+    use_key_proximity = features_cfg.get("use_key_proximity", True)
+    use_velocity = features_cfg.get("use_velocity", True)
+    key_proximity_sigma = features_cfg.get("key_proximity_sigma", 0.3)
+
     layout = KeyboardLayout()
     train_dataset = ContrastiveGestureDataset(
         data_dir / "train.npz",
@@ -35,6 +41,9 @@ def train(config_path: Path) -> None:
         layout=layout,
         augment=cfg["augmentation"]["enabled"],
         noise_std=cfg["augmentation"]["noise_std"],
+        use_key_proximity=use_key_proximity,
+        use_velocity=use_velocity,
+        key_proximity_sigma=key_proximity_sigma,
     )
     train_loader = DataLoader(
         train_dataset,
@@ -47,11 +56,15 @@ def train(config_path: Path) -> None:
     print(f"Training samples: {len(train_dataset)}, vocab size: {train_dataset.vocab_size}")
 
     # Model
+    gesture_in_channels = cfg["model"].get("gesture_in_channels", 31)
     model = TwoTowerModel(
+        gesture_in_channels=gesture_in_channels,
         embedding_dim=cfg["model"]["embedding_dim"],
         projection_dim=cfg["model"]["projection_dim"],
         temperature=cfg["contrastive"]["temperature"],
     ).to(device)
+
+    print(f"Gesture input channels: {gesture_in_channels}")
 
     loss_fn = InfoNCELoss()
 

@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset
 
 from shared import KeyboardLayout, build_word_prototype, load_dataset
+from features import GestureFeatureExtractor
 
 
 def _path_length(points: np.ndarray) -> float:
@@ -57,7 +58,7 @@ def filter_by_path_length(
 class ContrastiveGestureDataset(Dataset):
     """Dataset that returns (gesture, prototype, word_idx) tuples.
 
-    Gestures have shape (n_points, 3) with (x, y, dt).
+    Gestures have shape (n_points, n_features) - default 31 with key proximity + velocity.
     Prototypes have shape (n_points, 2) with (x, y) only - no timing info.
     """
 
@@ -70,6 +71,9 @@ class ContrastiveGestureDataset(Dataset):
         noise_std: float = 0.01,
         apply_path_filter: bool = True,
         path_ratio_range: Tuple[float, float] = (0.5, 2.0),
+        use_key_proximity: bool = True,
+        use_velocity: bool = True,
+        key_proximity_sigma: float = 0.3,
     ) -> None:
         gestures, words = load_dataset(npz_path)
         self.n_points = n_points
@@ -77,6 +81,14 @@ class ContrastiveGestureDataset(Dataset):
         self.augment = augment
         self.noise_std = noise_std
         self._prototype_cache: Dict[str, np.ndarray] = {}
+
+        # Feature extractor for key proximity and velocity
+        self.feature_extractor = GestureFeatureExtractor(
+            layout=self.layout,
+            sigma=key_proximity_sigma,
+            use_key_proximity=use_key_proximity,
+            use_velocity=use_velocity,
+        )
 
         if apply_path_filter:
             gestures, words = filter_by_path_length(
@@ -111,6 +123,10 @@ class ContrastiveGestureDataset(Dataset):
         # Optional augmentation: add noise to gesture coordinates
         if self.augment:
             gesture[:, :2] += np.random.randn(*gesture[:, :2].shape).astype(np.float32) * self.noise_std
+
+        # Extract features (key proximity, velocity) from raw gesture
+        # (n_points, 3) -> (n_points, 31) with default settings
+        gesture = self.feature_extractor(gesture)
 
         # Get prototype (x, y only - drop dt channel)
         prototype = self._get_prototype(word)[:, :2]
