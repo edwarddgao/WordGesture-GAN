@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import time
 import warnings
-from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Tuple
 
@@ -14,33 +15,32 @@ if TYPE_CHECKING:
     from google import genai
     from google.genai import types
 
-RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. Select the correct word for each position. Output one word per line.
 
-Example:
-Sentence: ill call you ibm three morning
-Position 1: *"ill", "all"
-Position 2: *"call", "caller"
-Position 3: *"you", "your"
-Position 4: *"ibm", "in", "inn"
-Position 5: *"three", "the", "there"
-Position 6: *"morning", "modeling"
-Answer:
-ill
-call
-you
-in
-the
-morning
+def _make_words_schema(n_words: int) -> dict:
+    """Create JSON schema for exactly n words."""
+    return {
+        "type": "object",
+        "properties": {
+            "words": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": n_words,
+                "maxItems": n_words,
+                "description": f"Exactly {n_words} corrected words in order",
+            }
+        },
+        "required": ["words"],
+    }
 
-Now fix this:
-Sentence: {top1_sequence}
 
-{candidates_formatted}
+@dataclass
+class RerankerResult:
+    """Result from reranking with debugging info."""
+    predictions: List[str]
+    raw_response: str = ""
+    parse_details: List[dict] = field(default_factory=list)
 
-Answer:
-"""
-
-RERANK_PROMPT_TEMPLATE_WITH_CTC = """You are fixing swipe keyboard output. For each position you have:
+RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. For each position you have:
 - Decoded: direct character-by-character decode of the gesture (may contain errors but preserves intended spelling)
 - Candidates: words from vocabulary ranked by gesture similarity
 
@@ -91,16 +91,16 @@ def _load_optional_deps():
 
 
 class GeminiReranker:
-    """Reranker using Gemini 3.0 Flash via Vertex AI."""
+    """Reranker using Gemini via Vertex AI."""
 
     def __init__(
         self,
         project: str | None = None,
         location: str | None = None,
-        model: str = "gemini-3-flash-preview",
+        model: str = "gemini-2.5-flash",
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        max_concurrent: int = 10,
+        max_concurrent: int = 100,
         max_candidates_display: int = 10,
         load_dotenv: bool = True,
     ):
@@ -109,7 +109,7 @@ class GeminiReranker:
         Args:
             project: GCP project ID. If None, uses GOOGLE_CLOUD_PROJECT env var.
             location: GCP location. If None, uses GOOGLE_CLOUD_LOCATION env var or 'global'.
-            model: Model name. Defaults to gemini-3-flash-preview.
+            model: Model name. Defaults to gemini-2.5-flash.
             max_retries: Maximum retries on API errors.
             retry_delay: Base delay between retries (exponential backoff).
             max_concurrent: Maximum concurrent API calls for async batch processing.
@@ -143,7 +143,6 @@ class GeminiReranker:
         self.retry_delay = retry_delay
         self.max_concurrent = max_concurrent
         self.max_candidates_display = max_candidates_display
-        self._executor = ThreadPoolExecutor(max_workers=max_concurrent)
 
         self.client = genai.Client(
             vertexai=True,
@@ -154,15 +153,15 @@ class GeminiReranker:
     def _format_candidates(
         self,
         candidates: List[List[Tuple[str, float]]],
+        ctc_words: List[str],
         max_per_position: int | None = None,
-        ctc_words: List[str] | None = None,
     ) -> str:
         """Format candidates for the prompt.
 
         Args:
             candidates: List of (word, score) tuples per position.
+            ctc_words: CTC decoded words per position.
             max_per_position: Maximum candidates to include per position.
-            ctc_words: Optional list of CTC decoded words per position.
 
         Returns:
             Formatted string for prompt.
@@ -171,39 +170,29 @@ class GeminiReranker:
             max_per_position = self.max_candidates_display
         lines = []
         for i, position_candidates in enumerate(candidates, start=1):
-            # Take top candidates
             top_candidates = position_candidates[:max_per_position]
-            # Format candidates part
+            # Format candidates with * for top candidate
             parts = []
             for j, (word, score) in enumerate(top_candidates):
                 if j == 0:
-                    parts.append(f'*"{word}" ({score:.2f})')
+                    parts.append(f'*"{word}"')
                 else:
-                    parts.append(f'"{word}" ({score:.2f})')
+                    parts.append(f'"{word}"')
             cands_str = ", ".join(parts)
-
-            if ctc_words is not None:
-                ctc_word = ctc_words[i - 1] if i - 1 < len(ctc_words) else ""
-                ctc_word = ctc_word or ""  # Handle None
-                lines.append(f'Position {i}: Decoded: "{ctc_word}" | Candidates: {cands_str}')
-            else:
-                lines.append(f"Position {i}: {cands_str}")
+            ctc_word = ctc_words[i - 1] if i - 1 < len(ctc_words) else ""
+            ctc_word = ctc_word or ""  # Handle None
+            lines.append(f'Position {i}: Decoded: "{ctc_word}" | Candidates: {cands_str}')
         return "\n".join(lines)
 
     def _build_prompt(
         self,
         candidates: List[List[Tuple[str, float]]],
-        ctc_words: List[str] | None = None,
+        ctc_words: List[str],
     ) -> str:
         """Build the full prompt for reranking."""
         top1_sequence = " ".join(cands[0][0] for cands in candidates)
-        candidates_formatted = self._format_candidates(candidates, ctc_words=ctc_words)
+        candidates_formatted = self._format_candidates(candidates, ctc_words)
 
-        if ctc_words is not None:
-            return RERANK_PROMPT_TEMPLATE_WITH_CTC.format(
-                top1_sequence=top1_sequence,
-                candidates_formatted=candidates_formatted,
-            )
         return RERANK_PROMPT_TEMPLATE.format(
             top1_sequence=top1_sequence,
             candidates_formatted=candidates_formatted,
@@ -215,8 +204,8 @@ class GeminiReranker:
         n_positions: int,
         candidates: List[List[Tuple[str, float]]],
         ctc_words: List[str] | None = None,
-    ) -> List[str]:
-        """Parse LLM response into selected words.
+    ) -> Tuple[List[str], List[dict]]:
+        """Parse LLM response into selected words with debugging details.
 
         Args:
             response_text: Raw LLM response.
@@ -225,62 +214,111 @@ class GeminiReranker:
             ctc_words: Optional CTC decoded words (also valid choices).
 
         Returns:
-            List of selected words, one per position.
+            Tuple of (selected words, parse details per position).
         """
         lines = [line.strip() for line in response_text.strip().split("\n") if line.strip()]
         selected = []
+        details = []
 
         for i in range(n_positions):
+            detail = {"position": i}
+
             if i < len(lines):
-                word = lines[i].strip().strip('"').strip("'").lower()
-                # Validate word is in candidates or is the CTC decoded word
-                valid_words = {w for w, _ in candidates[i]}
+                raw_line = lines[i]
+                detail["raw_line"] = raw_line
+
+                word = raw_line.strip().strip('"').lower()
+                # Clean up any numbering or punctuation
+                word = word.lstrip("0123456789.-) ")
+                word = word.rstrip(".,;:!?")
+                if " " in word:
+                    word = word.split()[0]  # Take first word if multiple
+                # Normalize contractions: don't -> dont, i'll -> ill, etc.
+                word = word.replace("'", "")
+                detail["normalized"] = word
+
+                # Build valid set (candidates + CTC word, all normalized)
+                valid_words = {w.replace("'", "") for w, _ in candidates[i]}
                 if ctc_words is not None and i < len(ctc_words) and ctc_words[i]:
-                    valid_words.add(ctc_words[i])
+                    valid_words.add(ctc_words[i].replace("'", ""))
+
+                # Use word if valid, otherwise fallback to top candidate
                 if word in valid_words:
                     selected.append(word)
+                    detail["valid"] = True
+                    detail["fallback"] = False
                 else:
-                    # Fallback to top candidate
-                    selected.append(candidates[i][0][0])
+                    fallback = candidates[i][0][0].replace("'", "")
+                    selected.append(fallback)
+                    detail["valid"] = False
+                    detail["fallback"] = True
+                    detail["fallback_reason"] = "not_in_valid_set"
+                    detail["fallback_to"] = fallback
             else:
                 # Missing line, use top candidate
-                selected.append(candidates[i][0][0])
+                fallback = candidates[i][0][0].replace("'", "")
+                selected.append(fallback)
+                detail["raw_line"] = None
+                detail["normalized"] = None
+                detail["valid"] = False
+                detail["fallback"] = True
+                detail["fallback_reason"] = "missing_line"
+                detail["fallback_to"] = fallback
 
-        return selected
+            details.append(detail)
+
+        return selected, details
 
     def rerank(
         self,
         candidates: List[List[Tuple[str, float]]],
-        ctc_words: List[str] | None = None,
-    ) -> List[str]:
+        ctc_words: List[str],
+    ) -> RerankerResult:
         """Rerank candidates for each position using Gemini.
 
         Args:
             candidates: List of (word, score) tuples per position,
                 sorted by score descending.
-            ctc_words: Optional CTC decoded words per position.
+            ctc_words: CTC decoded words per position.
 
         Returns:
-            List of selected words, one per position.
+            RerankerResult with predictions and debugging info.
         """
         if not candidates:
-            return []
+            return RerankerResult(predictions=[])
 
-        prompt = self._build_prompt(candidates, ctc_words=ctc_words)
+        prompt = self._build_prompt(candidates, ctc_words)
 
         # Retry loop with exponential backoff
         last_error = None
+        n_words = len(candidates)
         for attempt in range(self.max_retries):
             try:
                 response = self.client.models.generate_content(
                     model=self.model,
                     contents=prompt,
                     config=self._types.GenerateContentConfig(
-                        temperature=0.0,  # Deterministic for consistent reranking
-                        max_output_tokens=256,
+                        temperature=0.0,
+                        response_mime_type="application/json",
+                        response_schema=_make_words_schema(n_words),
                     ),
                 )
-                return self._parse_response(response.text, len(candidates), candidates, ctc_words)
+                # Parse structured JSON response
+                raw_text = response.text
+                try:
+                    data = json.loads(raw_text)
+                    words = data.get("words", [])
+                except json.JSONDecodeError:
+                    words = []
+
+                predictions, parse_details = self._parse_response(
+                    "\n".join(words), n_words, candidates, ctc_words
+                )
+                return RerankerResult(
+                    predictions=predictions,
+                    raw_response=raw_text,
+                    parse_details=parse_details,
+                )
             except Exception as e:
                 last_error = e
                 if attempt < self.max_retries - 1:
@@ -293,24 +331,27 @@ class GeminiReranker:
             RuntimeWarning,
             stacklevel=2,
         )
-        return [cands[0][0] for cands in candidates]
+        return RerankerResult(
+            predictions=[cands[0][0] for cands in candidates],
+            raw_response="",
+            parse_details=[{"position": i, "fallback": True, "fallback_reason": "api_error"}
+                          for i in range(len(candidates))],
+        )
 
     def rerank_batch(
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
-        batch_ctc_words: List[List[str] | None] | None = None,
-    ) -> List[List[str]]:
+        batch_ctc_words: List[List[str]],
+    ) -> List[RerankerResult]:
         """Rerank multiple sentences (sequential).
 
         Args:
             batch_candidates: List of candidate lists, one per sentence.
-            batch_ctc_words: Optional list of CTC word lists, one per sentence.
+            batch_ctc_words: CTC word lists, one per sentence.
 
         Returns:
-            List of selected word lists, one per sentence.
+            List of RerankerResult, one per sentence.
         """
-        if batch_ctc_words is None:
-            batch_ctc_words = [None] * len(batch_candidates)
         return [
             self.rerank(candidates, ctc_words)
             for candidates, ctc_words in zip(batch_candidates, batch_ctc_words)
@@ -319,40 +360,89 @@ class GeminiReranker:
     async def rerank_async(
         self,
         candidates: List[List[Tuple[str, float]]],
-        ctc_words: List[str] | None = None,
-    ) -> List[str]:
-        """Async version of rerank using thread pool."""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor,
-            lambda: self.rerank(candidates, ctc_words)
+        ctc_words: List[str],
+    ) -> RerankerResult:
+        """Async version of rerank using native async API."""
+        if not candidates:
+            return RerankerResult(predictions=[])
+
+        prompt = self._build_prompt(candidates, ctc_words)
+        n_words = len(candidates)
+
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                response = await self.client.aio.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=self._types.GenerateContentConfig(
+                        temperature=0.0,
+                        response_mime_type="application/json",
+                        response_schema=_make_words_schema(n_words),
+                    ),
+                )
+                raw_text = response.text
+                try:
+                    data = json.loads(raw_text)
+                    words = data.get("words", [])
+                except json.JSONDecodeError:
+                    words = []
+
+                predictions, parse_details = self._parse_response(
+                    "\n".join(words), n_words, candidates, ctc_words
+                )
+                return RerankerResult(
+                    predictions=predictions,
+                    raw_response=raw_text,
+                    parse_details=parse_details,
+                )
+            except Exception as e:
+                last_error = e
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(self.retry_delay * (2**attempt))
+
+        warnings.warn(
+            f"Reranker failed after {self.max_retries} attempts: {last_error}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return RerankerResult(
+            predictions=[cands[0][0] for cands in candidates],
+            raw_response="",
+            parse_details=[{"position": i, "fallback": True, "fallback_reason": "api_error"}
+                          for i in range(len(candidates))],
         )
 
     async def rerank_batch_async(
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
-        batch_ctc_words: List[List[str] | None] | None = None,
-    ) -> List[List[str]]:
+        batch_ctc_words: List[List[str]],
+        verbose: bool = False,
+    ) -> List[RerankerResult]:
         """Rerank multiple sentences concurrently.
 
         Args:
             batch_candidates: List of candidate lists, one per sentence.
-            batch_ctc_words: Optional list of CTC word lists, one per sentence.
+            batch_ctc_words: CTC word lists, one per sentence.
+            verbose: Print progress updates.
 
         Returns:
-            List of selected word lists, one per sentence.
+            List of RerankerResult, one per sentence.
         """
-        if batch_ctc_words is None:
-            batch_ctc_words = [None] * len(batch_candidates)
-
         semaphore = asyncio.Semaphore(self.max_concurrent)
+        total = len(batch_candidates)
+        completed = [0]  # Use list for mutability in closure
 
         async def limited_rerank(
             candidates: List[List[Tuple[str, float]]],
-            ctc_words: List[str] | None,
-        ) -> List[str]:
+            ctc_words: List[str],
+        ) -> RerankerResult:
             async with semaphore:
-                return await self.rerank_async(candidates, ctc_words)
+                result = await self.rerank_async(candidates, ctc_words)
+                completed[0] += 1
+                if verbose and completed[0] % 10 == 0:
+                    print(f"  Reranked {completed[0]}/{total} sentences", flush=True)
+                return result
 
         tasks = [
             limited_rerank(c, ctc)
@@ -367,13 +457,21 @@ class NoopReranker:
     def rerank(
         self,
         candidates: List[List[Tuple[str, float]]],
-    ) -> List[str]:
+        ctc_words: List[str] | None = None,  # Ignored, for API compat
+    ) -> RerankerResult:
         """Return top-1 candidate for each position."""
-        return [cands[0][0] for cands in candidates]
+        predictions = [cands[0][0] for cands in candidates]
+        return RerankerResult(
+            predictions=predictions,
+            raw_response="",
+            parse_details=[{"position": i, "fallback": False, "top1": True}
+                          for i in range(len(candidates))],
+        )
 
     def rerank_batch(
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
-    ) -> List[List[str]]:
+        batch_ctc_words: List[List[str]] | None = None,  # Ignored
+    ) -> List[RerankerResult]:
         """Return top-1 candidates for each sentence."""
         return [self.rerank(candidates) for candidates in batch_candidates]

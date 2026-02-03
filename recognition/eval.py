@@ -22,7 +22,7 @@ from shared import KeyboardLayout, build_word_prototype, get_device
 from features import GestureFeatureExtractor
 from contrastive.models import TwoTowerModel
 
-from .reranker import GeminiReranker, NoopReranker
+from .reranker import GeminiReranker, NoopReranker, RerankerResult
 from .sentence_data import SentenceData, get_sentence_stats, load_sentence_dataset_subset
 
 # Optional CTC decoder import
@@ -264,7 +264,8 @@ def evaluate_sentences(
                 recall_at_k_hits += 1
 
         # Rerank
-        predictions = reranker.rerank(candidates)
+        result = reranker.rerank(candidates)
+        predictions = result.predictions
 
         # Compute metrics
         ground_truth = sentence.words
@@ -312,6 +313,7 @@ async def evaluate_sentences_async(
     return_details: bool = False,
     ctc_decoder=None,
     feature_extractor: GestureFeatureExtractor | None = None,
+    log_file: Path | None = None,
 ) -> Dict[str, float]:
     """Evaluate sentence-level accuracy with parallel reranking.
 
@@ -392,13 +394,27 @@ async def evaluate_sentences_async(
     if verbose:
         print(f"Reranking {len(sentences)} sentences...")
 
+    # Ensure ctc_words is always a list (empty strings if no decoder)
+    all_ctc_words_safe = [
+        ctc if ctc is not None else [""] * len(cands)
+        for ctc, cands in zip(all_ctc_words, all_candidates)
+    ]
+
     if hasattr(reranker, "rerank_batch_async"):
-        all_predictions = await reranker.rerank_batch_async(all_candidates, all_ctc_words)
+        all_results: List[RerankerResult] = await reranker.rerank_batch_async(
+            all_candidates, all_ctc_words_safe, verbose=verbose
+        )
     else:
-        all_predictions = [
+        all_results = [
             reranker.rerank(c, ctc)
-            for c, ctc in zip(all_candidates, all_ctc_words)
+            for c, ctc in zip(all_candidates, all_ctc_words_safe)
         ]
+
+    # Open log file if provided
+    log_fh = None
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_fh = log_file.open("w")
 
     # Compute metrics with error categorization
     vocab_set = set(vocab)
@@ -406,10 +422,12 @@ async def evaluate_sentences_async(
     correct_sentences = 0
     total_wer = 0.0
     sentence_details = []
+    total_fallbacks = 0
 
-    for i, (predictions, ground_truth, candidates, ctc_words) in enumerate(
-        zip(all_predictions, all_ground_truth, all_candidates, all_ctc_words)
+    for i, (result, ground_truth, candidates, ctc_words) in enumerate(
+        zip(all_results, all_ground_truth, all_candidates, all_ctc_words_safe)
     ):
+        predictions = result.predictions
         # Categorize each word
         for j, (pred, gt) in enumerate(zip(predictions, ground_truth)):
             candidate_words = {w for w, _ in candidates[j]}
@@ -437,6 +455,25 @@ async def evaluate_sentences_async(
         wer = compute_wer(predictions, ground_truth)
         total_wer += wer
 
+        # Count fallbacks from parse details
+        for detail in result.parse_details:
+            if detail.get("fallback", False):
+                total_fallbacks += 1
+
+        # Write to log file if provided
+        if log_fh is not None:
+            log_entry = {
+                "sentence_idx": i,
+                "ground_truth": ground_truth,
+                "predictions": predictions,
+                "raw_response": result.raw_response,
+                "parse_details": result.parse_details,
+                "candidates": [[(w, s) for w, s in cands[:5]] for cands in candidates],
+                "ctc_words": ctc_words,
+                "is_correct": is_correct,
+            }
+            log_fh.write(json.dumps(log_entry) + "\n")
+
         if return_details:
             sentence_details.append({
                 "index": i,
@@ -447,7 +484,13 @@ async def evaluate_sentences_async(
                 "is_correct": is_correct,
                 "word_accuracy": sum(1 for p, g in zip(predictions, ground_truth) if p == g) / len(ground_truth) if ground_truth else 0,
                 "wer": wer,
+                "raw_response": result.raw_response,
+                "parse_details": result.parse_details,
             })
+
+    # Close log file
+    if log_fh is not None:
+        log_fh.close()
 
     total_sentences = len(sentences)
     word_accuracy = errors.correct / total_words if total_words > 0 else 0.0
@@ -463,6 +506,7 @@ async def evaluate_sentences_async(
         "total_words": total_words,
         "total_sentences": total_sentences,
         "errors": errors,
+        "total_fallbacks": total_fallbacks,
     }
 
     if return_details:
@@ -526,7 +570,7 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-3-flash-preview",
+        default="gemini-2.5-flash",
         help="Gemini model name.",
     )
     parser.add_argument(
@@ -538,8 +582,14 @@ def main() -> None:
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
-        help="Random seed for sentence sampling.",
+        default=None,
+        help="Random seed for sentence sampling. If not specified, uses a random seed.",
+    )
+    parser.add_argument(
+        "--rerank-log",
+        type=Path,
+        default=None,
+        help="Path to write reranker debug log (JSONL format). One entry per sentence.",
     )
     parser.add_argument(
         "--include-synthetic",
@@ -549,7 +599,7 @@ def main() -> None:
     parser.add_argument(
         "--max-concurrent",
         type=int,
-        default=10,
+        default=100,
         help="Maximum concurrent API calls for reranking.",
     )
     parser.add_argument(
@@ -584,6 +634,12 @@ def main() -> None:
 
     device = get_device()
     print(f"Using device: {device}")
+
+    # Handle random seed
+    import random
+    if args.seed is None:
+        args.seed = random.randint(0, 2**31 - 1)
+    print(f"Using seed: {args.seed}")
 
     # Load model
     print(f"Loading model from {args.checkpoint}...")
@@ -662,6 +718,7 @@ def main() -> None:
             return_details=args.show_errors or args.show_failures,
             ctc_decoder=ctc_decoder,
             feature_extractor=feature_extractor,
+            log_file=args.rerank_log,
         ))
 
         # Compute improvements
@@ -681,6 +738,10 @@ def main() -> None:
         print(f"    OOV:        {err.oov:4d} ({100*err.oov/err.total_words:.1f}%) - word not in vocab")
         print(f"    Retrieval:  {err.retrieval_fail:4d} ({100*err.retrieval_fail/err.total_words:.1f}%) - word in vocab, not top-{args.k}")
         print(f"    Reranking:  {err.rerank_fail:4d} ({100*err.rerank_fail/err.total_words:.1f}%) - word in top-{args.k}, LLM wrong")
+        print(f"    Fallbacks:  {reranker_results['total_fallbacks']:4d} ({100*reranker_results['total_fallbacks']/err.total_words:.1f}%) - LLM output invalid, used top-1")
+
+        if args.rerank_log:
+            print(f"\n  Reranker log written to: {args.rerank_log}")
 
         # Show errors if requested
         if args.show_errors and "details" in reranker_results:
