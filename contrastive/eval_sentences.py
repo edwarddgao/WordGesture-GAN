@@ -13,6 +13,7 @@ import torch
 
 from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
 
+from .eval import load_wordfreq_vocabulary
 from .models import TwoTowerModel
 from .reranker import GeminiReranker, NoopReranker
 from .sentence_data import SentenceData, get_sentence_stats, load_sentence_dataset_subset
@@ -40,6 +41,7 @@ def build_vocabulary_embeddings(
     layout: KeyboardLayout,
     n_points: int,
     device: torch.device,
+    batch_size: int = 256,
 ) -> Tuple[torch.Tensor, Dict[str, int]]:
     """Precompute prototype embeddings for entire vocabulary.
 
@@ -49,13 +51,21 @@ def build_vocabulary_embeddings(
     """
     word_to_idx = {w: i for i, w in enumerate(vocab)}
 
+    # Build prototype arrays
+    proto_list = []
+    for w in vocab:
+        proto = build_word_prototype(w, n_points, layout)[:, :2]  # (n_points, 2)
+        proto_list.append(proto)
+    protos = np.stack(proto_list, axis=0)  # (V, n_points, 2)
+
+    # Encode in batches to avoid MPS numerical precision issues with large tensors
+    proto_embs_list = []
     with torch.no_grad():
-        proto_list = []
-        for w in vocab:
-            proto = build_word_prototype(w, n_points, layout)[:, :2]  # (n_points, 2)
-            proto_list.append(proto)
-        protos = torch.from_numpy(np.stack(proto_list, axis=0)).to(device)  # (V, n_points, 2)
-        proto_embs = model.encode_prototype(protos)  # (V, D)
+        for i in range(0, len(protos), batch_size):
+            batch = torch.from_numpy(protos[i : i + batch_size]).to(device)
+            emb = model.encode_prototype(batch)
+            proto_embs_list.append(emb)
+        proto_embs = torch.cat(proto_embs_list, dim=0)  # (V, D)
 
     return proto_embs, word_to_idx
 
@@ -469,6 +479,17 @@ def main() -> None:
         default=10,
         help="Maximum candidates to show LLM per position (default: 10).",
     )
+    parser.add_argument(
+        "--vocab-size",
+        type=int,
+        default=None,
+        help="Use top N most common English words from wordfreq (e.g., 10000, 50000, 100000).",
+    )
+    parser.add_argument(
+        "--strict-vocab",
+        action="store_true",
+        help="Don't add test words to vocabulary (shows true OOV behavior).",
+    )
     args = parser.parse_args()
 
     device = get_device()
@@ -489,13 +510,25 @@ def main() -> None:
     stats = get_sentence_stats(sentences)
     print(f"Loaded {stats['n_sentences']} sentences ({stats['n_words']} words)")
 
-    # Build vocabulary from training data + OOV words from test sentences
-    _, train_words = load_dataset(args.data_dir / "train.npz")
-    train_vocab = set(train_words)
+    # Build vocabulary
     test_words = {w for s in sentences for w in s.words}
-    oov_words = test_words - train_vocab
-    vocab = sorted(train_vocab | test_words)
-    print(f"Vocabulary size: {len(vocab)} ({len(train_vocab)} train + {len(oov_words)} OOV)")
+    if args.vocab_size:
+        # Use wordfreq top-N vocabulary
+        external_vocab = load_wordfreq_vocabulary(args.vocab_size)
+        if args.strict_vocab:
+            vocab = sorted(external_vocab)
+            oov_count = len(test_words - set(external_vocab))
+            print(f"Vocabulary size: {len(vocab)} (strict: {oov_count}/{len(test_words)} test words are OOV)")
+        else:
+            vocab = sorted(set(external_vocab) | test_words)
+            print(f"Vocabulary size: {len(vocab)} ({len(external_vocab)} from wordfreq top-{args.vocab_size} + {len(test_words)} test words)")
+    else:
+        # Use training vocabulary + OOV words from test sentences
+        _, train_words = load_dataset(args.data_dir / "train.npz")
+        train_vocab = set(train_words)
+        oov_words = test_words - train_vocab
+        vocab = sorted(train_vocab | test_words)
+        print(f"Vocabulary size: {len(vocab)} ({len(train_vocab)} train + {len(oov_words)} OOV)")
 
     # Evaluate baseline (top-1, no reranking)
     print("\n" + "=" * 60)

@@ -28,6 +28,23 @@ def load_vocabulary(vocab_path: Path) -> List[str]:
     return sorted(set(words))
 
 
+def load_wordfreq_vocabulary(n: int) -> List[str]:
+    """Load top N most common English words from wordfreq.
+
+    Args:
+        n: Number of top words to retrieve (e.g., 10000, 50000, 100000)
+
+    Returns:
+        List of words filtered to ASCII alpha-only, length >= 2
+    """
+    from wordfreq import top_n_list
+
+    words = top_n_list('en', n)
+    # Filter to ASCII alpha-only (a-z), length >= 2
+    words = [w for w in words if w.isascii() and w.isalpha() and len(w) >= 2]
+    return words  # Already sorted by frequency, no need to sort alphabetically
+
+
 def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerModel, Dict]:
     """Load a trained model from checkpoint."""
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -149,18 +166,20 @@ def evaluate_retrieval(
 
     if return_details:
         predictions = [vocab[idx.item()] for idx in top1_indices]
-        if pred_scores_t is not None:
-            pred_scores = pred_scores_t.cpu().numpy()
-        else:
-            pred_scores = np.zeros(len(predictions))
         gt_scores = gt_scores_t.cpu().numpy()
-        # Top-1 predictions
-        top1_indices = rankings[:, 0]
-        predictions = [vocab[idx.item()] for idx in top1_indices]
-        # Prediction scores
-        pred_scores = similarities[torch.arange(len(similarities)), top1_indices].cpu().numpy()
-        # Ground truth scores
-        gt_scores = similarities[torch.arange(len(similarities)), ground_truth].cpu().numpy()
+
+        # For large vocab, we need to compute pred_scores separately
+        if large_vocab:
+            # Recompute similarities for top-1 predictions to get scores
+            pred_scores = np.zeros(len(predictions))
+            for i in range(0, len(gesture_embs), batch_size):
+                batch_embs = gesture_embs[i : i + batch_size]
+                batch_top1 = top1_indices[i : i + batch_size]
+                batch_sims = batch_embs @ proto_embs.T
+                for j, idx in enumerate(batch_top1):
+                    pred_scores[i + j] = batch_sims[j, idx].item()
+        else:
+            pred_scores = similarities[torch.arange(len(similarities), device=device), top1_indices].cpu().numpy()
 
         results["_details"] = {
             "vocab": vocab,
@@ -354,6 +373,8 @@ def main() -> None:
     parser.add_argument("--top-n", type=int, default=20, help="Number of top items in analysis")
     parser.add_argument("--vocab", type=Path, default=None,
         help="External vocabulary file (one word per line). If not provided, uses test set words.")
+    parser.add_argument("--vocab-size", type=int, default=None,
+        help="Use top N most common English words from wordfreq (e.g., 10000, 50000, 100000).")
     args = parser.parse_args()
 
     device = get_device()
@@ -377,7 +398,12 @@ def main() -> None:
         print(f"Filtered {n_filtered} samples with path length mismatch ({100*n_filtered/n_before:.1f}%)")
 
     # Load external vocabulary if provided
-    if args.vocab:
+    if args.vocab_size:
+        external_vocab = load_wordfreq_vocabulary(args.vocab_size)
+        vocab = sorted(set(external_vocab) | set(test_words))
+        print(f"Test samples: {len(test_gestures)}, vocab size: {len(vocab)} "
+              f"({len(external_vocab)} from wordfreq top-{args.vocab_size} + {len(set(test_words))} test words)")
+    elif args.vocab:
         external_vocab = load_vocabulary(args.vocab)
         vocab = sorted(set(external_vocab) | set(test_words))
         print(f"Test samples: {len(test_gestures)}, vocab size: {len(vocab)} "
