@@ -17,6 +17,17 @@ from .data import filter_by_path_length
 from .models import TwoTowerModel
 
 
+def load_vocabulary(vocab_path: Path) -> List[str]:
+    """Load vocabulary from file, filtering to valid words."""
+    words = []
+    with vocab_path.open() as f:
+        for line in f:
+            word = line.strip().lower()
+            if word and word.isalpha() and len(word) >= 2:
+                words.append(word)
+    return sorted(set(words))
+
+
 def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerModel, Dict]:
     """Load a trained model from checkpoint."""
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -43,6 +54,7 @@ def evaluate_retrieval(
     k_values: List[int] = [1, 5, 10],
     batch_size: int = 256,
     return_details: bool = False,
+    vocab: List[str] | None = None,
 ) -> Dict:
     """Evaluate retrieval accuracy.
 
@@ -50,18 +62,26 @@ def evaluate_retrieval(
 
     Args:
         return_details: If True, also return vocab, proto_embs, predictions, etc.
+        vocab: Optional vocabulary to use. If None, uses unique words from test set.
     """
     model.eval()
-    vocab = sorted(set(words))
+    if vocab is None:
+        vocab = sorted(set(words))
 
-    # Precompute prototype embeddings for entire vocabulary
+    # Precompute prototype embeddings for entire vocabulary (in batches for large vocab)
+    proto_list = []
+    for w in vocab:
+        proto = build_word_prototype(w, n_points, layout)[:, :2]  # (n_points, 2)
+        proto_list.append(proto)
+    protos = np.stack(proto_list, axis=0)  # (V, n_points, 2)
+
+    proto_embs_list = []
     with torch.no_grad():
-        proto_list = []
-        for w in vocab:
-            proto = build_word_prototype(w, n_points, layout)[:, :2]  # (n_points, 2)
-            proto_list.append(proto)
-        protos = torch.from_numpy(np.stack(proto_list, axis=0)).to(device)  # (V, n_points, 2)
-        proto_embs = model.encode_prototype(protos)  # (V, D)
+        for i in range(0, len(protos), batch_size):
+            batch = torch.from_numpy(protos[i : i + batch_size]).to(device)
+            emb = model.encode_prototype(batch)
+            proto_embs_list.append(emb)
+        proto_embs = torch.cat(proto_embs_list, dim=0)  # (V, D)
 
     # Compute gesture embeddings in batches
     gesture_embs_list = []
@@ -72,29 +92,68 @@ def evaluate_retrieval(
             gesture_embs_list.append(emb)
         gesture_embs = torch.cat(gesture_embs_list, dim=0)  # (N, D)
 
-    # Compute similarity matrix
-    similarities = gesture_embs @ proto_embs.T  # (N, V)
-
-    # Get rankings
-    rankings = similarities.argsort(dim=1, descending=True)  # (N, V)
-
-    # Compute Recall@K
+    # Build word to index mapping
     word_to_idx = {w: i for i, w in enumerate(vocab)}
     ground_truth = torch.tensor([word_to_idx[w] for w in words], device=device)
 
+    # Determine max k needed
+    max_k = max(k_values)
+
+    # For large vocabs, process in batches to avoid memory issues
+    V = len(vocab)
+    large_vocab = V > 50000
+
+    if large_vocab:
+        # Process in gesture batches to reduce memory
+        all_top_k_indices = []
+        all_gt_scores = []
+        all_ranks = []
+
+        gesture_batch_size = min(batch_size, 512)
+        for i in range(0, len(gesture_embs), gesture_batch_size):
+            batch_embs = gesture_embs[i : i + gesture_batch_size]
+            batch_gt = ground_truth[i : i + gesture_batch_size]
+
+            batch_sims = batch_embs @ proto_embs.T
+            _, top_k_idx = batch_sims.topk(max_k, dim=1)
+            all_top_k_indices.append(top_k_idx)
+
+            gt_scores_batch = batch_sims[torch.arange(len(batch_sims), device=device), batch_gt]
+            all_gt_scores.append(gt_scores_batch)
+
+            ranks_batch = (batch_sims > gt_scores_batch.unsqueeze(1)).sum(dim=1) + 1
+            all_ranks.append(ranks_batch)
+
+        top_k_indices = torch.cat(all_top_k_indices, dim=0)
+        gt_scores_t = torch.cat(all_gt_scores, dim=0)
+        ranks = torch.cat(all_ranks, dim=0)
+        top1_indices = top_k_indices[:, 0]
+        pred_scores_t = None
+    else:
+        similarities = gesture_embs @ proto_embs.T
+        _, top_k_indices = similarities.topk(max_k, dim=1)
+        top1_indices = top_k_indices[:, 0]
+        gt_scores_t = similarities[torch.arange(len(similarities), device=device), ground_truth]
+        pred_scores_t = similarities[torch.arange(len(similarities), device=device), top1_indices]
+        ranks = (similarities > gt_scores_t.unsqueeze(1)).sum(dim=1) + 1
+
     results = {}
     for k in k_values:
-        top_k = rankings[:, :k]
+        top_k = top_k_indices[:, :k]
         hits = (top_k == ground_truth.unsqueeze(1)).any(dim=1)
         recall = hits.float().mean().item()
         results[f"recall@{k}"] = recall
 
-    # Mean Reciprocal Rank
-    ranks = (rankings == ground_truth.unsqueeze(1)).float().argmax(dim=1) + 1
     mrr = (1.0 / ranks.float()).mean().item()
     results["mrr"] = mrr
 
     if return_details:
+        predictions = [vocab[idx.item()] for idx in top1_indices]
+        if pred_scores_t is not None:
+            pred_scores = pred_scores_t.cpu().numpy()
+        else:
+            pred_scores = np.zeros(len(predictions))
+        gt_scores = gt_scores_t.cpu().numpy()
         # Top-1 predictions
         top1_indices = rankings[:, 0]
         predictions = [vocab[idx.item()] for idx in top1_indices]
@@ -267,6 +326,7 @@ def evaluate_oov(
     layout: KeyboardLayout,
     n_points: int,
     device: torch.device,
+    vocab: List[str] | None = None,
 ) -> Dict[str, float]:
     """Evaluate on OOV words (words not in training set)."""
     train_vocab = set(train_words)
@@ -279,7 +339,7 @@ def evaluate_oov(
         return {"oov_count": 0}
 
     results = evaluate_retrieval(
-        model, oov_gestures, oov_words, layout, n_points, device
+        model, oov_gestures, oov_words, layout, n_points, device, vocab=vocab
     )
     results["oov_count"] = len(oov_words)
     return results
@@ -292,6 +352,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--analyze", action="store_true", help="Run detailed confusion analysis")
     parser.add_argument("--top-n", type=int, default=20, help="Number of top items in analysis")
+    parser.add_argument("--vocab", type=Path, default=None,
+        help="External vocabulary file (one word per line). If not provided, uses test set words.")
     args = parser.parse_args()
 
     device = get_device()
@@ -314,13 +376,22 @@ def main() -> None:
     if n_filtered > 0:
         print(f"Filtered {n_filtered} samples with path length mismatch ({100*n_filtered/n_before:.1f}%)")
 
-    print(f"Test samples: {len(test_gestures)}, vocab size: {len(set(test_words))}")
+    # Load external vocabulary if provided
+    if args.vocab:
+        external_vocab = load_vocabulary(args.vocab)
+        vocab = sorted(set(external_vocab) | set(test_words))
+        print(f"Test samples: {len(test_gestures)}, vocab size: {len(vocab)} "
+              f"({len(external_vocab)} from file + {len(set(test_words))} test words)")
+    else:
+        vocab = None
+        print(f"Test samples: {len(test_gestures)}, vocab size: {len(set(test_words))}")
 
     # Evaluate on all test data
     print("\nEvaluating on all test data...")
     all_results = evaluate_retrieval(
         model, test_gestures, test_words, layout, n_points, device,
         return_details=args.analyze,
+        vocab=vocab,
     )
     print(f"  Recall@1:  {all_results['recall@1']:.4f}")
     print(f"  Recall@5:  {all_results['recall@5']:.4f}")
@@ -329,7 +400,7 @@ def main() -> None:
 
     # Evaluate on OOV words
     print("\nEvaluating on OOV words...")
-    oov_results = evaluate_oov(model, test_gestures, test_words, train_words, layout, n_points, device)
+    oov_results = evaluate_oov(model, test_gestures, test_words, train_words, layout, n_points, device, vocab=vocab)
     if oov_results["oov_count"] > 0:
         print(f"  OOV count: {oov_results['oov_count']}")
         print(f"  Recall@1:  {oov_results['recall@1']:.4f}")

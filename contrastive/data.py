@@ -68,7 +68,7 @@ class ContrastiveGestureDataset(Dataset):
         layout: KeyboardLayout | None = None,
         augment: bool = False,
         noise_std: float = 0.01,
-        filter_by_path_length: bool = True,
+        apply_path_filter: bool = True,
         path_ratio_range: Tuple[float, float] = (0.5, 2.0),
     ) -> None:
         gestures, words = load_dataset(npz_path)
@@ -78,7 +78,7 @@ class ContrastiveGestureDataset(Dataset):
         self.noise_std = noise_std
         self._prototype_cache: Dict[str, np.ndarray] = {}
 
-        if filter_by_path_length:
+        if apply_path_filter:
             gestures, words = filter_by_path_length(
                 gestures, words, n_points, self.layout, path_ratio_range
             )
