@@ -109,8 +109,14 @@ def evaluate_retrieval(
             gesture_embs_list.append(emb)
         gesture_embs = torch.cat(gesture_embs_list, dim=0)  # (N, D)
 
-    # Build word to index mapping
+    # Build word to index mapping and filter OOV samples
     word_to_idx = {w: i for i, w in enumerate(vocab)}
+    in_vocab_mask = [w in word_to_idx for w in words]
+    n_oov = sum(1 for m in in_vocab_mask if not m)
+    if n_oov > 0:
+        # Filter to only in-vocab samples
+        gesture_embs = gesture_embs[[i for i, m in enumerate(in_vocab_mask) if m]]
+        words = [w for w, m in zip(words, in_vocab_mask) if m]
     ground_truth = torch.tensor([word_to_idx[w] for w in words], device=device)
 
     # Determine max k needed
@@ -154,7 +160,7 @@ def evaluate_retrieval(
         pred_scores_t = similarities[torch.arange(len(similarities), device=device), top1_indices]
         ranks = (similarities > gt_scores_t.unsqueeze(1)).sum(dim=1) + 1
 
-    results = {}
+    results = {"n_samples": len(words), "n_oov": n_oov}
     for k in k_values:
         top_k = top_k_indices[:, :k]
         hits = (top_k == ground_truth.unsqueeze(1)).any(dim=1)
@@ -373,8 +379,8 @@ def main() -> None:
     parser.add_argument("--top-n", type=int, default=20, help="Number of top items in analysis")
     parser.add_argument("--vocab", type=Path, default=None,
         help="External vocabulary file (one word per line). If not provided, uses test set words.")
-    parser.add_argument("--vocab-size", type=int, default=None,
-        help="Use top N most common English words from wordfreq (e.g., 10000, 50000, 100000).")
+    parser.add_argument("--vocab-size", type=int, default=10000,
+        help="Use top N most common English words from wordfreq (default: 10000).")
     args = parser.parse_args()
 
     device = get_device()
@@ -386,7 +392,6 @@ def main() -> None:
 
     # Load test data
     test_gestures, test_words = load_dataset(args.data_dir / "test.npz")
-    train_gestures, train_words = load_dataset(args.data_dir / "train.npz")
 
     # Filter out misaligned gestures (same filtering as training)
     n_before = len(test_gestures)
@@ -397,12 +402,12 @@ def main() -> None:
     if n_filtered > 0:
         print(f"Filtered {n_filtered} samples with path length mismatch ({100*n_filtered/n_before:.1f}%)")
 
-    # Load external vocabulary if provided
+    # Load vocabulary
     if args.vocab_size:
-        external_vocab = load_wordfreq_vocabulary(args.vocab_size)
-        vocab = sorted(set(external_vocab) | set(test_words))
+        vocab = load_wordfreq_vocabulary(args.vocab_size)
+        oov_count = len(set(test_words) - set(vocab))
         print(f"Test samples: {len(test_gestures)}, vocab size: {len(vocab)} "
-              f"({len(external_vocab)} from wordfreq top-{args.vocab_size} + {len(set(test_words))} test words)")
+              f"(wordfreq top-{args.vocab_size}, {oov_count} test words OOV)")
     elif args.vocab:
         external_vocab = load_vocabulary(args.vocab)
         vocab = sorted(set(external_vocab) | set(test_words))
@@ -419,22 +424,12 @@ def main() -> None:
         return_details=args.analyze,
         vocab=vocab,
     )
+    if all_results["n_oov"] > 0:
+        print(f"  (Skipped {all_results['n_oov']} samples with OOV ground truth)")
     print(f"  Recall@1:  {all_results['recall@1']:.4f}")
     print(f"  Recall@5:  {all_results['recall@5']:.4f}")
     print(f"  Recall@10: {all_results['recall@10']:.4f}")
     print(f"  MRR:       {all_results['mrr']:.4f}")
-
-    # Evaluate on OOV words
-    print("\nEvaluating on OOV words...")
-    oov_results = evaluate_oov(model, test_gestures, test_words, train_words, layout, n_points, device, vocab=vocab)
-    if oov_results["oov_count"] > 0:
-        print(f"  OOV count: {oov_results['oov_count']}")
-        print(f"  Recall@1:  {oov_results['recall@1']:.4f}")
-        print(f"  Recall@5:  {oov_results['recall@5']:.4f}")
-        print(f"  Recall@10: {oov_results['recall@10']:.4f}")
-        print(f"  MRR:       {oov_results['mrr']:.4f}")
-    else:
-        print("  No OOV words in test set")
 
     # Run detailed analysis if requested
     if args.analyze:

@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 
-from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
+from shared import KeyboardLayout, build_word_prototype, get_device
 
 from .eval import load_wordfreq_vocabulary
 from .models import TwoTowerModel
@@ -482,13 +482,8 @@ def main() -> None:
     parser.add_argument(
         "--vocab-size",
         type=int,
-        default=None,
-        help="Use top N most common English words from wordfreq (e.g., 10000, 50000, 100000).",
-    )
-    parser.add_argument(
-        "--strict-vocab",
-        action="store_true",
-        help="Don't add test words to vocabulary (shows true OOV behavior).",
+        default=10000,
+        help="Use top N most common English words from wordfreq (default: 10000).",
     )
     args = parser.parse_args()
 
@@ -510,25 +505,11 @@ def main() -> None:
     stats = get_sentence_stats(sentences)
     print(f"Loaded {stats['n_sentences']} sentences ({stats['n_words']} words)")
 
-    # Build vocabulary
+    # Build vocabulary from wordfreq
     test_words = {w for s in sentences for w in s.words}
-    if args.vocab_size:
-        # Use wordfreq top-N vocabulary
-        external_vocab = load_wordfreq_vocabulary(args.vocab_size)
-        if args.strict_vocab:
-            vocab = sorted(external_vocab)
-            oov_count = len(test_words - set(external_vocab))
-            print(f"Vocabulary size: {len(vocab)} (strict: {oov_count}/{len(test_words)} test words are OOV)")
-        else:
-            vocab = sorted(set(external_vocab) | test_words)
-            print(f"Vocabulary size: {len(vocab)} ({len(external_vocab)} from wordfreq top-{args.vocab_size} + {len(test_words)} test words)")
-    else:
-        # Use training vocabulary + OOV words from test sentences
-        _, train_words = load_dataset(args.data_dir / "train.npz")
-        train_vocab = set(train_words)
-        oov_words = test_words - train_vocab
-        vocab = sorted(train_vocab | test_words)
-        print(f"Vocabulary size: {len(vocab)} ({len(train_vocab)} train + {len(oov_words)} OOV)")
+    vocab = load_wordfreq_vocabulary(args.vocab_size)
+    oov_count = len(test_words - set(vocab))
+    print(f"Vocabulary size: {len(vocab)} (wordfreq top-{args.vocab_size}, {oov_count}/{len(test_words)} test words OOV)")
 
     # Evaluate baseline (top-1, no reranking)
     print("\n" + "=" * 60)
