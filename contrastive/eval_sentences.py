@@ -243,7 +243,6 @@ async def evaluate_sentences_async(
     reranker=None,
     verbose: bool = False,
     return_details: bool = False,
-    reranker_mode: str = "full-sentence",
 ) -> Dict[str, float]:
     """Evaluate sentence-level accuracy with parallel reranking.
 
@@ -258,7 +257,6 @@ async def evaluate_sentences_async(
         reranker: Reranker with rerank_batch_async method
         verbose: Print progress
         return_details: Return per-sentence details
-        reranker_mode: "full-sentence" for global context, "incremental" for word-by-word
 
     Returns:
         Dictionary of metrics
@@ -302,26 +300,14 @@ async def evaluate_sentences_async(
             if gt_word in candidate_words:
                 recall_at_k_hits += 1
 
-    # Rerank all sentences
+    # Rerank all sentences in parallel
     if verbose:
-        mode_desc = "in parallel" if reranker_mode == "full-sentence" else "incrementally"
-        print(f"Reranking {len(sentences)} sentences {mode_desc}...")
+        print(f"Reranking {len(sentences)} sentences...")
 
-    if reranker_mode == "incremental":
-        # Incremental: word-by-word with perfect past context
-        if hasattr(reranker, "rerank_incremental_batch_async"):
-            all_predictions = await reranker.rerank_incremental_batch_async(
-                all_candidates, all_ground_truth
-            )
-        else:
-            # Fallback for rerankers without incremental support (e.g., NoopReranker)
-            all_predictions = [reranker.rerank(c) for c in all_candidates]
+    if hasattr(reranker, "rerank_batch_async"):
+        all_predictions = await reranker.rerank_batch_async(all_candidates)
     else:
-        # Full-sentence: all words at once with global context
-        if hasattr(reranker, "rerank_batch_async"):
-            all_predictions = await reranker.rerank_batch_async(all_candidates)
-        else:
-            all_predictions = [reranker.rerank(c) for c in all_candidates]
+        all_predictions = [reranker.rerank(c) for c in all_candidates]
 
     # Compute metrics
     correct_words = 0
@@ -419,13 +405,6 @@ def main() -> None:
         choices=["none", "gemini"],
         default="none",
         help="Reranker to use. 'none' uses top-1 candidates, 'gemini' uses LLM reranking.",
-    )
-    parser.add_argument(
-        "--reranker-mode",
-        choices=["full-sentence", "incremental"],
-        default="full-sentence",
-        help="full-sentence: rerank all words at once with global context. "
-        "incremental: rerank word-by-word with perfect past context (realistic).",
     )
     parser.add_argument(
         "--project",
@@ -528,8 +507,7 @@ def main() -> None:
     reranker_results = None
     if args.reranker == "gemini":
         print("\n" + "=" * 60)
-        mode_label = "incremental/word-by-word" if args.reranker_mode == "incremental" else "full-sentence"
-        print(f"With Gemini Reranker ({args.model}, {mode_label})")
+        print(f"With Gemini Reranker ({args.model})")
         print("=" * 60)
 
         try:
@@ -552,7 +530,6 @@ def main() -> None:
             model, sentences, vocab, layout, n_points, device,
             k=args.k, reranker=reranker, verbose=True,
             return_details=args.show_errors,
-            reranker_mode=args.reranker_mode,
         ))
 
         # Compute improvements
