@@ -1,31 +1,22 @@
-"""Evaluate the two-tower contrastive model."""
+"""Evaluate gesture recognition with optional LLM reranking."""
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
-from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 
-from shared import KeyboardLayout, build_word_prototype, get_device, load_dataset
+from shared import KeyboardLayout, build_word_prototype, get_device
 
-from .data import filter_by_path_length
 from .models import TwoTowerModel
-
-
-def load_vocabulary(vocab_path: Path) -> List[str]:
-    """Load vocabulary from file, filtering to valid words."""
-    words = []
-    with vocab_path.open() as f:
-        for line in f:
-            word = line.strip().lower()
-            if word and word.isalpha() and len(word) >= 2:
-                words.append(word)
-    return sorted(set(words))
+from .reranker import GeminiReranker, NoopReranker
+from .sentence_data import SentenceData, get_sentence_stats, load_sentence_dataset_subset
 
 
 def load_wordfreq_vocabulary(n: int) -> List[str]:
@@ -42,7 +33,17 @@ def load_wordfreq_vocabulary(n: int) -> List[str]:
     words = top_n_list('en', n)
     # Filter to ASCII alpha-only (a-z), length >= 2
     words = [w for w in words if w.isascii() and w.isalpha() and len(w) >= 2]
-    return words  # Already sorted by frequency, no need to sort alphabetically
+    return words  # Already sorted by frequency
+
+
+@dataclass
+class ErrorBreakdown:
+    """Categorized error counts for evaluation."""
+    total_words: int = 0
+    correct: int = 0
+    oov: int = 0              # GT word not in vocab
+    retrieval_fail: int = 0   # GT in vocab, not in top-k
+    rerank_fail: int = 0      # GT in top-k, LLM chose wrong
 
 
 def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerModel, Dict]:
@@ -61,37 +62,30 @@ def load_model(checkpoint_path: Path, device: torch.device) -> Tuple[TwoTowerMod
     return model, cfg
 
 
-def evaluate_retrieval(
+def build_vocabulary_embeddings(
     model: TwoTowerModel,
-    gestures: np.ndarray,
-    words: List[str],
+    vocab: List[str],
     layout: KeyboardLayout,
     n_points: int,
     device: torch.device,
-    k_values: List[int] = [1, 5, 10],
     batch_size: int = 256,
-    return_details: bool = False,
-    vocab: List[str] | None = None,
-) -> Dict:
-    """Evaluate retrieval accuracy.
+) -> Tuple[torch.Tensor, Dict[str, int]]:
+    """Precompute prototype embeddings for entire vocabulary.
 
-    For each gesture, rank all vocabulary words and compute Recall@K.
-
-    Args:
-        return_details: If True, also return vocab, proto_embs, predictions, etc.
-        vocab: Optional vocabulary to use. If None, uses unique words from test set.
+    Returns:
+        proto_embs: (V, D) tensor of prototype embeddings
+        word_to_idx: mapping from word to vocabulary index
     """
-    model.eval()
-    if vocab is None:
-        vocab = sorted(set(words))
+    word_to_idx = {w: i for i, w in enumerate(vocab)}
 
-    # Precompute prototype embeddings for entire vocabulary (in batches for large vocab)
+    # Build prototype arrays
     proto_list = []
     for w in vocab:
         proto = build_word_prototype(w, n_points, layout)[:, :2]  # (n_points, 2)
         proto_list.append(proto)
     protos = np.stack(proto_list, axis=0)  # (V, n_points, 2)
 
+    # Encode in batches to avoid MPS numerical precision issues with large tensors
     proto_embs_list = []
     with torch.no_grad():
         for i in range(0, len(protos), batch_size):
@@ -100,386 +94,534 @@ def evaluate_retrieval(
             proto_embs_list.append(emb)
         proto_embs = torch.cat(proto_embs_list, dim=0)  # (V, D)
 
-    # Compute gesture embeddings in batches
-    gesture_embs_list = []
-    with torch.no_grad():
-        for i in range(0, len(gestures), batch_size):
-            batch = torch.from_numpy(gestures[i : i + batch_size]).to(device)
-            emb = model.encode_gesture(batch)
-            gesture_embs_list.append(emb)
-        gesture_embs = torch.cat(gesture_embs_list, dim=0)  # (N, D)
-
-    # Build word to index mapping and filter OOV samples
-    word_to_idx = {w: i for i, w in enumerate(vocab)}
-    in_vocab_mask = [w in word_to_idx for w in words]
-    n_oov = sum(1 for m in in_vocab_mask if not m)
-    if n_oov > 0:
-        # Filter to only in-vocab samples
-        gesture_embs = gesture_embs[[i for i, m in enumerate(in_vocab_mask) if m]]
-        words = [w for w, m in zip(words, in_vocab_mask) if m]
-    ground_truth = torch.tensor([word_to_idx[w] for w in words], device=device)
-
-    # Determine max k needed
-    max_k = max(k_values)
-
-    # For large vocabs, process in batches to avoid memory issues
-    V = len(vocab)
-    large_vocab = V > 50000
-
-    if large_vocab:
-        # Process in gesture batches to reduce memory
-        all_top_k_indices = []
-        all_gt_scores = []
-        all_ranks = []
-
-        gesture_batch_size = min(batch_size, 512)
-        for i in range(0, len(gesture_embs), gesture_batch_size):
-            batch_embs = gesture_embs[i : i + gesture_batch_size]
-            batch_gt = ground_truth[i : i + gesture_batch_size]
-
-            batch_sims = batch_embs @ proto_embs.T
-            _, top_k_idx = batch_sims.topk(max_k, dim=1)
-            all_top_k_indices.append(top_k_idx)
-
-            gt_scores_batch = batch_sims[torch.arange(len(batch_sims), device=device), batch_gt]
-            all_gt_scores.append(gt_scores_batch)
-
-            ranks_batch = (batch_sims > gt_scores_batch.unsqueeze(1)).sum(dim=1) + 1
-            all_ranks.append(ranks_batch)
-
-        top_k_indices = torch.cat(all_top_k_indices, dim=0)
-        gt_scores_t = torch.cat(all_gt_scores, dim=0)
-        ranks = torch.cat(all_ranks, dim=0)
-        top1_indices = top_k_indices[:, 0]
-        pred_scores_t = None
-    else:
-        similarities = gesture_embs @ proto_embs.T
-        _, top_k_indices = similarities.topk(max_k, dim=1)
-        top1_indices = top_k_indices[:, 0]
-        gt_scores_t = similarities[torch.arange(len(similarities), device=device), ground_truth]
-        pred_scores_t = similarities[torch.arange(len(similarities), device=device), top1_indices]
-        ranks = (similarities > gt_scores_t.unsqueeze(1)).sum(dim=1) + 1
-
-    results = {"n_samples": len(words), "n_oov": n_oov}
-    for k in k_values:
-        top_k = top_k_indices[:, :k]
-        hits = (top_k == ground_truth.unsqueeze(1)).any(dim=1)
-        recall = hits.float().mean().item()
-        results[f"recall@{k}"] = recall
-
-    mrr = (1.0 / ranks.float()).mean().item()
-    results["mrr"] = mrr
-
-    if return_details:
-        predictions = [vocab[idx.item()] for idx in top1_indices]
-        gt_scores = gt_scores_t.cpu().numpy()
-
-        # For large vocab, we need to compute pred_scores separately
-        if large_vocab:
-            # Recompute similarities for top-1 predictions to get scores
-            pred_scores = np.zeros(len(predictions))
-            for i in range(0, len(gesture_embs), batch_size):
-                batch_embs = gesture_embs[i : i + batch_size]
-                batch_top1 = top1_indices[i : i + batch_size]
-                batch_sims = batch_embs @ proto_embs.T
-                for j, idx in enumerate(batch_top1):
-                    pred_scores[i + j] = batch_sims[j, idx].item()
-        else:
-            pred_scores = similarities[torch.arange(len(similarities), device=device), top1_indices].cpu().numpy()
-
-        results["_details"] = {
-            "vocab": vocab,
-            "word_to_idx": word_to_idx,
-            "proto_embs": proto_embs,
-            "predictions": predictions,
-            "ground_truth_words": words,
-            "pred_scores": pred_scores,
-            "gt_scores": gt_scores,
-            "ranks": ranks.cpu().numpy(),
-        }
-
-    return results
+    return proto_embs, word_to_idx
 
 
-def analyze_confusions(
-    results: Dict,
-    top_n: int = 20,
-) -> Dict:
-    """Analyze prediction confusions.
+def get_top_k_candidates(
+    gesture_embs: torch.Tensor,
+    proto_embs: torch.Tensor,
+    vocab: List[str],
+    k: int,
+) -> List[List[Tuple[str, float]]]:
+    """Get top-K candidate words for each gesture.
 
     Args:
-        results: Results from evaluate_retrieval with return_details=True
-        top_n: Number of top confusions to return
+        gesture_embs: (N, D) gesture embeddings
+        proto_embs: (V, D) prototype embeddings
+        vocab: List of vocabulary words
+        k: Number of candidates per position
 
     Returns:
-        Dictionary with confusion analysis
+        List of candidate lists, each containing (word, score) tuples
     """
-    details = results["_details"]
-    predictions = details["predictions"]
-    ground_truth = details["ground_truth_words"]
-    pred_scores = details["pred_scores"]
-    gt_scores = details["gt_scores"]
+    # Compute similarities
+    similarities = gesture_embs @ proto_embs.T  # (N, V)
 
-    # Count confusions (gt -> pred)
-    confusion_counts = Counter()
-    confusion_examples = defaultdict(list)
+    # Get top-K indices and scores
+    top_scores, top_indices = similarities.topk(k, dim=1)  # (N, k)
 
-    for i, (gt, pred) in enumerate(zip(ground_truth, predictions)):
-        if gt != pred:
-            confusion_counts[(gt, pred)] += 1
-            if len(confusion_examples[(gt, pred)]) < 3:  # Keep up to 3 examples
-                confusion_examples[(gt, pred)].append({
-                    "gt_score": float(gt_scores[i]),
-                    "pred_score": float(pred_scores[i]),
-                    "margin": float(pred_scores[i] - gt_scores[i]),
-                })
+    candidates = []
+    for i in range(len(gesture_embs)):
+        position_candidates = [
+            (vocab[top_indices[i, j].item()], top_scores[i, j].item())
+            for j in range(k)
+        ]
+        candidates.append(position_candidates)
 
-    # Get top confusions
-    top_confusions = []
-    for (gt, pred), count in confusion_counts.most_common(top_n):
-        examples = confusion_examples[(gt, pred)]
-        avg_margin = np.mean([ex["margin"] for ex in examples])
-        top_confusions.append({
-            "ground_truth": gt,
-            "predicted": pred,
-            "count": count,
-            "avg_margin": float(avg_margin),
-            "examples": examples,
-        })
-
-    # Per-word recall
-    word_correct = defaultdict(int)
-    word_total = defaultdict(int)
-    for gt, pred in zip(ground_truth, predictions):
-        word_total[gt] += 1
-        if gt == pred:
-            word_correct[gt] += 1
-
-    word_recall = {
-        w: word_correct[w] / word_total[w]
-        for w in word_total
-    }
-    worst_words = sorted(word_recall.items(), key=lambda x: (x[1], -word_total[x[0]]))[:top_n]
-
-    # Similarity statistics
-    correct_mask = np.array([gt == pred for gt, pred in zip(ground_truth, predictions)])
-    correct_scores = gt_scores[correct_mask]
-    incorrect_gt_scores = gt_scores[~correct_mask]
-    incorrect_pred_scores = pred_scores[~correct_mask]
-
-    return {
-        "top_confusions": top_confusions,
-        "worst_words": [
-            {"word": w, "recall": r, "count": word_total[w]}
-            for w, r in worst_words
-        ],
-        "similarity_stats": {
-            "correct_mean": float(np.mean(correct_scores)) if len(correct_scores) > 0 else 0,
-            "correct_std": float(np.std(correct_scores)) if len(correct_scores) > 0 else 0,
-            "incorrect_gt_mean": float(np.mean(incorrect_gt_scores)) if len(incorrect_gt_scores) > 0 else 0,
-            "incorrect_pred_mean": float(np.mean(incorrect_pred_scores)) if len(incorrect_pred_scores) > 0 else 0,
-            "avg_margin_when_wrong": float(np.mean(incorrect_pred_scores - incorrect_gt_scores)) if len(incorrect_gt_scores) > 0 else 0,
-        },
-        "n_errors": int((~correct_mask).sum()),
-        "n_total": len(ground_truth),
-    }
+    return candidates
 
 
-def analyze_hard_negatives(
-    results: Dict,
-    top_n: int = 20,
-) -> Dict:
-    """Analyze prototype similarities to find potential hard negatives.
+def compute_wer(predictions: List[str], ground_truth: List[str]) -> float:
+    """Compute Word Error Rate using Levenshtein distance."""
+    if not ground_truth:
+        return 0.0 if not predictions else 1.0
 
-    Args:
-        results: Results from evaluate_retrieval with return_details=True
-        top_n: Number of hard negative pairs to return
+    # Dynamic programming for edit distance
+    m, n = len(predictions), len(ground_truth)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
 
-    Returns:
-        Dictionary with hard negative analysis
-    """
-    details = results["_details"]
-    vocab = details["vocab"]
-    proto_embs = details["proto_embs"]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
 
-    # Compute prototype-to-prototype similarities
-    proto_sim = proto_embs @ proto_embs.T  # (V, V)
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if predictions[i - 1] == ground_truth[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+            else:
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
 
-    # Zero out diagonal
-    proto_sim.fill_diagonal_(-float("inf"))
-
-    # Find most similar pairs
-    V = len(vocab)
-    similarities_flat = proto_sim.cpu().numpy().flatten()
-    top_indices = np.argsort(similarities_flat)[::-1][:top_n * 2]  # Get more to filter duplicates
-
-    hard_pairs = []
-    seen = set()
-    for idx in top_indices:
-        i, j = idx // V, idx % V
-        if (j, i) in seen:  # Skip duplicate pairs
-            continue
-        seen.add((i, j))
-        hard_pairs.append({
-            "word1": vocab[i],
-            "word2": vocab[j],
-            "similarity": float(proto_sim[i, j]),
-        })
-        if len(hard_pairs) >= top_n:
-            break
-
-    # Similarity distribution stats
-    upper_tri = proto_sim.cpu().numpy()[np.triu_indices(V, k=1)]
-
-    return {
-        "hard_pairs": hard_pairs,
-        "proto_similarity_stats": {
-            "mean": float(np.mean(upper_tri)),
-            "std": float(np.std(upper_tri)),
-            "max": float(np.max(upper_tri)),
-            "p95": float(np.percentile(upper_tri, 95)),
-            "p99": float(np.percentile(upper_tri, 99)),
-        },
-    }
+    return dp[m][n] / n
 
 
-def evaluate_oov(
+def evaluate_sentences(
     model: TwoTowerModel,
-    test_gestures: np.ndarray,
-    test_words: List[str],
-    train_words: List[str],
+    sentences: List[SentenceData],
+    vocab: List[str],
     layout: KeyboardLayout,
     n_points: int,
     device: torch.device,
-    vocab: List[str] | None = None,
+    k: int = 10,
+    reranker=None,
+    verbose: bool = False,
 ) -> Dict[str, float]:
-    """Evaluate on OOV words (words not in training set)."""
-    train_vocab = set(train_words)
-    oov_mask = np.array([w not in train_vocab for w in test_words])
+    """Evaluate sentence-level accuracy with optional reranking.
 
-    oov_gestures = test_gestures[oov_mask]
-    oov_words = [w for w, is_oov in zip(test_words, oov_mask) if is_oov]
+    Args:
+        model: Trained TwoTowerModel
+        sentences: List of SentenceData objects
+        vocab: Vocabulary words
+        layout: Keyboard layout
+        n_points: Points per gesture
+        device: Torch device
+        k: Number of candidates for reranking
+        reranker: Optional reranker (GeminiReranker or NoopReranker)
+        verbose: Print progress
 
-    if not oov_words:
-        return {"oov_count": 0}
+    Returns:
+        Dictionary of metrics
+    """
+    if reranker is None:
+        reranker = NoopReranker()
 
-    results = evaluate_retrieval(
-        model, oov_gestures, oov_words, layout, n_points, device, vocab=vocab
+    # Precompute vocabulary embeddings
+    if verbose:
+        print("Building vocabulary embeddings...")
+    proto_embs, word_to_idx = build_vocabulary_embeddings(
+        model, vocab, layout, n_points, device
     )
-    results["oov_count"] = len(oov_words)
+
+    # Metrics accumulators
+    total_words = 0
+    correct_words = 0
+    total_sentences = 0
+    correct_sentences = 0
+    total_wer = 0.0
+    recall_at_k_hits = 0
+
+    if verbose:
+        print(f"Evaluating {len(sentences)} sentences...")
+
+    for i, sentence in enumerate(sentences):
+        if verbose and (i + 1) % 100 == 0:
+            print(f"  Processed {i + 1}/{len(sentences)} sentences")
+
+        # Encode gestures
+        gestures_np = np.stack(sentence.gestures, axis=0)  # (n_words, n_points, 3)
+        gestures_t = torch.from_numpy(gestures_np).to(device)
+
+        with torch.no_grad():
+            gesture_embs = model.encode_gesture(gestures_t)  # (n_words, D)
+
+        # Get top-K candidates
+        candidates = get_top_k_candidates(gesture_embs, proto_embs, vocab, k)
+
+        # Check recall@K (oracle upper bound)
+        for j, gt_word in enumerate(sentence.words):
+            candidate_words = {w for w, _ in candidates[j]}
+            if gt_word in candidate_words:
+                recall_at_k_hits += 1
+
+        # Rerank
+        predictions = reranker.rerank(candidates)
+
+        # Compute metrics
+        ground_truth = sentence.words
+
+        # Word accuracy
+        for pred, gt in zip(predictions, ground_truth):
+            total_words += 1
+            if pred == gt:
+                correct_words += 1
+
+        # Sentence accuracy
+        total_sentences += 1
+        if predictions == ground_truth:
+            correct_sentences += 1
+
+        # WER
+        total_wer += compute_wer(predictions, ground_truth)
+
+    # Aggregate metrics
+    word_accuracy = correct_words / total_words if total_words > 0 else 0.0
+    sentence_accuracy = correct_sentences / total_sentences if total_sentences > 0 else 0.0
+    avg_wer = total_wer / total_sentences if total_sentences > 0 else 0.0
+    recall_at_k = recall_at_k_hits / total_words if total_words > 0 else 0.0
+
+    return {
+        "word_accuracy": word_accuracy,
+        "sentence_accuracy": sentence_accuracy,
+        "wer": avg_wer,
+        f"recall@{k}": recall_at_k,
+        "total_words": total_words,
+        "total_sentences": total_sentences,
+    }
+
+
+async def evaluate_sentences_async(
+    model: TwoTowerModel,
+    sentences: List[SentenceData],
+    vocab: List[str],
+    layout: KeyboardLayout,
+    n_points: int,
+    device: torch.device,
+    k: int = 10,
+    reranker=None,
+    verbose: bool = False,
+    return_details: bool = False,
+) -> Dict[str, float]:
+    """Evaluate sentence-level accuracy with parallel reranking.
+
+    Args:
+        model: Trained TwoTowerModel
+        sentences: List of SentenceData objects
+        vocab: Vocabulary words
+        layout: Keyboard layout
+        n_points: Points per gesture
+        device: Torch device
+        k: Number of candidates for reranking
+        reranker: Reranker with rerank_batch_async method
+        verbose: Print progress
+        return_details: Return per-sentence details
+
+    Returns:
+        Dictionary of metrics
+    """
+    if reranker is None:
+        reranker = NoopReranker()
+
+    # Precompute vocabulary embeddings
+    if verbose:
+        print("Building vocabulary embeddings...")
+    proto_embs, word_to_idx = build_vocabulary_embeddings(
+        model, vocab, layout, n_points, device
+    )
+
+    if verbose:
+        print(f"Evaluating {len(sentences)} sentences...")
+
+    # Collect all candidates
+    all_candidates = []
+    all_ground_truth = []
+    recall_at_k_hits = 0
+    total_words = 0
+
+    for sentence in sentences:
+        # Encode gestures
+        gestures_np = np.stack(sentence.gestures, axis=0)
+        gestures_t = torch.from_numpy(gestures_np).to(device)
+
+        with torch.no_grad():
+            gesture_embs = model.encode_gesture(gestures_t)
+
+        # Get top-K candidates
+        candidates = get_top_k_candidates(gesture_embs, proto_embs, vocab, k)
+        all_candidates.append(candidates)
+        all_ground_truth.append(sentence.words)
+
+        # Check recall@K (oracle upper bound)
+        for j, gt_word in enumerate(sentence.words):
+            total_words += 1
+            candidate_words = {w for w, _ in candidates[j]}
+            if gt_word in candidate_words:
+                recall_at_k_hits += 1
+
+    # Rerank all sentences in parallel
+    if verbose:
+        print(f"Reranking {len(sentences)} sentences...")
+
+    if hasattr(reranker, "rerank_batch_async"):
+        all_predictions = await reranker.rerank_batch_async(all_candidates)
+    else:
+        all_predictions = [reranker.rerank(c) for c in all_candidates]
+
+    # Compute metrics with error categorization
+    vocab_set = set(vocab)
+    errors = ErrorBreakdown(total_words=total_words)
+    correct_sentences = 0
+    total_wer = 0.0
+    sentence_details = []
+
+    for i, (predictions, ground_truth, candidates) in enumerate(
+        zip(all_predictions, all_ground_truth, all_candidates)
+    ):
+        # Categorize each word
+        for j, (pred, gt) in enumerate(zip(predictions, ground_truth)):
+            candidate_words = {w for w, _ in candidates[j]}
+            if gt not in vocab_set:
+                errors.oov += 1
+            elif gt not in candidate_words:
+                errors.retrieval_fail += 1
+            elif pred != gt:
+                errors.rerank_fail += 1
+            else:
+                errors.correct += 1
+
+        # Sentence accuracy
+        is_correct = predictions == ground_truth
+        if is_correct:
+            correct_sentences += 1
+
+        # WER
+        wer = compute_wer(predictions, ground_truth)
+        total_wer += wer
+
+        if return_details:
+            sentence_details.append({
+                "index": i,
+                "ground_truth": ground_truth,
+                "predictions": predictions,
+                "candidates": candidates,
+                "is_correct": is_correct,
+                "word_accuracy": sum(1 for p, g in zip(predictions, ground_truth) if p == g) / len(ground_truth) if ground_truth else 0,
+                "wer": wer,
+            })
+
+    total_sentences = len(sentences)
+    word_accuracy = errors.correct / total_words if total_words > 0 else 0.0
+    sentence_accuracy = correct_sentences / total_sentences if total_sentences > 0 else 0.0
+    avg_wer = total_wer / total_sentences if total_sentences > 0 else 0.0
+    recall_at_k = recall_at_k_hits / total_words if total_words > 0 else 0.0
+
+    results = {
+        "word_accuracy": word_accuracy,
+        "sentence_accuracy": sentence_accuracy,
+        "wer": avg_wer,
+        f"recall@{k}": recall_at_k,
+        "total_words": total_words,
+        "total_sentences": total_sentences,
+        "errors": errors,
+    }
+
+    if return_details:
+        results["details"] = sentence_details
+
     return results
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate two-tower contrastive model.")
-    parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--data_dir", type=Path, default=Path("data/processed"))
-    parser.add_argument("--output", type=Path, default=None)
-    parser.add_argument("--analyze", action="store_true", help="Run detailed confusion analysis")
-    parser.add_argument("--top-n", type=int, default=20, help="Number of top items in analysis")
-    parser.add_argument("--vocab", type=Path, default=None,
-        help="External vocabulary file (one word per line). If not provided, uses test set words.")
-    parser.add_argument("--vocab-size", type=int, default=10000,
-        help="Use top N most common English words from wordfreq (default: 10000).")
+    parser = argparse.ArgumentParser(
+        description="Evaluate sentence-level accuracy with optional LLM reranking."
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        required=True,
+        help="Path to model checkpoint.",
+    )
+    parser.add_argument(
+        "--data_dir",
+        type=Path,
+        default=Path("data/processed"),
+        help="Directory containing processed data.",
+    )
+    parser.add_argument(
+        "--raw_dir",
+        type=Path,
+        default=Path("data/processed/raw"),
+        help="Directory containing raw JSONL files.",
+    )
+    parser.add_argument(
+        "--max_sentences",
+        type=int,
+        default=50,
+        help="Maximum sentences to evaluate.",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=10,
+        help="Number of candidates for reranking.",
+    )
+    parser.add_argument(
+        "--reranker",
+        choices=["none", "gemini"],
+        default="none",
+        help="Reranker to use. 'none' uses top-1 candidates, 'gemini' uses LLM reranking.",
+    )
+    parser.add_argument(
+        "--project",
+        type=str,
+        default=None,
+        help="GCP project ID for Gemini (or set GOOGLE_CLOUD_PROJECT).",
+    )
+    parser.add_argument(
+        "--location",
+        type=str,
+        default=None,
+        help="GCP location for Gemini (default: GOOGLE_CLOUD_LOCATION or 'global').",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="gemini-3-flash-preview",
+        help="Gemini model name.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output JSON file for results.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for sentence sampling.",
+    )
+    parser.add_argument(
+        "--include-synthetic",
+        action="store_true",
+        help="Include synthetic sentences (random word combinations) in addition to natural sentences.",
+    )
+    parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=10,
+        help="Maximum concurrent API calls for reranking.",
+    )
+    parser.add_argument(
+        "--show-errors",
+        action="store_true",
+        help="Show sentences that failed after reranking.",
+    )
+    parser.add_argument(
+        "--max-candidates-display",
+        type=int,
+        default=10,
+        help="Maximum candidates to show LLM per position (default: 10).",
+    )
+    parser.add_argument(
+        "--vocab-size",
+        type=int,
+        default=10000,
+        help="Use top N most common English words from wordfreq (default: 10000).",
+    )
     args = parser.parse_args()
 
     device = get_device()
     print(f"Using device: {device}")
 
+    # Load model
+    print(f"Loading model from {args.checkpoint}...")
     model, cfg = load_model(args.checkpoint, device)
     n_points = cfg["data"]["n_points"]
     layout = KeyboardLayout()
 
-    # Load test data
-    test_gestures, test_words = load_dataset(args.data_dir / "test.npz")
-
-    # Filter out misaligned gestures (same filtering as training)
-    n_before = len(test_gestures)
-    test_gestures, test_words = filter_by_path_length(
-        test_gestures, test_words, n_points, layout
+    # Load sentence data first (needed to find OOV words)
+    print(f"Loading sentence data from {args.raw_dir}...")
+    sentences = load_sentence_dataset_subset(
+        args.raw_dir, n_points, args.max_sentences, args.seed,
+        natural_only=not args.include_synthetic,
     )
-    n_filtered = n_before - len(test_gestures)
-    if n_filtered > 0:
-        print(f"Filtered {n_filtered} samples with path length mismatch ({100*n_filtered/n_before:.1f}%)")
+    stats = get_sentence_stats(sentences)
+    print(f"Loaded {stats['n_sentences']} sentences ({stats['n_words']} words)")
 
-    # Load vocabulary
-    if args.vocab_size:
-        vocab = load_wordfreq_vocabulary(args.vocab_size)
-        oov_count = len(set(test_words) - set(vocab))
-        print(f"Test samples: {len(test_gestures)}, vocab size: {len(vocab)} "
-              f"(wordfreq top-{args.vocab_size}, {oov_count} test words OOV)")
-    elif args.vocab:
-        external_vocab = load_vocabulary(args.vocab)
-        vocab = sorted(set(external_vocab) | set(test_words))
-        print(f"Test samples: {len(test_gestures)}, vocab size: {len(vocab)} "
-              f"({len(external_vocab)} from file + {len(set(test_words))} test words)")
-    else:
-        vocab = None
-        print(f"Test samples: {len(test_gestures)}, vocab size: {len(set(test_words))}")
+    # Build vocabulary from wordfreq
+    test_words = {w for s in sentences for w in s.words}
+    vocab = load_wordfreq_vocabulary(args.vocab_size)
+    oov_count = len(test_words - set(vocab))
+    print(f"Vocabulary size: {len(vocab)} (wordfreq top-{args.vocab_size}, {oov_count}/{len(test_words)} test words OOV)")
 
-    # Evaluate on all test data
-    print("\nEvaluating on all test data...")
-    all_results = evaluate_retrieval(
-        model, test_gestures, test_words, layout, n_points, device,
-        return_details=args.analyze,
-        vocab=vocab,
+    # Evaluate baseline (top-1, no reranking)
+    print("\n" + "=" * 60)
+    print("Baseline (Top-1, no reranking)")
+    print("=" * 60)
+    baseline_results = evaluate_sentences(
+        model, sentences, vocab, layout, n_points, device,
+        k=args.k, reranker=NoopReranker(), verbose=True
     )
-    if all_results["n_oov"] > 0:
-        print(f"  (Skipped {all_results['n_oov']} samples with OOV ground truth)")
-    print(f"  Recall@1:  {all_results['recall@1']:.4f}")
-    print(f"  Recall@5:  {all_results['recall@5']:.4f}")
-    print(f"  Recall@10: {all_results['recall@10']:.4f}")
-    print(f"  MRR:       {all_results['mrr']:.4f}")
+    print(f"\n  Word Accuracy:     {baseline_results['word_accuracy']:.1%}")
+    print(f"  Sentence Accuracy: {baseline_results['sentence_accuracy']:.1%}")
+    print(f"  WER:               {baseline_results['wer']:.3f}")
+    print(f"  Recall@{args.k}:          {baseline_results[f'recall@{args.k}']:.1%} (oracle upper bound)")
 
-    # Run detailed analysis if requested
-    if args.analyze:
+    # Evaluate with reranker if requested
+    reranker_results = None
+    if args.reranker == "gemini":
         print("\n" + "=" * 60)
-        print("CONFUSION ANALYSIS")
+        print(f"With Gemini Reranker ({args.model})")
         print("=" * 60)
-        confusion = analyze_confusions(all_results, top_n=args.top_n)
 
-        print(f"\nTotal errors: {confusion['n_errors']} / {confusion['n_total']} "
-              f"({confusion['n_errors']/confusion['n_total']:.1%})")
+        try:
+            reranker = GeminiReranker(
+                project=args.project,
+                location=args.location,
+                model=args.model,
+                max_concurrent=args.max_concurrent,
+                max_candidates_display=args.max_candidates_display,
+            )
+        except ImportError as e:
+            print(f"\nError: {e}")
+            print("\nTo use the Gemini reranker, install required dependencies:")
+            print("  pip install google-genai>=1.51.0 python-dotenv")
+            print("\nSee README.md for full setup instructions.")
+            print("\nAlternatively, run with --reranker none for baseline evaluation.")
+            return
+        # Use async evaluation for parallel API calls
+        reranker_results = asyncio.run(evaluate_sentences_async(
+            model, sentences, vocab, layout, n_points, device,
+            k=args.k, reranker=reranker, verbose=True,
+            return_details=args.show_errors,
+        ))
 
-        print("\n--- Similarity Statistics ---")
-        stats = confusion["similarity_stats"]
-        print(f"  Correct predictions - mean score: {stats['correct_mean']:.4f} ± {stats['correct_std']:.4f}")
-        print(f"  Wrong predictions   - GT score:   {stats['incorrect_gt_mean']:.4f}")
-        print(f"  Wrong predictions   - Pred score: {stats['incorrect_pred_mean']:.4f}")
-        print(f"  Avg margin when wrong: {stats['avg_margin_when_wrong']:.4f}")
+        # Compute improvements
+        word_acc_delta = reranker_results["word_accuracy"] - baseline_results["word_accuracy"]
+        sent_acc_delta = reranker_results["sentence_accuracy"] - baseline_results["sentence_accuracy"]
+        wer_delta = reranker_results["wer"] - baseline_results["wer"]
+        wer_reduction = -wer_delta / baseline_results["wer"] if baseline_results["wer"] > 0 else 0
 
-        print(f"\n--- Top {args.top_n} Confusions (GT -> Predicted) ---")
-        for i, conf in enumerate(confusion["top_confusions"], 1):
-            print(f"  {i:2d}. '{conf['ground_truth']}' -> '{conf['predicted']}' "
-                  f"(n={conf['count']}, margin={conf['avg_margin']:.4f})")
+        print(f"\n  Word Accuracy:     {reranker_results['word_accuracy']:.1%} ({word_acc_delta:+.1%})")
+        print(f"  Sentence Accuracy: {reranker_results['sentence_accuracy']:.1%} ({sent_acc_delta:+.1%})")
+        print(f"  WER:               {reranker_results['wer']:.3f} ({wer_reduction:.1%} reduction)")
 
-        print(f"\n--- Words with Worst Recall ---")
-        for i, w in enumerate(confusion["worst_words"], 1):
-            print(f"  {i:2d}. '{w['word']}': {w['recall']:.1%} ({w['count']} samples)")
+        # Print error breakdown
+        err = reranker_results["errors"]
+        total_errors = err.oov + err.retrieval_fail + err.rerank_fail
+        print(f"\n  Error Breakdown ({total_errors} errors):")
+        print(f"    OOV:        {err.oov:4d} ({100*err.oov/err.total_words:.1f}%) - word not in vocab")
+        print(f"    Retrieval:  {err.retrieval_fail:4d} ({100*err.retrieval_fail/err.total_words:.1f}%) - word in vocab, not top-{args.k}")
+        print(f"    Reranking:  {err.rerank_fail:4d} ({100*err.rerank_fail/err.total_words:.1f}%) - word in top-{args.k}, LLM wrong")
 
-        print("\n" + "=" * 60)
-        print("HARD NEGATIVE ANALYSIS (Prototype Similarities)")
-        print("=" * 60)
-        hard_neg = analyze_hard_negatives(all_results, top_n=args.top_n)
-
-        print("\n--- Prototype Similarity Distribution ---")
-        pstats = hard_neg["proto_similarity_stats"]
-        print(f"  Mean: {pstats['mean']:.4f}, Std: {pstats['std']:.4f}")
-        print(f"  Max:  {pstats['max']:.4f}, P95: {pstats['p95']:.4f}, P99: {pstats['p99']:.4f}")
-
-        print(f"\n--- Most Similar Word Pairs (Potential Hard Negatives) ---")
-        for i, pair in enumerate(hard_neg["hard_pairs"], 1):
-            print(f"  {i:2d}. '{pair['word1']}' <-> '{pair['word2']}' (sim={pair['similarity']:.4f})")
-
-        # Add analysis to results for JSON output
-        all_results["confusion_analysis"] = confusion
-        all_results["hard_negative_analysis"] = hard_neg
+        # Show errors if requested
+        if args.show_errors and "details" in reranker_results:
+            errors = [d for d in reranker_results["details"] if not d["is_correct"]]
+            if errors:
+                print(f"\n" + "=" * 60)
+                print(f"Failed Sentences ({len(errors)} / {len(reranker_results['details'])})")
+                print("=" * 60)
+                for err in errors:
+                    print(f"\n[{err['index']}] Ground truth: {' '.join(err['ground_truth'])}")
+                    print(f"    Prediction:   {' '.join(err['predictions'])}")
+                    # Show word-level diff
+                    diffs = []
+                    for j, (gt, pred) in enumerate(zip(err['ground_truth'], err['predictions'])):
+                        if gt != pred:
+                            # Show top candidates for this position
+                            cands = err['candidates'][j][:5]
+                            cand_str = ", ".join(f"{w}({s:.2f})" for w, s in cands)
+                            gt_in_cands = any(w == gt for w, _ in err['candidates'][j])
+                            marker = "✓" if gt_in_cands else "✗"
+                            diffs.append(f"    Position {j+1}: '{pred}' should be '{gt}' {marker} [{cand_str}]")
+                    for diff in diffs:
+                        print(diff)
 
     # Save results
     if args.output:
-        # Remove internal details before saving
-        save_results = {k: v for k, v in all_results.items() if not k.startswith("_")}
-        results = {"all": save_results, "oov": oov_results}
+        results = {
+            "config": {
+                "checkpoint": str(args.checkpoint),
+                "max_sentences": args.max_sentences,
+                "k": args.k,
+                "reranker": args.reranker,
+                "reranker_mode": args.reranker_mode,
+                "seed": args.seed,
+            },
+            "baseline": baseline_results,
+        }
+        if reranker_results:
+            results["reranker"] = reranker_results
         with args.output.open("w") as f:
             json.dump(results, f, indent=2)
         print(f"\nResults saved to {args.output}")
