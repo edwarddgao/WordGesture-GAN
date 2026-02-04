@@ -425,9 +425,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--reranker",
-        choices=["none", "openrouter"],
-        default="none",
-        help="Reranker to use. 'none' uses top-1 candidates, 'openrouter' uses LLM reranking.",
+        action="store_true",
+        help="Enable LLM reranking via OpenRouter (default: top-1 only).",
     )
     parser.add_argument(
         "--api-key",
@@ -525,7 +524,7 @@ def main() -> None:
         print(f"Warning: CTC checkpoint not found at {ctc_path}, continuing without CTC.")
 
     # Select reranker
-    if args.reranker == "openrouter":
+    if args.reranker:
         try:
             reranker = OpenRouterReranker(
                 api_key=args.api_key,
@@ -539,7 +538,7 @@ def main() -> None:
             print("\nTo use the OpenRouter reranker, install required dependencies:")
             print("  pip install openai python-dotenv")
             print("\nSee README.md for full setup instructions.")
-            print("\nAlternatively, run with --reranker none for baseline evaluation.")
+            print("\nAlternatively, run without --reranker for baseline evaluation.")
             return
     else:
         reranker = NoopReranker()
