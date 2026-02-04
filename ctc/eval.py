@@ -15,8 +15,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from shared import get_device
-from ctc import CTCDecoder
-
+from .decode import CTCDecoder
 from .reranker import OpenRouterReranker, NoopReranker, RerankerResult
 from .sentence_data import SentenceData, get_sentence_stats, load_sentence_dataset_subset
 

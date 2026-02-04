@@ -6,6 +6,8 @@ data:
 features:
   use_key_proximity: true
   use_velocity: true
+  use_approach_angle: false
+  use_acceleration: true
 
 model:
   hidden_size: 256

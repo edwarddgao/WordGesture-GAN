@@ -17,8 +17,10 @@ class GestureFeatureExtractor:
     - Base coordinates: x, y, dt (3 features)
     - Key proximity: Gaussian distance to each of 26 keys (26 features)
     - Velocity: vx, vy computed from position/time (2 features)
+    - Approach angle: normalized movement direction (1 feature)
+    - Acceleration: ax, ay computed from velocity/time (2 features)
 
-    Total: 31 features per timestep.
+    Total: up to 34 features per timestep depending on configuration.
     """
 
     def __init__(
@@ -27,6 +29,8 @@ class GestureFeatureExtractor:
         sigma: float = 0.3,
         use_key_proximity: bool = True,
         use_velocity: bool = True,
+        use_approach_angle: bool = False,
+        use_acceleration: bool = False,
     ):
         """Initialize the feature extractor.
 
@@ -35,11 +39,15 @@ class GestureFeatureExtractor:
             sigma: Gaussian sigma for key proximity soft assignment.
             use_key_proximity: Whether to include 26-dim key proximity features.
             use_velocity: Whether to include 2-dim velocity features.
+            use_approach_angle: Whether to include 1-dim approach angle feature.
+            use_acceleration: Whether to include 2-dim acceleration features.
         """
         self.layout = layout or KeyboardLayout()
         self.sigma = sigma
         self.use_key_proximity = use_key_proximity
         self.use_velocity = use_velocity
+        self.use_approach_angle = use_approach_angle
+        self.use_acceleration = use_acceleration
 
         # Precompute key centers: (26, 2) array
         centers = self.layout.key_centers_normalized()
@@ -63,9 +71,19 @@ class GestureFeatureExtractor:
             proximity = self._compute_key_proximity(gesture[:, :2])
             features.append(proximity)
 
-        if self.use_velocity:
+        velocity = None
+        if self.use_velocity or self.use_acceleration:
             velocity = self._compute_velocity(gesture)
-            features.append(velocity)
+            if self.use_velocity:
+                features.append(velocity)
+
+        if self.use_approach_angle:
+            angle = self._compute_approach_angle(gesture)
+            features.append(angle)
+
+        if self.use_acceleration:
+            acceleration = self._compute_acceleration(gesture, velocity)
+            features.append(acceleration)
 
         return np.concatenate(features, axis=-1)
 
@@ -115,6 +133,60 @@ class GestureFeatureExtractor:
 
         return np.stack([vx, vy], axis=-1).astype(np.float32)
 
+    def _compute_approach_angle(self, gesture: np.ndarray) -> np.ndarray:
+        """Compute normalized movement direction angle.
+
+        Args:
+            gesture: (seq_len, 3) array with [x, y, dt].
+
+        Returns:
+            angle: (seq_len, 1) array with angle normalized to [-1, 1].
+        """
+        # Compute position differences
+        dx = np.diff(gesture[:, 0], prepend=gesture[0, 0])
+        dy = np.diff(gesture[:, 1], prepend=gesture[0, 1])
+
+        # Compute angle using atan2, normalized by pi to get [-1, 1]
+        angle = np.arctan2(dy, dx) / np.pi
+
+        # First timestep has no movement, set to 0
+        angle[0] = 0.0
+
+        return angle[:, None].astype(np.float32)
+
+    def _compute_acceleration(
+        self, gesture: np.ndarray, velocity: np.ndarray | None
+    ) -> np.ndarray:
+        """Compute acceleration from velocity and time.
+
+        Args:
+            gesture: (seq_len, 3) array with [x, y, dt].
+            velocity: (seq_len, 2) array with [vx, vy], or None to compute.
+
+        Returns:
+            acceleration: (seq_len, 2) array with [ax, ay], normalized to [-1, 1].
+        """
+        if velocity is None:
+            velocity = self._compute_velocity(gesture)
+
+        # Compute velocity differences
+        dvx = np.diff(velocity[:, 0], prepend=velocity[0, 0])
+        dvy = np.diff(velocity[:, 1], prepend=velocity[0, 1])
+
+        # Get time deltas, avoiding division by zero
+        dt = np.maximum(gesture[:, 2], 1e-6)
+
+        ax = dvx / dt
+        ay = dvy / dt
+
+        # Normalize to [-1, 1] range
+        # Acceleration scale derived from velocity scale (~12) and typical dt (~0.01)
+        accel_scale = 50.0
+        ax = np.clip(ax / accel_scale, -1.0, 1.0)
+        ay = np.clip(ay / accel_scale, -1.0, 1.0)
+
+        return np.stack([ax, ay], axis=-1).astype(np.float32)
+
     @property
     def n_features(self) -> int:
         """Total number of features per timestep."""
@@ -122,5 +194,9 @@ class GestureFeatureExtractor:
         if self.use_key_proximity:
             n += 26
         if self.use_velocity:
+            n += 2
+        if self.use_approach_angle:
+            n += 1
+        if self.use_acceleration:
             n += 2
         return n

@@ -1,10 +1,20 @@
-"""CTC decoder module for gesture-to-character decoding."""
+"""CTC-based gesture recognition module.
 
-from features import GestureFeatureExtractor
+Includes feature extraction, model training, decoding, and evaluation.
+"""
+
+from .features import GestureFeatureExtractor
 from .models import BLSTMCTCModel
 from .decode import CTCDecoder
 from .trie import Trie
 from .beam_search import ctc_beam_search_trie
+from .reranker import OpenRouterReranker, NoopReranker, RerankerResult
+from .sentence_data import (
+    SentenceData,
+    load_sentence_dataset,
+    load_sentence_dataset_subset,
+    get_sentence_stats,
+)
 
 __all__ = [
     "GestureFeatureExtractor",
@@ -12,4 +22,11 @@ __all__ = [
     "CTCDecoder",
     "Trie",
     "ctc_beam_search_trie",
+    "OpenRouterReranker",
+    "NoopReranker",
+    "RerankerResult",
+    "SentenceData",
+    "load_sentence_dataset",
+    "load_sentence_dataset_subset",
+    "get_sentence_stats",
 ]

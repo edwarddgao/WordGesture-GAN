@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 
 from shared import KeyboardLayout, load_dataset
 
-from features import GestureFeatureExtractor
+from .features import GestureFeatureExtractor
 
 
 class CTCGestureDataset(Dataset):
