@@ -44,20 +44,42 @@ RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. For each posit
 - Decoded: direct character-by-character decode of the gesture (may contain errors but preserves intended spelling)
 - Candidates: words from vocabulary ranked by gesture similarity
 
-Select the best word for each position. The decoded word is often correct, especially for names or rare words not in vocabulary.
+Select the best word for each position. Use sentence context to pick words that form grammatical sentences. IMPORTANT: If Decoded matches a word in Candidates, strongly prefer it - especially for names and less common words.
 
-Example:
-Position 1: Decoded: "take" | Candidates: *"take", "tale", "yale"
-Position 2: Decoded: "whay" | Candidates: *"what", "whilst", "wheat"
-Position 3: Decoded: "uouu" | Candidates: *"you", "toy", "youth"
-Position 4: Decoded: "cam" | Candidates: *"cam", "can", "calm"
-Position 5: Decoded: "get" | Candidates: *"get", "gary", "hart"
+Example 1:
+Position 1: Decoded: "are" | Candidates: *"ate", "are", "agree"
+Position 2: Decoded: "yoy" | Candidates: *"toy", "you", "youth"
+Position 3: Decoded: "going" | Candidates: *"found", "going", "find"
+Position 4: Decoded: "to" | Candidates: *"tip", "too", "top"
+Position 5: Decoded: "cal" | Candidates: *"call", "cal", "carl"
 Answer:
-take
-what
+are
 you
-can
-get
+going
+to
+call
+
+Example 2:
+Position 1: Decoded: "thursay" | Candidates: *"thursday", "tuesday", "treasury"
+Position 2: Decoded: "works" | Candidates: *"world", "worlds", "works"
+Position 3: Decoded: "beter" | Candidates: *"better", "brett", "bet"
+Position 4: Decoded: "for" | Candidates: *"four", "for", "foot"
+Position 5: Decoded: "me" | Candidates: *"me", "ne", "mere"
+Answer:
+thursday
+works
+better
+for
+me
+
+Example 3:
+Position 1: Decoded: "no" | Candidates: *"no", "ni", "boo"
+Position 2: Decoded: "suprise" | Candidates: *"surprise", "suppose", "super"
+Position 3: Decoded: "there" | Candidates: *"threw", "three", "there"
+Answer:
+no
+surprise
+there
 
 Now fix this:
 {candidates_formatted}

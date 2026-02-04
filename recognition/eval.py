@@ -420,7 +420,7 @@ def main() -> None:
     parser.add_argument(
         "--k",
         type=int,
-        default=10,
+        default=20,
         help="Number of candidates for reranking.",
     )
     parser.add_argument(
