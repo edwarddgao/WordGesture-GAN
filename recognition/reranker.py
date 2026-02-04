@@ -421,7 +421,12 @@ class NoopReranker:
     def rerank_batch(
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
-        batch_ctc_words: List[List[str]] | None = None,  # Ignored
+        batch_ctc_words: List[List[str]] | None = None,  # Ignored, for API compat
     ) -> List[RerankerResult]:
         """Return top-1 candidates for each sentence."""
-        return [self.rerank(candidates) for candidates in batch_candidates]
+        if batch_ctc_words is None:
+            batch_ctc_words = [None] * len(batch_candidates)
+        return [
+            self.rerank(candidates, ctc_words)
+            for candidates, ctc_words in zip(batch_candidates, batch_ctc_words)
+        ]

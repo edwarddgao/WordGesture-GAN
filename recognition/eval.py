@@ -289,12 +289,6 @@ async def evaluate_sentences(
             for c, ctc in zip(all_candidates, all_ctc_words_safe)
         ]
 
-    # Open log file if provided
-    log_fh = None
-    if log_file is not None:
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        log_fh = log_file.open("w")
-
     # Compute metrics with error categorization
     vocab_set = set(vocab)
     errors = ErrorBreakdown(total_words=total_words)
@@ -302,6 +296,7 @@ async def evaluate_sentences(
     total_wer = 0.0
     total_fallbacks = 0
     fallback_reasons = {}
+    log_entries = []  # Collect log entries to write at end
 
     for i, (result, ground_truth, candidates, ctc_words) in enumerate(
         zip(all_results, all_ground_truth, all_candidates, all_ctc_words_safe)
@@ -341,9 +336,9 @@ async def evaluate_sentences(
                 fallback_reasons[reason] = fallback_reasons.get(reason, 0) + 1
                 total_fallbacks += 1
 
-        # Write to log file if provided
-        if log_fh is not None:
-            log_entry = {
+        # Collect log entry if logging enabled
+        if log_file is not None:
+            log_entries.append({
                 "sentence_idx": i,
                 "ground_truth": ground_truth,
                 "predictions": predictions,
@@ -352,8 +347,7 @@ async def evaluate_sentences(
                 "candidates": [[(w, s) for w, s in cands[:5]] for cands in candidates],
                 "ctc_words": ctc_words,
                 "is_correct": is_correct,
-            }
-            log_fh.write(json.dumps(log_entry) + "\n")
+            })
 
     total_sentences = len(sentences)
     word_accuracy = errors.correct / total_words if total_words > 0 else 0.0
@@ -361,8 +355,9 @@ async def evaluate_sentences(
     avg_wer = total_wer / total_sentences if total_sentences > 0 else 0.0
     recall_at_k = recall_at_k_hits / total_words if total_words > 0 else 0.0
 
-    # Write summary to log file before closing
-    if log_fh is not None:
+    # Write log file with context manager for proper resource cleanup
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         summary = {
             "type": "summary",
             "word_accuracy": word_accuracy,
@@ -380,8 +375,10 @@ async def evaluate_sentences(
             "total_fallbacks": total_fallbacks,
             "fallback_reasons": fallback_reasons,
         }
-        log_fh.write(json.dumps(summary) + "\n")
-        log_fh.close()
+        with log_file.open("w") as log_fh:
+            for entry in log_entries:
+                log_fh.write(json.dumps(entry) + "\n")
+            log_fh.write(json.dumps(summary) + "\n")
 
     results = {
         "word_accuracy": word_accuracy,
