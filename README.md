@@ -164,7 +164,7 @@ modal volume get wordgesture-gan-data checkpoints/ctc/ctc_best.pt ./ctc/checkpoi
 
 ## Recognition Pipeline
 
-Evaluates the full pipeline: contrastive retrieval → CTC fallback → LLM reranking.
+Evaluates the full pipeline: contrastive retrieval → CTC decoder → LLM reranking.
 
 ### Setup (one-time for Gemini)
 
@@ -180,25 +180,43 @@ echo "GOOGLE_CLOUD_LOCATION=global" >> .env
 ### Evaluate
 
 ```bash
-# Baseline only (top-1 retrieval)
-python -m recognition.eval \
-  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --max_sentences 100
-
-# With CTC decoder
+# Top-1 retrieval (no reranking)
 python -m recognition.eval \
   --checkpoint contrastive/checkpoints/contrastive_latest.pt \
   --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
-  --max_sentences 100
+  --max_sentences 200
 
-# Full pipeline with Gemini reranking
+# With Gemini reranking
 python -m recognition.eval \
   --checkpoint contrastive/checkpoints/contrastive_latest.pt \
   --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
   --reranker gemini \
-  --max_sentences 100 \
-  --max-concurrent 10
+  --max_sentences 200
 ```
+
+### Logging
+
+Use `--rerank-log` to write JSONL logs for analysis:
+
+```bash
+python -m recognition.eval \
+  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
+  --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
+  --reranker gemini \
+  --rerank-log logs/eval.jsonl
+
+# View failed sentences
+jq 'select(.is_correct == false)' logs/eval.jsonl
+
+# View summary metrics (last line)
+tail -1 logs/eval.jsonl | jq
+```
+
+Log format:
+- Per-sentence entries: `ground_truth`, `predictions`, `candidates`, `ctc_words`, `raw_response`, `parse_details`
+- Summary entry (last line): `word_accuracy`, `sentence_accuracy`, `wer`, `errors`, `fallback_reasons`
+
+Use `--seed` to fix the random seed for reproducibility.
 
 ## Notes
 
