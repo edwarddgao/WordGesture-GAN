@@ -53,7 +53,7 @@ WordGesture-GAN/
 │
 ├── recognition/            # Recognition pipeline
 │   ├── eval.py             # Full pipeline evaluation
-│   ├── reranker.py         # LLM reranking (Gemini)
+│   ├── reranker.py         # LLM reranking (OpenRouter)
 │   └── sentence_data.py    # Sentence dataset loader
 │
 └── data/                   # Dataset storage
@@ -166,15 +166,14 @@ modal volume get wordgesture-gan-data checkpoints/ctc/ctc_best.pt ./ctc/checkpoi
 
 Evaluates the full pipeline: contrastive retrieval → CTC decoder → LLM reranking.
 
-### Setup (one-time for Gemini)
+### Setup (one-time for OpenRouter)
 
 ```bash
-pip install google-genai>=1.51.0 python-dotenv
-gcloud auth application-default login
+pip install openai python-dotenv
 
-# Create .env with your GCP project
-echo "GOOGLE_CLOUD_PROJECT=your-project-id" >> .env
-echo "GOOGLE_CLOUD_LOCATION=global" >> .env
+# Create .env with your OpenRouter API key
+# Get your API key at https://openrouter.ai/keys
+echo "OPENROUTER_API_KEY=sk-or-..." >> .env
 ```
 
 ### Evaluate
@@ -186,11 +185,11 @@ python -m recognition.eval \
   --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
   --max_sentences 200
 
-# With Gemini reranking
+# With OpenRouter reranking
 python -m recognition.eval \
   --checkpoint contrastive/checkpoints/contrastive_latest.pt \
   --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
-  --reranker gemini \
+  --reranker openrouter \
   --max_sentences 200
 ```
 
@@ -202,7 +201,7 @@ Use `--rerank-log` to write JSONL logs for analysis:
 python -m recognition.eval \
   --checkpoint contrastive/checkpoints/contrastive_latest.pt \
   --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
-  --reranker gemini \
+  --reranker openrouter \
   --rerank-log logs/eval.jsonl
 
 # View failed sentences

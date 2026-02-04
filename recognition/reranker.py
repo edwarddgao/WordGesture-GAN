@@ -1,4 +1,4 @@
-"""Gemini-based reranker for gesture recognition candidates."""
+"""OpenRouter-based reranker for gesture recognition candidates."""
 
 from __future__ import annotations
 
@@ -12,8 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, List, Tuple
 
 if TYPE_CHECKING:
-    from google import genai
-    from google.genai import types
+    from openai import AsyncOpenAI, OpenAI
 
 
 def _make_words_schema(n_words: int) -> dict:
@@ -30,6 +29,7 @@ def _make_words_schema(n_words: int) -> dict:
             }
         },
         "required": ["words"],
+        "additionalProperties": False,
     }
 
 
@@ -40,8 +40,26 @@ class RerankerResult:
     raw_response: str = ""
     parse_details: List[dict] = field(default_factory=list)
 
-RERANK_PROMPT_TEMPLATE = """Select the best word for each position to form a coherent sentence.
+RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. For each position you have:
+- Decoded: direct character-by-character decode of the gesture (may contain errors but preserves intended spelling)
+- Candidates: words from vocabulary ranked by gesture similarity
 
+Select the best word for each position. The decoded word is often correct, especially for names or rare words not in vocabulary.
+
+Example:
+Position 1: Decoded: "take" | Candidates: *"take", "tale", "yale"
+Position 2: Decoded: "whay" | Candidates: *"what", "whilst", "wheat"
+Position 3: Decoded: "uouu" | Candidates: *"you", "toy", "youth"
+Position 4: Decoded: "cam" | Candidates: *"cam", "can", "calm"
+Position 5: Decoded: "get" | Candidates: *"get", "gary", "hart"
+Answer:
+take
+what
+you
+can
+get
+
+Now fix this:
 {candidates_formatted}
 
 Answer:
@@ -49,44 +67,41 @@ Answer:
 
 
 def _load_optional_deps():
-    """Load optional dependencies for Gemini reranker.
+    """Load optional dependencies for OpenRouter reranker.
 
     Raises:
         ImportError: If required packages are not installed.
     """
     try:
-        from google import genai
-        from google.genai import types
+        from openai import AsyncOpenAI, OpenAI
 
-        return genai, types
+        return OpenAI, AsyncOpenAI
     except ImportError as e:
         raise ImportError(
-            "GeminiReranker requires google-genai and python-dotenv. "
-            "Install with: pip install google-genai>=1.51.0 python-dotenv\n"
+            "OpenRouterReranker requires openai. "
+            "Install with: pip install openai python-dotenv\n"
             "See README.md for setup instructions."
         ) from e
 
 
-class GeminiReranker:
-    """Reranker using Gemini via Vertex AI."""
+class OpenRouterReranker:
+    """Reranker using OpenRouter API."""
 
     def __init__(
         self,
-        project: str | None = None,
-        location: str | None = None,
-        model: str = "gemini-2.5-flash",
+        api_key: str | None = None,
+        model: str = "google/gemini-3-flash-preview",
         max_retries: int = 3,
         retry_delay: float = 1.0,
         max_concurrent: int = 100,
         max_candidates_display: int = 10,
         load_dotenv: bool = True,
     ):
-        """Initialize the Gemini reranker.
+        """Initialize the OpenRouter reranker.
 
         Args:
-            project: GCP project ID. If None, uses GOOGLE_CLOUD_PROJECT env var.
-            location: GCP location. If None, uses GOOGLE_CLOUD_LOCATION env var or 'global'.
-            model: Model name. Defaults to gemini-2.5-flash.
+            api_key: OpenRouter API key. If None, uses OPENROUTER_API_KEY env var.
+            model: Model name. Defaults to google/gemini-3-flash-preview.
             max_retries: Maximum retries on API errors.
             retry_delay: Base delay between retries (exponential backoff).
             max_concurrent: Maximum concurrent API calls for async batch processing.
@@ -94,8 +109,7 @@ class GeminiReranker:
             load_dotenv: If True, load .env file from project root if it exists.
         """
         # Load optional dependencies
-        genai, types = _load_optional_deps()
-        self._types = types
+        OpenAI, AsyncOpenAI = _load_optional_deps()
 
         # Optionally load .env file
         if load_dotenv:
@@ -108,23 +122,25 @@ class GeminiReranker:
                 except ImportError:
                     pass  # dotenv is optional if env vars are set directly
 
-        self.project = project or os.environ.get("GOOGLE_CLOUD_PROJECT")
-        if not self.project:
+        self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        if not self.api_key:
             raise ValueError(
-                "Project ID required. Set GOOGLE_CLOUD_PROJECT env var or pass project="
+                "API key required. Set OPENROUTER_API_KEY env var or pass api_key="
             )
 
-        self.location = location or os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
         self.model = model
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.max_concurrent = max_concurrent
         self.max_candidates_display = max_candidates_display
 
-        self.client = genai.Client(
-            vertexai=True,
-            project=self.project,
-            location=self.location,
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=self.api_key,
+        )
+        self.async_client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=self.api_key,
         )
 
     def _format_candidates(
@@ -175,7 +191,6 @@ class GeminiReranker:
         response_text: str,
         n_positions: int,
         candidates: List[List[Tuple[str, float]]],
-        ctc_words: List[str] | None = None,
     ) -> Tuple[List[str], List[dict]]:
         """Parse LLM response into selected words with debugging details.
 
@@ -183,7 +198,6 @@ class GeminiReranker:
             response_text: Raw LLM response.
             n_positions: Expected number of positions.
             candidates: Original candidates (for fallback on missing lines only).
-            ctc_words: Optional CTC decoded words (unused, kept for API compat).
 
         Returns:
             Tuple of (selected words, parse details per position).
@@ -232,7 +246,7 @@ class GeminiReranker:
         candidates: List[List[Tuple[str, float]]],
         ctc_words: List[str],
     ) -> RerankerResult:
-        """Rerank candidates for each position using Gemini.
+        """Rerank candidates for each position using OpenRouter.
 
         Args:
             candidates: List of (word, score) tuples per position,
@@ -252,17 +266,21 @@ class GeminiReranker:
         n_words = len(candidates)
         for attempt in range(self.max_retries):
             try:
-                response = self.client.models.generate_content(
+                response = self.client.chat.completions.create(
                     model=self.model,
-                    contents=prompt,
-                    config=self._types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json",
-                        response_schema=_make_words_schema(n_words),
-                    ),
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.0,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "words_response",
+                            "strict": True,
+                            "schema": _make_words_schema(n_words),
+                        }
+                    },
                 )
                 # Parse structured JSON response
-                raw_text = response.text
+                raw_text = response.choices[0].message.content
                 try:
                     data = json.loads(raw_text)
                     words = data.get("words", [])
@@ -270,7 +288,7 @@ class GeminiReranker:
                     words = []
 
                 predictions, parse_details = self._parse_response(
-                    "\n".join(words), n_words, candidates, ctc_words
+                    "\n".join(words), n_words, candidates
                 )
                 return RerankerResult(
                     predictions=predictions,
@@ -330,16 +348,20 @@ class GeminiReranker:
         last_error = None
         for attempt in range(self.max_retries):
             try:
-                response = await self.client.aio.models.generate_content(
+                response = await self.async_client.chat.completions.create(
                     model=self.model,
-                    contents=prompt,
-                    config=self._types.GenerateContentConfig(
-                        temperature=0.0,
-                        response_mime_type="application/json",
-                        response_schema=_make_words_schema(n_words),
-                    ),
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.0,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "words_response",
+                            "strict": True,
+                            "schema": _make_words_schema(n_words),
+                        }
+                    },
                 )
-                raw_text = response.text
+                raw_text = response.choices[0].message.content
                 try:
                     data = json.loads(raw_text)
                     words = data.get("words", [])
@@ -347,7 +369,7 @@ class GeminiReranker:
                     words = []
 
                 predictions, parse_details = self._parse_response(
-                    "\n".join(words), n_words, candidates, ctc_words
+                    "\n".join(words), n_words, candidates
                 )
                 return RerankerResult(
                     predictions=predictions,

@@ -22,7 +22,7 @@ from shared import KeyboardLayout, build_word_prototype, get_device
 from features import GestureFeatureExtractor
 from contrastive.models import TwoTowerModel
 
-from .reranker import GeminiReranker, NoopReranker, RerankerResult
+from .reranker import OpenRouterReranker, NoopReranker, RerankerResult
 from .sentence_data import SentenceData, get_sentence_stats, load_sentence_dataset_subset
 
 # Optional CTC decoder import
@@ -425,27 +425,21 @@ def main() -> None:
     )
     parser.add_argument(
         "--reranker",
-        choices=["none", "gemini"],
+        choices=["none", "openrouter"],
         default="none",
-        help="Reranker to use. 'none' uses top-1 candidates, 'gemini' uses LLM reranking.",
+        help="Reranker to use. 'none' uses top-1 candidates, 'openrouter' uses LLM reranking.",
     )
     parser.add_argument(
-        "--project",
+        "--api-key",
         type=str,
         default=None,
-        help="GCP project ID for Gemini (or set GOOGLE_CLOUD_PROJECT).",
-    )
-    parser.add_argument(
-        "--location",
-        type=str,
-        default=None,
-        help="GCP location for Gemini (default: GOOGLE_CLOUD_LOCATION or 'global').",
+        help="OpenRouter API key (or set OPENROUTER_API_KEY).",
     )
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-2.5-flash",
-        help="Gemini model name.",
+        default="google/gemini-3-flash-preview",
+        help="OpenRouter model name (e.g., google/gemini-3-flash-preview, openai/gpt-4o).",
     )
     parser.add_argument(
         "--seed",
@@ -471,12 +465,6 @@ def main() -> None:
         help="Maximum concurrent API calls for reranking.",
     )
     parser.add_argument(
-        "--max-candidates-display",
-        type=int,
-        default=10,
-        help="Maximum candidates to show LLM per position (default: 10).",
-    )
-    parser.add_argument(
         "--vocab-size",
         type=int,
         default=10000,
@@ -485,8 +473,8 @@ def main() -> None:
     parser.add_argument(
         "--ctc-checkpoint",
         type=Path,
-        default=None,
-        help="Path to CTC decoder checkpoint. If provided, CTC decoded words are added as candidates.",
+        default=Path("ctc/checkpoints/ctc_best.pt"),
+        help="Path to CTC decoder checkpoint. Set to empty string to disable.",
     )
     args = parser.parse_args()
 
@@ -522,9 +510,9 @@ def main() -> None:
     oov_count = len(test_words - set(vocab))
     print(f"Vocabulary size: {len(vocab)} (wordfreq top-{args.vocab_size}, {oov_count}/{len(test_words)} test words OOV)")
 
-    # Load CTC decoder if provided
+    # Load CTC decoder (enabled by default)
     ctc_decoder = None
-    if args.ctc_checkpoint is not None:
+    if args.ctc_checkpoint and args.ctc_checkpoint.exists():
         if not CTC_AVAILABLE:
             print("\nWarning: CTC module not available. Install with: pip install -e .")
             print("Continuing without CTC decoder.\n")
@@ -532,22 +520,23 @@ def main() -> None:
             print(f"Loading CTC decoder from {args.ctc_checkpoint}...")
             ctc_decoder = CTCDecoder.from_checkpoint(str(args.ctc_checkpoint))
             print("CTC decoder loaded.")
+    elif args.ctc_checkpoint and not args.ctc_checkpoint.exists():
+        print(f"Warning: CTC checkpoint not found at {args.ctc_checkpoint}, continuing without CTC.")
 
     # Select reranker
-    if args.reranker == "gemini":
+    if args.reranker == "openrouter":
         try:
-            reranker = GeminiReranker(
-                project=args.project,
-                location=args.location,
+            reranker = OpenRouterReranker(
+                api_key=args.api_key,
                 model=args.model,
                 max_concurrent=args.max_concurrent,
-                max_candidates_display=args.max_candidates_display,
+                max_candidates_display=args.k,
             )
-            reranker_name = f"Gemini ({args.model})"
+            reranker_name = f"OpenRouter ({args.model})"
         except ImportError as e:
             print(f"\nError: {e}")
-            print("\nTo use the Gemini reranker, install required dependencies:")
-            print("  pip install google-genai>=1.51.0 python-dotenv")
+            print("\nTo use the OpenRouter reranker, install required dependencies:")
+            print("  pip install openai python-dotenv")
             print("\nSee README.md for full setup instructions.")
             print("\nAlternatively, run with --reranker none for baseline evaluation.")
             return
