@@ -20,7 +20,6 @@ image = (
     )
     .add_local_dir("ctc", remote_path="/app/ctc")
     .add_local_dir("shared", remote_path="/app/shared")
-    .add_local_dir("features", remote_path="/app/features")
 )
 
 app = modal.App("ctc-decoder", image=image)
