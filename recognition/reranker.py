@@ -40,30 +40,7 @@ class RerankerResult:
     raw_response: str = ""
     parse_details: List[dict] = field(default_factory=list)
 
-RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. For each position you have:
-- Decoded: direct character-by-character decode of the gesture (may contain errors but preserves intended spelling)
-- Candidates: words from vocabulary ranked by gesture similarity
-
-Select the best word for each position. The decoded word is often correct, especially for names or rare words not in vocabulary. Output one word per line.
-
-Example:
-Sentence: ill call you ibm three morning
-Position 1: Decoded: "ill" | Candidates: *"ill", "all"
-Position 2: Decoded: "call" | Candidates: *"call", "caller"
-Position 3: Decoded: "you" | Candidates: *"you", "your"
-Position 4: Decoded: "in" | Candidates: *"ibm", "in", "inn"
-Position 5: Decoded: "the" | Candidates: *"three", "the", "there"
-Position 6: Decoded: "morning" | Candidates: *"morning", "modeling"
-Answer:
-ill
-call
-you
-in
-the
-morning
-
-Now fix this:
-Sentence: {top1_sequence}
+RERANK_PROMPT_TEMPLATE = """Select the best word for each position to form a coherent sentence.
 
 {candidates_formatted}
 
@@ -190,13 +167,8 @@ class GeminiReranker:
         ctc_words: List[str],
     ) -> str:
         """Build the full prompt for reranking."""
-        top1_sequence = " ".join(cands[0][0] for cands in candidates)
         candidates_formatted = self._format_candidates(candidates, ctc_words)
-
-        return RERANK_PROMPT_TEMPLATE.format(
-            top1_sequence=top1_sequence,
-            candidates_formatted=candidates_formatted,
-        )
+        return RERANK_PROMPT_TEMPLATE.format(candidates_formatted=candidates_formatted)
 
     def _parse_response(
         self,
@@ -210,8 +182,8 @@ class GeminiReranker:
         Args:
             response_text: Raw LLM response.
             n_positions: Expected number of positions.
-            candidates: Original candidates (for fallback).
-            ctc_words: Optional CTC decoded words (also valid choices).
+            candidates: Original candidates (for fallback on missing lines only).
+            ctc_words: Optional CTC decoded words (unused, kept for API compat).
 
         Returns:
             Tuple of (selected words, parse details per position).
@@ -237,30 +209,16 @@ class GeminiReranker:
                 word = word.replace("'", "")
                 detail["normalized"] = word
 
-                # Build valid set (candidates + CTC word, all normalized)
-                valid_words = {w.replace("'", "") for w, _ in candidates[i]}
-                if ctc_words is not None and i < len(ctc_words) and ctc_words[i]:
-                    valid_words.add(ctc_words[i].replace("'", ""))
-
-                # Use word if valid, otherwise fallback to top candidate
-                if word in valid_words:
-                    selected.append(word)
-                    detail["valid"] = True
-                    detail["fallback"] = False
-                else:
-                    fallback = candidates[i][0][0].replace("'", "")
-                    selected.append(fallback)
-                    detail["valid"] = False
-                    detail["fallback"] = True
-                    detail["fallback_reason"] = "not_in_valid_set"
-                    detail["fallback_to"] = fallback
+                # Trust the LLM output - no validation against candidates
+                # This allows LLM to fix CTC errors and suggest OOV words
+                selected.append(word)
+                detail["fallback"] = False
             else:
-                # Missing line, use top candidate
+                # Missing line only - use top candidate
                 fallback = candidates[i][0][0].replace("'", "")
                 selected.append(fallback)
                 detail["raw_line"] = None
                 detail["normalized"] = None
-                detail["valid"] = False
                 detail["fallback"] = True
                 detail["fallback_reason"] = "missing_line"
                 detail["fallback_to"] = fallback
@@ -417,32 +375,24 @@ class GeminiReranker:
         self,
         batch_candidates: List[List[List[Tuple[str, float]]]],
         batch_ctc_words: List[List[str]],
-        verbose: bool = False,
     ) -> List[RerankerResult]:
         """Rerank multiple sentences concurrently.
 
         Args:
             batch_candidates: List of candidate lists, one per sentence.
             batch_ctc_words: CTC word lists, one per sentence.
-            verbose: Print progress updates.
 
         Returns:
             List of RerankerResult, one per sentence.
         """
         semaphore = asyncio.Semaphore(self.max_concurrent)
-        total = len(batch_candidates)
-        completed = [0]  # Use list for mutability in closure
 
         async def limited_rerank(
             candidates: List[List[Tuple[str, float]]],
             ctc_words: List[str],
         ) -> RerankerResult:
             async with semaphore:
-                result = await self.rerank_async(candidates, ctc_words)
-                completed[0] += 1
-                if verbose and completed[0] % 10 == 0:
-                    print(f"  Reranked {completed[0]}/{total} sentences", flush=True)
-                return result
+                return await self.rerank_async(candidates, ctc_words)
 
         tasks = [
             limited_rerank(c, ctc)
