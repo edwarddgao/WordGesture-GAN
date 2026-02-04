@@ -1,6 +1,6 @@
 """Feature extraction for gesture recognition.
 
-Extracts rich features from raw gesture data used by both CTC and contrastive models.
+Extracts rich features from raw gesture data used by the CTC model.
 """
 
 from __future__ import annotations

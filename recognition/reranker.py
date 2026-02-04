@@ -40,46 +40,44 @@ class RerankerResult:
     raw_response: str = ""
     parse_details: List[dict] = field(default_factory=list)
 
-RERANK_PROMPT_TEMPLATE = """You are fixing swipe keyboard output. For each position you have:
-- Decoded: direct character-by-character decode of the gesture (may contain errors but preserves intended spelling)
-- Candidates: words from vocabulary ranked by gesture similarity
+RERANK_PROMPT_TEMPLATE = """Fix swipe keyboard errors. Pick the best word from Candidates for each position.
 
-Select the best word for each position. Use sentence context to pick words that form grammatical sentences. IMPORTANT: If Decoded matches a word in Candidates, strongly prefer it - especially for names and less common words.
+- Decoded: character-level decode hint (may have typos)
+- Candidates: words ranked by gesture similarity (* = top match)
+
+Tips:
+1. Use sentence context to pick grammatically correct words
+2. If Decoded matches a candidate exactly, prefer it
+3. Keep word endings: "were" not "we", "too" not "to", "going" not "go"
 
 Example 1:
-Position 1: Decoded: "are" | Candidates: *"ate", "are", "agree"
-Position 2: Decoded: "yoy" | Candidates: *"toy", "you", "youth"
-Position 3: Decoded: "going" | Candidates: *"found", "going", "find"
-Position 4: Decoded: "to" | Candidates: *"tip", "too", "top"
-Position 5: Decoded: "cal" | Candidates: *"call", "cal", "carl"
+Position 1: Decoded: "they" | Candidates: *"they", "then", "the", "there"
+Position 2: Decoded: "hav" | Candidates: *"gave", "have", "gabe", "game"
+Position 3: Decoded: "food" | Candidates: *"food", "fool", "for", "ford"
 Answer:
-are
-you
-going
-to
-call
+they
+have
+food
 
 Example 2:
-Position 1: Decoded: "thursay" | Candidates: *"thursday", "tuesday", "treasury"
-Position 2: Decoded: "works" | Candidates: *"world", "worlds", "works"
-Position 3: Decoded: "beter" | Candidates: *"better", "brett", "bet"
-Position 4: Decoded: "for" | Candidates: *"four", "for", "foot"
-Position 5: Decoded: "me" | Candidates: *"me", "ne", "mere"
+Position 1: Decoded: "hop" | Candidates: *"how", "hope", "hop", "hose"
+Position 2: Decoded: "you" | Candidates: *"you", "yo", "your", "yoo"
+Position 3: Decoded: "ar" | Candidates: *"are", "ace", "air", "arc"
+Position 4: Decoded: "doing" | Candidates: *"doing", "dig", "done", "dong"
 Answer:
-thursday
-works
-better
-for
-me
+hope
+you
+are
+doing
 
 Example 3:
-Position 1: Decoded: "no" | Candidates: *"no", "ni", "boo"
-Position 2: Decoded: "suprise" | Candidates: *"surprise", "suppose", "super"
-Position 3: Decoded: "there" | Candidates: *"threw", "three", "there"
+Position 1: Decoded: "mike" | Candidates: *"make", "mike", "mile", "mice"
+Position 2: Decoded: "cal" | Candidates: *"call", "cal", "can", "car"
+Position 3: Decoded: "you" | Candidates: *"you", "yo", "your", "yoo"
 Answer:
-no
-surprise
-there
+mike
+call
+you
 
 Now fix this:
 {candidates_formatted}

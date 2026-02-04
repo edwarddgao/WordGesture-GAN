@@ -35,18 +35,12 @@ WordGesture-GAN/
 │       ├── sample.py       # Trajectory sampling
 │       └── via_points.py   # Via-point extraction
 │
-├── contrastive/            # Contrastive learning (embedding space)
-│   ├── train.py            # Training script
-│   ├── models.py           # Two-tower encoder
-│   ├── losses.py           # InfoNCE loss
-│   ├── data.py             # Dataset with augmentation
-│   ├── config.yaml
-│   └── checkpoints/
-│
 ├── ctc/                    # CTC decoder (character-level)
 │   ├── train.py            # Training script
 │   ├── models.py           # BLSTM-CTC model
 │   ├── decode.py           # CTCDecoder for inference
+│   ├── trie.py             # Vocabulary trie for beam search
+│   ├── beam_search.py      # Trie-constrained beam search
 │   ├── data.py             # Dataset loader
 │   ├── modal_app.py        # Modal cloud training
 │   └── config.yaml
@@ -137,19 +131,9 @@ python -m wg_gan.reproduce_figures \
   --out wg_gan/results/gifs/grid.gif
 ```
 
-## Contrastive Learning
-
-Two-tower encoder for gesture-to-word embedding matching.
-
-### Train
-
-```bash
-python -m contrastive.train --config contrastive/config.yaml
-```
-
 ## CTC Decoder
 
-Character-level CTC decoder for OOV word recovery.
+Character-level CTC decoder with trie-constrained beam search for gesture recognition.
 
 ### Train
 
@@ -162,9 +146,24 @@ modal run ctc/modal_app.py --epochs 100
 modal volume get wordgesture-gan-data checkpoints/ctc/ctc_best.pt ./ctc/checkpoints/
 ```
 
+### Inference
+
+```python
+from ctc import CTCDecoder
+from recognition.eval import load_wordfreq_vocabulary
+
+# Load vocabulary and decoder
+vocab = load_wordfreq_vocabulary(10000)
+decoder = CTCDecoder.from_checkpoint("ctc/checkpoints/ctc_best.pt", vocabulary=vocab)
+
+# Decode single gesture
+candidates = decoder.decode_top_k(gesture, k=10, beam_width=100)
+# Returns: [("hello", -5.2), ("help", -6.1), ...]
+```
+
 ## Recognition Pipeline
 
-Evaluates the full pipeline: contrastive retrieval → CTC decoder → LLM reranking.
+Evaluates the full pipeline: CTC beam search → LLM reranking.
 
 ### Setup (one-time for OpenRouter)
 
@@ -179,22 +178,22 @@ echo "OPENROUTER_API_KEY=sk-or-..." >> .env
 ### Evaluate
 
 ```bash
-# Top-1 retrieval (no reranking)
+# Top-1 (no reranking)
 python -m recognition.eval
 
 # With LLM reranking
 python -m recognition.eval --reranker
 
-# Without CTC decoder
-python -m recognition.eval --reranker --ctc-checkpoint none
+# Larger vocabulary
+python -m recognition.eval --vocab-size 50000
 ```
 
 Options:
 - `--reranker`: Enable LLM reranking (default: top-1 only)
-- `--checkpoint`: Contrastive model (default: `contrastive/checkpoints/contrastive_latest.pt`)
-- `--ctc-checkpoint`: CTC decoder, or `none` to disable (default: `ctc/checkpoints/ctc_best.pt`)
-- `--k`: Retrieval candidates (default: 20)
-- `--vocab-size`: Vocabulary size (default: 10000)
+- `--checkpoint`: CTC model (default: `ctc/checkpoints/ctc_best.pt`)
+- `--k`: Number of candidates (default: 10)
+- `--beam-width`: Beam search width (default: 100)
+- `--vocab-size`: Vocabulary size (default: 20000)
 - `--max_sentences`: Sentences to evaluate (default: 50)
 - `--seed`: Random seed for reproducibility
 - `--model`: OpenRouter model (default: `google/gemini-3-flash-preview`)
