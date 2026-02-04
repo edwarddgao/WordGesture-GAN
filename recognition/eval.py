@@ -402,7 +402,7 @@ def main() -> None:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        required=True,
+        default=Path("contrastive/checkpoints/contrastive_latest.pt"),
         help="Path to contrastive model checkpoint.",
     )
     parser.add_argument(

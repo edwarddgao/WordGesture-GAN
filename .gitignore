@@ -68,3 +68,4 @@ data/
 *.log
 
 .env
+recognition/logs/*.jsonl

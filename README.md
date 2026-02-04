@@ -180,42 +180,36 @@ echo "OPENROUTER_API_KEY=sk-or-..." >> .env
 
 ```bash
 # Top-1 retrieval (no reranking)
-python -m recognition.eval \
-  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
-  --max_sentences 200
+python -m recognition.eval
 
-# With OpenRouter reranking
-python -m recognition.eval \
-  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
-  --reranker openrouter \
-  --max_sentences 200
+# With LLM reranking
+python -m recognition.eval --reranker
+
+# Without CTC decoder
+python -m recognition.eval --reranker --ctc-checkpoint none
 ```
+
+Options:
+- `--reranker`: Enable LLM reranking (default: top-1 only)
+- `--checkpoint`: Contrastive model (default: `contrastive/checkpoints/contrastive_latest.pt`)
+- `--ctc-checkpoint`: CTC decoder, or `none` to disable (default: `ctc/checkpoints/ctc_best.pt`)
+- `--k`: Retrieval candidates (default: 20)
+- `--vocab-size`: Vocabulary size (default: 10000)
+- `--max_sentences`: Sentences to evaluate (default: 50)
+- `--seed`: Random seed for reproducibility
+- `--model`: OpenRouter model (default: `google/gemini-3-flash-preview`)
 
 ### Logging
 
-Use `--rerank-log` to write JSONL logs for analysis:
-
 ```bash
-python -m recognition.eval \
-  --checkpoint contrastive/checkpoints/contrastive_latest.pt \
-  --ctc-checkpoint ctc/checkpoints/ctc_best.pt \
-  --reranker openrouter \
-  --rerank-log logs/eval.jsonl
+python -m recognition.eval --reranker --rerank-log logs/eval.jsonl
 
 # View failed sentences
 jq 'select(.is_correct == false)' logs/eval.jsonl
 
-# View summary metrics (last line)
+# View summary (last line)
 tail -1 logs/eval.jsonl | jq
 ```
-
-Log format:
-- Per-sentence entries: `ground_truth`, `predictions`, `candidates`, `ctc_words`, `raw_response`, `parse_details`
-- Summary entry (last line): `word_accuracy`, `sentence_accuracy`, `wer`, `errors`, `fallback_reasons`
-
-Use `--seed` to fix the random seed for reproducibility.
 
 ## Notes
 
