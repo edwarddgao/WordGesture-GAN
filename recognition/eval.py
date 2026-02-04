@@ -472,9 +472,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--ctc-checkpoint",
-        type=Path,
-        default=Path("ctc/checkpoints/ctc_best.pt"),
-        help="Path to CTC decoder checkpoint. Set to empty string to disable.",
+        type=str,
+        default="ctc/checkpoints/ctc_best.pt",
+        help="Path to CTC decoder checkpoint, or 'none' to disable.",
     )
     args = parser.parse_args()
 
@@ -512,16 +512,17 @@ def main() -> None:
 
     # Load CTC decoder (enabled by default)
     ctc_decoder = None
-    if args.ctc_checkpoint and args.ctc_checkpoint.exists():
+    ctc_path = None if args.ctc_checkpoint.lower() == "none" else Path(args.ctc_checkpoint)
+    if ctc_path and ctc_path.exists():
         if not CTC_AVAILABLE:
             print("\nWarning: CTC module not available. Install with: pip install -e .")
             print("Continuing without CTC decoder.\n")
         else:
-            print(f"Loading CTC decoder from {args.ctc_checkpoint}...")
-            ctc_decoder = CTCDecoder.from_checkpoint(str(args.ctc_checkpoint))
+            print(f"Loading CTC decoder from {ctc_path}...")
+            ctc_decoder = CTCDecoder.from_checkpoint(str(ctc_path))
             print("CTC decoder loaded.")
-    elif args.ctc_checkpoint and not args.ctc_checkpoint.exists():
-        print(f"Warning: CTC checkpoint not found at {args.ctc_checkpoint}, continuing without CTC.")
+    elif ctc_path and not ctc_path.exists():
+        print(f"Warning: CTC checkpoint not found at {ctc_path}, continuing without CTC.")
 
     # Select reranker
     if args.reranker == "openrouter":
