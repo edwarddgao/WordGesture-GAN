@@ -30,7 +30,7 @@ def get_ctc_device() -> torch.device:
         return torch.device("cpu")
     # CUDA works fine for CTC
     return device
-from .features import GestureFeatureExtractor
+from shared.features import NumpyFeatureExtractor as GestureFeatureExtractor
 from .models import BLSTMCTCModel
 
 
@@ -82,8 +82,6 @@ def train(config_path: Path) -> None:
         sigma=cfg["data"]["key_proximity_sigma"],
         use_key_proximity=cfg["features"]["use_key_proximity"],
         use_velocity=cfg["features"]["use_velocity"],
-        use_approach_angle=cfg["features"].get("use_approach_angle", False),
-        use_acceleration=cfg["features"].get("use_acceleration", False),
     )
     print(f"Feature extractor: {feature_extractor.n_features} features per timestep")
 

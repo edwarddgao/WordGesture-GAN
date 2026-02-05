@@ -2,6 +2,7 @@
 
 from .config import dump_yaml, load_yaml
 from .data import load_dataset, preprocess_dataset
+from .features import GestureFeatureExtractor, NumpyFeatureExtractor
 from .keyboard import QWERTY_ROWS, KeyboardLayout, coalesce_repeats, word_key_centers
 from .prototypes import build_batch_prototypes, build_word_prototype
 from .utils import get_device
@@ -18,4 +19,6 @@ __all__ = [
     "get_device",
     "load_yaml",
     "dump_yaml",
+    "GestureFeatureExtractor",
+    "NumpyFeatureExtractor",
 ]

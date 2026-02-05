@@ -37,9 +37,6 @@ def train_on_modal(
     epochs: int | None = None,
     batch_size: int | None = None,
     hidden_size: int | None = None,
-    checkpoint_suffix: str | None = None,
-    use_approach_angle: bool | None = None,
-    use_acceleration: bool | None = None,
 ):
     """Train CTC decoder on Modal.
 
@@ -47,9 +44,6 @@ def train_on_modal(
         epochs: Override epochs from config (optional)
         batch_size: Override batch size from config (optional)
         hidden_size: Override LSTM hidden size from config (optional)
-        checkpoint_suffix: Suffix for checkpoint directory (e.g., "34feat")
-        use_approach_angle: Override approach angle feature flag
-        use_acceleration: Override acceleration feature flag
     """
     import os
     import sys
@@ -73,20 +67,13 @@ def train_on_modal(
         cfg["training"]["batch_size"] = batch_size
     if hidden_size is not None:
         cfg["model"]["hidden_size"] = hidden_size
-    if use_approach_angle is not None:
-        cfg["features"]["use_approach_angle"] = use_approach_angle
-    if use_acceleration is not None:
-        cfg["features"]["use_acceleration"] = use_acceleration
 
     # Update paths to use volume
     cfg["data"]["data_dir"] = "/data/processed"
-    checkpoint_dir = "/data/checkpoints/ctc"
-    if checkpoint_suffix:
-        checkpoint_dir = f"{checkpoint_dir}_{checkpoint_suffix}"
-    cfg["training"]["checkpoint_dir"] = checkpoint_dir
+    cfg["training"]["checkpoint_dir"] = "/data/checkpoints/ctc"
 
     # Ensure checkpoint directory exists
-    Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
+    Path("/data/checkpoints/ctc").mkdir(parents=True, exist_ok=True)
 
     # Write modified config
     temp_config = Path("/tmp/training_config.yaml")
@@ -105,8 +92,6 @@ def train_on_modal(
     print(f"Batch size: {cfg['training']['batch_size']}")
     print(f"Hidden size: {cfg['model']['hidden_size']}")
     print(f"Num layers: {cfg['model']['num_layers']}")
-    print(f"Features: {cfg['features']}")
-    print(f"Checkpoint dir: {checkpoint_dir}")
     print("=" * 60)
 
     # Import and call the training function directly
@@ -124,21 +109,16 @@ def main(
     epochs: int = None,
     batch_size: int = None,
     hidden_size: int = None,
-    checkpoint_suffix: str = None,
-    use_approach_angle: bool = None,
-    use_acceleration: bool = None,
 ):
     """CLI entrypoint for training.
 
     Usage:
         modal run ctc/modal_app.py --epochs 100
-        modal run ctc/modal_app.py --checkpoint-suffix angle_only --use-approach-angle --no-use-acceleration
+        modal run ctc/modal_app.py --epochs 50 --batch-size 128
+        modal run ctc/modal_app.py --epochs 100 --hidden-size 256
     """
     train_on_modal.remote(
         epochs=epochs,
         batch_size=batch_size,
         hidden_size=hidden_size,
-        checkpoint_suffix=checkpoint_suffix,
-        use_approach_angle=use_approach_angle,
-        use_acceleration=use_acceleration,
     )

@@ -9,9 +9,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from shared import KeyboardLayout, load_dataset
-
-from .features import GestureFeatureExtractor
+from shared import KeyboardLayout, NumpyFeatureExtractor, load_dataset
 
 
 class CTCGestureDataset(Dataset):
@@ -31,7 +29,7 @@ class CTCGestureDataset(Dataset):
         self,
         npz_path: Path,
         n_points: int = 128,
-        feature_extractor: GestureFeatureExtractor | None = None,
+        feature_extractor: NumpyFeatureExtractor | None = None,
         augment: bool = False,
         noise_std: float = 0.01,
     ):
@@ -46,7 +44,7 @@ class CTCGestureDataset(Dataset):
         """
         gestures, words = load_dataset(npz_path)
         self.n_points = n_points
-        self.feature_extractor = feature_extractor or GestureFeatureExtractor(
+        self.feature_extractor = feature_extractor or NumpyFeatureExtractor(
             KeyboardLayout()
         )
         self.augment = augment

@@ -7,7 +7,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-from .features import GestureFeatureExtractor
+from shared.features import NumpyFeatureExtractor as GestureFeatureExtractor
 from .models import BLSTMCTCModel
 from .trie import Trie
 
@@ -83,8 +83,6 @@ class CTCDecoder:
             sigma=cfg["data"]["key_proximity_sigma"],
             use_key_proximity=cfg["features"]["use_key_proximity"],
             use_velocity=cfg["features"]["use_velocity"],
-            use_approach_angle=cfg["features"].get("use_approach_angle", False),
-            use_acceleration=cfg["features"].get("use_acceleration", False),
         )
 
         # Create model

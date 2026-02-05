@@ -3,7 +3,7 @@
 Includes feature extraction, model training, decoding, and evaluation.
 """
 
-from .features import GestureFeatureExtractor
+from shared.features import NumpyFeatureExtractor as GestureFeatureExtractor
 from .models import BLSTMCTCModel
 from .decode import CTCDecoder
 from .trie import Trie
