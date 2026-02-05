@@ -10,10 +10,10 @@ WordGesture-GAN/
 │   ├── keyboard.py         # QWERTY layout and key positions
 │   ├── data.py             # Dataset loading and preprocessing
 │   ├── prototypes.py       # Word prototype generation
+│   ├── features.py         # GestureFeatureExtractor (31-dim features)
+│   ├── config.py           # YAML config loading
+│   ├── utils.py            # Device detection utilities
 │   └── parse_swipelogs.py  # Raw log parsing
-│
-├── features/               # Gesture feature extraction
-│   └── gesture.py          # GestureFeatureExtractor (31-dim features)
 │
 ├── wg_gan/                 # WordGesture-GAN (gesture synthesis)
 │   ├── train.py            # Training script
@@ -22,8 +22,6 @@ WordGesture-GAN/
 │   ├── reproduce_figures.py # GIF animation generation
 │   ├── modal_app.py        # Modal cloud training
 │   ├── config.yaml
-│   ├── checkpoints/
-│   ├── results/
 │   ├── metrics/            # Evaluation metrics
 │   │   ├── distance.py     # L2, DTW, Wasserstein
 │   │   ├── fid.py          # Fréchet Inception Distance
@@ -35,20 +33,18 @@ WordGesture-GAN/
 │       ├── sample.py       # Trajectory sampling
 │       └── via_points.py   # Via-point extraction
 │
-├── ctc/                    # CTC decoder (character-level)
+├── ctc/                    # CTC decoder and recognition pipeline
 │   ├── train.py            # Training script
 │   ├── models.py           # BLSTM-CTC model
 │   ├── decode.py           # CTCDecoder for inference
 │   ├── trie.py             # Vocabulary trie for beam search
 │   ├── beam_search.py      # Trie-constrained beam search
 │   ├── data.py             # Dataset loader
-│   ├── modal_app.py        # Modal cloud training
-│   └── config.yaml
-│
-├── recognition/            # Recognition pipeline
 │   ├── eval.py             # Full pipeline evaluation
 │   ├── reranker.py         # LLM reranking (OpenRouter)
-│   └── sentence_data.py    # Sentence dataset loader
+│   ├── sentence_data.py    # Sentence dataset loader
+│   ├── modal_app.py        # Modal cloud training
+│   └── config.yaml
 │
 └── data/                   # Dataset storage
     └── processed/          # Preprocessed .npz files
@@ -150,7 +146,7 @@ modal volume get wordgesture-gan-data checkpoints/ctc/ctc_best.pt ./ctc/checkpoi
 
 ```python
 from ctc import CTCDecoder
-from recognition.eval import load_wordfreq_vocabulary
+from ctc.eval import load_wordfreq_vocabulary
 
 # Load vocabulary and decoder
 vocab = load_wordfreq_vocabulary(10000)
@@ -179,13 +175,13 @@ echo "OPENROUTER_API_KEY=sk-or-..." >> .env
 
 ```bash
 # Top-1 (no reranking)
-python -m recognition.eval
+python -m ctc.eval
 
 # With LLM reranking
-python -m recognition.eval --reranker
+python -m ctc.eval --reranker
 
 # Larger vocabulary
-python -m recognition.eval --vocab-size 50000
+python -m ctc.eval --vocab-size 50000
 ```
 
 Options:
@@ -201,7 +197,7 @@ Options:
 ### Logging
 
 ```bash
-python -m recognition.eval --reranker --rerank-log logs/eval.jsonl
+python -m ctc.eval --reranker --rerank-log logs/eval.jsonl
 
 # View failed sentences
 jq 'select(.is_correct == false)' logs/eval.jsonl
